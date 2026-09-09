@@ -11,6 +11,8 @@ export interface EntityPatch {
   /** Field-level changes. On a create this is the complete record. */
   patch: Record<string, unknown>;
   create?: boolean;
+  /** Removes the record outright. Used by Undo to retract a creation. */
+  remove?: boolean;
 }
 
 export interface WriteContext {
@@ -51,6 +53,10 @@ export function applyPatches(db: Database, patches: EntityPatch[]): Database {
       touched.add(p.table);
     }
     const table = (next as unknown as Record<string, Record<string, unknown>>)[p.table] as Record<string, unknown>;
+    if (p.remove) {
+      delete table[p.id];
+      continue;
+    }
     const existing = table[p.id] as Record<string, unknown> | undefined;
     if (!existing && !p.create) {
       // A patch for a record we have never seen still materializes it, so an
@@ -75,4 +81,33 @@ export function update(
 
 export function create(table: EntityTable | 'settings', id: string, record: Record<string, unknown>): EntityPatch {
   return { table, id, patch: record, create: true };
+}
+
+/**
+ * The exact inverse of a patch set, captured before it is applied, so Undo restores the
+ * previous field values and retracts anything that was created (R05, R24).
+ */
+export function inverseOf(db: Database, patches: EntityPatch[]): EntityPatch[] {
+  const inverse: EntityPatch[] = [];
+  for (let i = patches.length - 1; i >= 0; i--) {
+    const p = patches[i] as EntityPatch;
+    if (p.table === 'settings') {
+      const prior: Record<string, unknown> = {};
+      for (const key of Object.keys(p.patch)) {
+        prior[key] = (db.settings as unknown as Record<string, unknown>)[key];
+      }
+      inverse.push({ table: 'settings', id: p.id, patch: prior });
+      continue;
+    }
+    if (!isEntityTable(p.table)) continue;
+    const existing = (db[p.table] as Record<string, unknown>)[p.id] as Record<string, unknown> | undefined;
+    if (!existing) {
+      inverse.push({ table: p.table, id: p.id, patch: {}, remove: true });
+      continue;
+    }
+    const prior: Record<string, unknown> = {};
+    for (const key of Object.keys(p.patch)) prior[key] = existing[key];
+    inverse.push({ table: p.table, id: p.id, patch: prior });
+  }
+  return inverse;
 }

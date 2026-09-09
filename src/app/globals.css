@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Light values live on :root; dark values are redefined so that both an
+ * explicit theme choice and the system setting resolve correctly (R27).
+ */
+:root {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #fbfbfa;
+  --sidebar: #ebebe8;
+  --border: #dedddb;
+  --border-strong: #c8c7c4;
+  --text: #1c1c1b;
+  --text-muted: #6a6965;
+  --text-faint: #8d8c88;
+  --accent: #2f6bd8;
+  --accent-soft: #e5edfc;
+  --accent-contrast: #ffffff;
+  --today: #d99000;
+  --upcoming: #c2410c;
+  --anytime: #0f766e;
+  --someday: #92730c;
+  --logbook: #15803d;
+  --danger: #b42318;
+  --danger-soft: #fdeceb;
+  --selected: #dbe7fb;
+  --shadow: 0 1px 2px rgb(20 20 20 / 6%), 0 8px 24px rgb(20 20 20 / 8%);
+  --radius: 8px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #17181a;
+    --surface: #1f2023;
+    --surface-2: #232427;
+    --sidebar: #141518;
+    --border: #33353a;
+    --border-strong: #45474d;
+    --text: #ecedee;
+    --text-muted: #a2a4a9;
+    --text-faint: #7e8085;
+    --accent: #6f9bff;
+    --accent-soft: #1e2b47;
+    --accent-contrast: #0d1220;
+    --today: #e8b23a;
+    --upcoming: #f08a5d;
+    --anytime: #4fbfae;
+    --someday: #cfa93f;
+    --logbook: #57b877;
+    --danger: #f38079;
+    --danger-soft: #3a1f1e;
+    --selected: #23375c;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 45%);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #17181a;
+  --surface: #1f2023;
+  --surface-2: #232427;
+  --sidebar: #141518;
+  --border: #33353a;
+  --border-strong: #45474d;
+  --text: #ecedee;
+  --text-muted: #a2a4a9;
+  --text-faint: #7e8085;
+  --accent: #6f9bff;
+  --accent-soft: #1e2b47;
+  --accent-contrast: #0d1220;
+  --today: #e8b23a;
+  --upcoming: #f08a5d;
+  --anytime: #4fbfae;
+  --someday: #cfa93f;
+  --logbook: #57b877;
+  --danger: #f38079;
+  --danger-soft: #3a1f1e;
+  --selected: #23375c;
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 45%);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-sidebar: var(--sidebar);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-today: var(--today);
+  --color-upcoming: var(--upcoming);
+  --color-anytime: var(--anytime);
+  --color-someday: var(--someday);
+  --color-logbook: var(--logbook);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-selected: var(--selected);
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* A visible focus ring on every interactive element is part of the accessibility target. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button, input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+textarea, input[type='text'], input[type='email'], input[type='password'] {
+  background: transparent;
+}
+
+/* Honour the system setting and the in-app preference (N06). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+:root[data-motion='reduced'] *, :root[data-motion='reduced'] *::before {
+  animation-duration: 0.001ms !important;
+  transition-duration: 0.001ms !important;
+}
+
+.scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.scroll-area::-webkit-scrollbar { width: 10px; height: 10px; }
+.scroll-area::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.scroll-area::-webkit-scrollbar-track { background: transparent; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link, so keyboard users can reach the list without walking the sidebar (A12). */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -60px;
+  z-index: 100;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 8px 14px;
+  transition: top 0.15s ease;
+}
+.skip-link:focus { top: 8px; }
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.pop-in { animation: pop-in 0.13s ease-out; }
