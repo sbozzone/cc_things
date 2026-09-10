@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { VIEW_TITLES, type ViewKey } from '@/core/selectors';
-import { useApp } from '@/state/store';
+import { useApp, useListDocument } from '@/state/store';
 import { refreshStaleCalendars } from '@/state/calendar';
 import * as actions from '@/state/actions';
 import { Sidebar } from './Sidebar';
@@ -34,7 +34,7 @@ export function AppShell() {
   const initialize = useApp((s) => s.initialize);
   const view = useApp((s) => s.view);
   const setView = useApp((s) => s.setView);
-  const doc = useApp((s) => s.list());
+  const doc = useListDocument();
   const settings = useApp((s) => s.db.settings);
   const selection = useApp((s) => s.selection);
   const clearSelection = useApp((s) => s.clearSelection);
@@ -56,6 +56,28 @@ export function AppShell() {
   useEffect(() => {
     void initialize();
   }, [initialize]);
+
+  // Stable links: `?view=` opens a list or project, `?task=` opens one item (R28, R30).
+  useEffect(() => {
+    if (!ready) return;
+    const params = new URLSearchParams(window.location.search);
+    const linkedView = params.get('view');
+    const linkedTask = params.get('task');
+    if (linkedView) setView(linkedView as ViewKey);
+    if (linkedTask) openItem(linkedTask);
+  }, [ready, setView, openItem]);
+
+  // Keep the address bar in step, so the current list can be copied or reopened.
+  useEffect(() => {
+    if (!ready) return;
+    const params = new URLSearchParams();
+    params.set('view', view);
+    if (openItemId) params.set('task', openItemId);
+    const next = `${window.location.pathname}?${params.toString()}`;
+    if (next !== `${window.location.pathname}${window.location.search}`) {
+      window.history.replaceState(null, '', next);
+    }
+  }, [ready, view, openItemId]);
 
   // Register the service worker so the app opens offline after the first visit.
   useEffect(() => {

@@ -20,10 +20,11 @@ import { usePhone } from './useMediaQuery';
 /** Row currently being dragged. Drag is an accelerator; every move has a menu equivalent (R26). */
 let dragSource: { id: string; sectionId: string } | null = null;
 
-function DateChip({ task, today }: { task: Task; today: string }) {
+function DateChip({ task, today, hideStart }: { task: Task; today: string; hideStart?: boolean }) {
   const chips: React.ReactNode[] = [];
   const isEvening = task.eveningDate !== null && task.eveningDate === task.startDate;
-  if (task.startDate) {
+  // Inside Today the start date is implied by the list itself, so it is not repeated.
+  if (task.startDate && !(hideStart && task.startDate <= today)) {
     chips.push(
       <span key="start" className="inline-flex items-center gap-1 text-[12px] text-muted">
         {isEvening ? <EveningIcon size={12} /> : <CalendarIcon size={12} />}
@@ -203,7 +204,7 @@ function TaskRow({
           ) : null}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-          <DateChip task={task} today={today} />
+          <DateChip task={task} today={today} hideStart={scope === 'today'} />
           {meta.contextLabel ? <span className="text-[12px] text-faint">{meta.contextLabel}</span> : null}
           {meta.heldContextLabel ? (
             <span className="inline-flex items-center gap-1 text-[12px] text-[var(--someday)]">

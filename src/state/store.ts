@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { systemClock } from '@/core/clock';
 import { contextFor } from '@/core/commands';
@@ -445,4 +446,40 @@ export const useApp = create<AppState>((set, get) => ({
 
 export function useIsReady(): boolean {
   return useApp((s) => s.ready);
+}
+
+/* ------------------------------------------------------------------ hooks */
+
+/**
+ * Derived values must be memoized outside the selector.
+ *
+ * A zustand selector that builds a fresh object on every read compares unequal each
+ * time and re-renders forever, so `list()`, `counts()` and `indexes()` are exposed as
+ * hooks that recompute only when their inputs actually change.
+ */
+export function useIndexes(): Indexes {
+  const db = useApp((s) => s.db);
+  const today = useApp((s) => s.today);
+  return useMemo(() => buildIndexes(db, today), [db, today]);
+}
+
+export function useListDocument(view?: ViewKey): ListDocument {
+  const db = useApp((s) => s.db);
+  const today = useApp((s) => s.today);
+  const currentView = useApp((s) => s.view);
+  const tagFilter = useApp((s) => s.tagFilter);
+  const grouping = useApp((s) => s.db.settings.todayGrouping);
+  const indexes = useIndexes();
+  const key = view ?? currentView;
+  return useMemo(
+    () => runView(db, indexes, key, { tagFilter, todayGrouping: grouping }),
+    [db, indexes, key, tagFilter, grouping],
+  );
+}
+
+export function useCounts(): Record<string, number> {
+  const db = useApp((s) => s.db);
+  const tagFilter = useApp((s) => s.tagFilter);
+  const indexes = useIndexes();
+  return useMemo(() => sidebarCounts(db, indexes, { tagFilter }), [db, indexes, tagFilter]);
 }

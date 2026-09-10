@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CACHE_STALE_MS } from '@/core/calendar';
 import { useApp } from '@/state/store';
 import { addSubscription, refreshSubscription, removeSubscription, setSubscriptionEnabled } from '@/state/calendar';
@@ -15,7 +15,8 @@ import { AlertIcon, CalendarIcon, TrashIcon } from './icons';
  * cached events while leaving every task alone.
  */
 export function CalendarPanel() {
-  const subscriptions = useApp((s) => Object.values(s.db.calendarSubscriptions));
+  const subscriptionMap = useApp((s) => s.db.calendarSubscriptions);
+  const subscriptions = useMemo(() => Object.values(subscriptionMap), [subscriptionMap]);
   const eventCount = useApp((s) => Object.keys(s.db.calendarEvents).length);
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');

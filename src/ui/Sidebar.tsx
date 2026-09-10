@@ -5,7 +5,7 @@ import { byRank } from '@/core/rank';
 import { projectProgress } from '@/core/membership';
 import { tagPath } from '@/core/tags';
 import { BUILT_IN_ORDER, VIEW_TITLES, type ViewKey } from '@/core/selectors';
-import { useApp } from '@/state/store';
+import { useApp, useCounts, useIndexes } from '@/state/store';
 import * as actions from '@/state/actions';
 import { Button, IconButton, ProgressRing } from './primitives';
 import {
@@ -75,11 +75,12 @@ export function Sidebar({
   const db = useApp((s) => s.db);
   const view = useApp((s) => s.view);
   const setView = useApp((s) => s.setView);
-  const counts = useApp((s) => s.counts());
-  const indexes = useApp((s) => s.indexes());
+  const counts = useCounts();
+  const indexes = useIndexes();
   const tagFilter = useApp((s) => s.tagFilter);
   const setTagFilter = useApp((s) => s.setTagFilter);
   const syncStatus = useApp((s) => s.syncStatus);
+  const signedIn = useApp((s) => s.signedIn);
   const pendingCount = useApp((s) => s.pending.length);
   const [creating, setCreating] = useState<'project' | 'area' | null>(null);
   const [draft, setDraft] = useState('');
@@ -242,7 +243,7 @@ export function Sidebar({
           <CloudIcon size={13} />
           <span aria-live="polite">
             {SYNC_LABELS[syncStatus]}
-            {pendingCount > 0 ? ` · ${pendingCount} pending` : ''}
+            {signedIn && pendingCount > 0 ? ` · ${pendingCount} to sync` : ''}
           </span>
         </button>
       </div>

@@ -5,7 +5,7 @@ import {
   type Hold, type Progress,
 } from './membership';
 import { buildTagIndex, effectiveProjectTags, effectiveTaskTags, matchesTagFilter, type TagIndex } from './tags';
-import { addDays, formatDateLabel, monthName } from './dates';
+import { addDays, formatDateLabel, monthName, weekdayName } from './dates';
 import type {
   Area, CalendarEvent, ChecklistItem, Database, DateOnly, Heading, Project,
   RepeatTemplate, Task,
@@ -367,7 +367,7 @@ function todayView(db: Database, ix: Indexes, opts: QueryOptions): ListDocument 
     addTarget: { ...todayTarget, evening: true },
   });
 
-  return doc('today', 'Today', formatDateLabel(ix.today, ix.today), sections, opts,
+  return doc('today', 'Today', `${weekdayName(ix.today)}, ${monthName(ix.today)} ${Number(ix.today.slice(8, 10))}`, sections, opts,
     'Nothing planned. Pull something in from Anytime, or capture a new task.', todayTarget);
 }
 
@@ -767,7 +767,7 @@ function tomorrowView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
     if (!start && !due) continue;
     items.push({ kind: 'task', id: task.id, task, meta: taskMeta(db, ix, task, { startMarker: start, deadlineMarker: due }) });
   }
-  return doc('tomorrow', 'Tomorrow', formatDateLabel(date, ix.today), [
+  return doc('tomorrow', 'Tomorrow', `${weekdayName(date)}, ${monthName(date)} ${Number(date.slice(8, 10))}`, [
     { id: 'tomorrow', title: null, subtitle: null, date, items, addTarget: { parentType: 'inbox', parentId: null, headingId: null, planning: 'scheduled', startDate: date } },
   ], opts, 'Nothing scheduled for tomorrow.',
     { parentType: 'inbox', parentId: null, headingId: null, planning: 'scheduled', startDate: date });

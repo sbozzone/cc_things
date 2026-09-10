@@ -105,34 +105,41 @@
   --color-selected: var(--selected);
 }
 
-html, body {
-  height: 100%;
-}
+/*
+ * Element defaults belong in the base layer. Unlayered rules outrank every layered
+ * utility, so `textarea { font: inherit }` outside a layer would silently defeat any
+ * font-size or weight utility placed on a field.
+ */
+@layer base {
+  html, body {
+    height: 100%;
+  }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 15px;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
-  overscroll-behavior: none;
-}
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
 
-/* A visible focus ring on every interactive element is part of the accessibility target. */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
+  /* A visible focus ring on every interactive element is part of the accessibility target. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 
-button, input, textarea, select {
-  font: inherit;
-  color: inherit;
-}
+  button, input, textarea, select {
+    font: inherit;
+    color: inherit;
+  }
 
-textarea, input[type='text'], input[type='email'], input[type='password'] {
-  background: transparent;
+  textarea, input[type='text'], input[type='email'], input[type='password'] {
+    background: transparent;
+  }
 }
 
 /* Honour the system setting and the in-app preference (N06). */

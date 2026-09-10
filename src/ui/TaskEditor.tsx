@@ -195,7 +195,7 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
       ) : null}
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1 border-t border-line pt-2.5">
-        <Button size="sm" variant="ghost" onClick={openPopover('when')}>
+        <Button size="sm" variant="ghost" keepFocus onClick={openPopover('when')}>
           <CalendarIcon size={14} />
           {task.planning === 'someday'
             ? 'Someday'
@@ -203,32 +203,32 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
               ? `${formatDateLabel(task.startDate, today)}${whenValue.evening ? ' evening' : ''}`
               : 'When'}
         </Button>
-        <Button size="sm" variant="ghost" onClick={openPopover('deadline')}>
+        <Button size="sm" variant="ghost" keepFocus onClick={openPopover('deadline')}>
           <FlagIcon size={14} />
           {task.deadline ? `Due ${formatDateLabel(task.deadline, today)}` : 'Deadline'}
         </Button>
-        <Button size="sm" variant="ghost" onClick={openPopover('tags')}>
+        <Button size="sm" variant="ghost" keepFocus onClick={openPopover('tags')}>
           <TagIcon size={14} />
           {directTags.length + inherited.length > 0 ? `${directTags.length + inherited.length} tags` : 'Tags'}
         </Button>
-        <Button size="sm" variant="ghost" onClick={openPopover('move')}>
+        <Button size="sm" variant="ghost" keepFocus onClick={openPopover('move')}>
           <MoveIcon size={14} />{contextLabel ?? 'Move'}
         </Button>
         {!showNotes && !task.notes.trim() ? (
-          <Button size="sm" variant="ghost" onClick={() => { setShowNotes(true); setNotesFocused(true); }}>
+          <Button size="sm" variant="ghost" keepFocus onClick={() => { setShowNotes(true); setNotesFocused(true); }}>
             <NoteIcon size={14} />Notes
           </Button>
         ) : null}
         {checklist.length === 0 && !newChecklistText ? (
-          <Button size="sm" variant="ghost" onClick={() => setNewChecklistText(' ')}>
+          <Button size="sm" variant="ghost" keepFocus onClick={() => setNewChecklistText(' ')}>
             <ChecklistIcon size={14} />Checklist
           </Button>
         ) : null}
-        <Button size="sm" variant="ghost" onClick={openPopover('repeat')}>
+        <Button size="sm" variant="ghost" keepFocus onClick={openPopover('repeat')}>
           <RepeatIcon size={14} />{template ? describeRule(template.rule) : 'Repeat'}
         </Button>
         <span className="flex-1" />
-        <IconButton label="Move to Trash" tone="danger" onClick={() => { actions.deleteTasks([task.id]); onClose(); }}>
+        <IconButton label="Move to Trash" tone="danger" keepFocus onClick={() => { actions.deleteTasks([task.id]); onClose(); }}>
           <TrashIcon />
         </IconButton>
       </div>

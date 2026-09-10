@@ -54,7 +54,10 @@ export const SearchIcon = (p: IconProps) => (
   <Icon {...p}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6" /></Icon>
 );
 export const SettingsIcon = (p: IconProps) => (
-  <Icon {...p}><circle cx="12" cy="12" r="3.2" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 7 2.6h.1A1.7 1.7 0 0 0 8.3 1V1a2 2 0 1 1 4 0" transform="translate(3 3) scale(0.78)" /></Icon>
+  <Icon {...p}>
+    <path d="M4 7h10M18 7h2M4 12h2M10 12h10M4 17h8M16 17h4" />
+    <circle cx="16" cy="7" r="2.1" /><circle cx="8" cy="12" r="2.1" /><circle cx="14" cy="17" r="2.1" />
+  </Icon>
 );
 export const FolderIcon = (p: IconProps) => (
   <Icon {...p}><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></Icon>

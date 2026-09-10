@@ -141,7 +141,7 @@ export function Modal({ label, onClose, children, wide = false }: { label: strin
 }
 
 export function IconButton({
-  label, onClick, children, active, disabled, tone = 'default', className = '',
+  label, onClick, children, active, disabled, tone = 'default', className = '', keepFocus,
 }: {
   label: string;
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
@@ -150,10 +150,17 @@ export function IconButton({
   disabled?: boolean;
   tone?: 'default' | 'danger';
   className?: string;
+  /**
+   * For a toolbar sitting beside a focused field: pressing the button must not blur
+   * that field first, or the collapse shifts the layout and the click lands elsewhere.
+   * Keyboard focus is unaffected.
+   */
+  keepFocus?: boolean;
 }) {
   return (
     <button
       type="button"
+      onMouseDown={keepFocus ? (event) => event.preventDefault() : undefined}
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
@@ -169,7 +176,7 @@ export function IconButton({
 }
 
 export function Button({
-  children, onClick, variant = 'secondary', type = 'button', disabled, full, size = 'md',
+  children, onClick, variant = 'secondary', type = 'button', disabled, full, size = 'md', keepFocus,
 }: {
   children: ReactNode;
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
@@ -178,6 +185,8 @@ export function Button({
   disabled?: boolean;
   full?: boolean;
   size?: 'sm' | 'md';
+  /** See IconButton: keeps an adjacent field focused so the click is not lost. */
+  keepFocus?: boolean;
 }) {
   const base =
     'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:opacity-45 disabled:pointer-events-none';
@@ -189,7 +198,13 @@ export function Button({
     danger: 'border border-line text-danger hover:bg-danger-soft',
   } as const;
   return (
-    <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${sizes} ${variants[variant]} ${full ? 'w-full' : ''}`}>
+    <button
+      type={type}
+      onMouseDown={keepFocus ? (event) => event.preventDefault() : undefined}
+      onClick={onClick}
+      disabled={disabled}
+      className={`${base} ${sizes} ${variants[variant]} ${full ? 'w-full' : ''}`}
+    >
       {children}
     </button>
   );

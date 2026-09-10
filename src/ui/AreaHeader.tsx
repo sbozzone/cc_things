@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { tagPath, effectiveProjectTags } from '@/core/tags';
 import { directTags } from '@/core/tags';
-import { useApp } from '@/state/store';
+import { useApp, useIndexes } from '@/state/store';
 import * as actions from '@/state/actions';
 import { AutoTextarea, Button, Chip, Modal } from './primitives';
 import { TagPicker } from './Pickers';
@@ -15,7 +15,7 @@ import { PlusIcon, TagIcon, TrashIcon } from './icons';
  */
 export function AreaHeader({ areaId }: { areaId: string }) {
   const db = useApp((s) => s.db);
-  const indexes = useApp((s) => s.indexes());
+  const indexes = useIndexes();
   const setView = useApp((s) => s.setView);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [tagAnchor, setTagAnchor] = useState<HTMLElement | null>(null);

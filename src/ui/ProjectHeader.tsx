@@ -5,7 +5,7 @@ import { formatDateLabel } from '@/core/dates';
 import { projectProgress } from '@/core/membership';
 import { tagPath } from '@/core/tags';
 import { effectiveProjectTags } from '@/core/tags';
-import { useApp } from '@/state/store';
+import { useApp, useIndexes } from '@/state/store';
 import * as actions from '@/state/actions';
 import { AutoTextarea, Button, Chip, IconButton, Modal, ProgressRing } from './primitives';
 import { Markdown } from './Markdown';
@@ -17,7 +17,7 @@ import { CalendarIcon, FlagIcon, MoveIcon, PlusIcon, TagIcon, TrashIcon } from '
 export function ProjectHeader({ projectId }: { projectId: string }) {
   const db = useApp((s) => s.db);
   const today = useApp((s) => s.today);
-  const indexes = useApp((s) => s.indexes());
+  const indexes = useIndexes();
   const settings = useApp((s) => s.db.settings);
   const showLogged = useApp((s) => s.showLogged);
   const setShowLogged = useApp((s) => s.setShowLogged);
@@ -103,30 +103,29 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
       ) : null}
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1">
-        <Button size="sm" variant="ghost" onClick={open('when')}>
+        <Button size="sm" variant="ghost" keepFocus onClick={open('when')}>
           <CalendarIcon size={14} />
           {project.planning === 'someday' ? 'Someday' : project.startDate ? formatDateLabel(project.startDate, today) : 'When'}
         </Button>
-        <Button size="sm" variant="ghost" onClick={open('deadline')}>
+        <Button size="sm" variant="ghost" keepFocus onClick={open('deadline')}>
           <FlagIcon size={14} />{project.deadline ? `Due ${formatDateLabel(project.deadline, today)}` : 'Deadline'}
         </Button>
-        <Button size="sm" variant="ghost" onClick={open('area')}><MoveIcon size={14} />{area ? area.title : 'Area'}</Button>
-        <Button size="sm" variant="ghost" onClick={open('tags')}><TagIcon size={14} />Tags</Button>
-        <Button size="sm" variant="ghost" onClick={() => setNewHeading('')}><PlusIcon size={14} />Heading</Button>
+        <Button size="sm" variant="ghost" keepFocus onClick={open('area')}><MoveIcon size={14} />{area ? area.title : 'Area'}</Button>
+        <Button size="sm" variant="ghost" keepFocus onClick={open('tags')}><TagIcon size={14} />Tags</Button>
+        <Button size="sm" variant="ghost" keepFocus onClick={() => setNewHeading('')}><PlusIcon size={14} />Heading</Button>
         {!notesOpen && !project.notes.trim() ? (
-          <Button size="sm" variant="ghost" onClick={() => setNotesOpen(true)}>Notes</Button>
+          <Button size="sm" variant="ghost" keepFocus onClick={() => setNotesOpen(true)}>Notes</Button>
         ) : null}
-        <span className="flex-1" />
-        <label className="flex items-center gap-1.5 px-1 text-[12.5px] text-muted">
+        <label className="ml-auto flex items-center gap-1.5 px-1 text-[12.5px] text-muted">
           <input type="checkbox" checked={showLogged} onChange={(event) => setShowLogged(event.target.checked)} className="h-4 w-4" />
           Show logged
         </label>
         {project.status === 'open' ? (
-          <Button size="sm" variant="ghost" onClick={() => setConfirmComplete(true)}>Complete project</Button>
+          <Button size="sm" variant="ghost" keepFocus onClick={() => setConfirmComplete(true)}>Complete project</Button>
         ) : (
-          <Button size="sm" variant="ghost" onClick={() => actions.setProjectStatus(projectId, 'open', null)}>Reopen</Button>
+          <Button size="sm" variant="ghost" keepFocus onClick={() => actions.setProjectStatus(projectId, 'open', null)}>Reopen</Button>
         )}
-        <IconButton label="Move project to Trash" tone="danger" onClick={() => { actions.deleteProject(projectId); setView('anytime'); }}>
+        <IconButton label="Move project to Trash" tone="danger" keepFocus onClick={() => { actions.deleteProject(projectId); setView('anytime'); }}>
           <TrashIcon />
         </IconButton>
       </div>
@@ -198,7 +197,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
                   {openCount === 1 ? 'it' : 'them'}.
                 </p>
                 <div className="mt-3 flex flex-wrap justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setConfirmComplete(false)}>Cancel</Button>
+                  <Button size="sm" variant="ghost" keepFocus onClick={() => setConfirmComplete(false)}>Cancel</Button>
                   <Button size="sm" onClick={() => { actions.setProjectStatus(projectId, 'completed', 'canceled'); setConfirmComplete(false); }}>
                     Cancel the open tasks
                   </Button>
@@ -209,7 +208,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
               </>
             ) : (
               <div className="mt-3 flex justify-end gap-2">
-                <Button size="sm" variant="ghost" onClick={() => setConfirmComplete(false)}>Cancel</Button>
+                <Button size="sm" variant="ghost" keepFocus onClick={() => setConfirmComplete(false)}>Cancel</Button>
                 <Button size="sm" variant="primary" onClick={() => { actions.setProjectStatus(projectId, 'completed', null); setConfirmComplete(false); }}>
                   Complete
                 </Button>
