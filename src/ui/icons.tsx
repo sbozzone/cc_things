@@ -101,3 +101,12 @@ export const AlertIcon = (p: IconProps) => (
 export const EveningIcon = (p: IconProps) => (
   <Icon {...p}><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></Icon>
 );
+export const CopyIcon = (p: IconProps) => (
+  <Icon {...p}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" /></Icon>
+);
+export const PromoteIcon = (p: IconProps) => (
+  <Icon {...p}><path d="M12 20V6" /><path d="m6 12 6-6 6 6" /><path d="M4 21h16" /></Icon>
+);
+export const MoreIcon = (p: IconProps) => (
+  <Icon {...p}><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" /></Icon>
+);

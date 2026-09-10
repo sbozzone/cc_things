@@ -11,7 +11,8 @@ import { AutoTextarea, Button, Chip, IconButton, Modal, ProgressRing } from './p
 import { Markdown } from './Markdown';
 import { WhenPopover, DeadlinePopover, type WhenValue } from './DatePopover';
 import { MovePicker, TagPicker } from './Pickers';
-import { CalendarIcon, FlagIcon, MoveIcon, PlusIcon, TagIcon, TrashIcon } from './icons';
+import { CalendarIcon, CopyIcon, FlagIcon, MoveIcon, PlusIcon, TagIcon, TrashIcon } from './icons';
+import { DuplicateDialog } from './DuplicateDialog';
 
 /** Project header (§2): title, notes, schedule, deadline, progress and heading creation. */
 export function ProjectHeader({ projectId }: { projectId: string }) {
@@ -27,6 +28,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
   const [notesOpen, setNotesOpen] = useState(false);
   const [confirmComplete, setConfirmComplete] = useState(false);
   const [newHeading, setNewHeading] = useState<string | null>(null);
+  const [duplicating, setDuplicating] = useState(false);
 
   const project = db.projects[projectId];
   if (!project) return null;
@@ -113,6 +115,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
         <Button size="sm" variant="ghost" keepFocus onClick={open('area')}><MoveIcon size={14} />{area ? area.title : 'Area'}</Button>
         <Button size="sm" variant="ghost" keepFocus onClick={open('tags')}><TagIcon size={14} />Tags</Button>
         <Button size="sm" variant="ghost" keepFocus onClick={() => setNewHeading('')}><PlusIcon size={14} />Heading</Button>
+        <Button size="sm" variant="ghost" keepFocus onClick={() => setDuplicating(true)}><CopyIcon size={14} />Duplicate</Button>
         {!notesOpen && !project.notes.trim() ? (
           <Button size="sm" variant="ghost" keepFocus onClick={() => setNotesOpen(true)}>Notes</Button>
         ) : null}
@@ -183,6 +186,18 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
           }))}
           onToggle={(tagId, next) => actions.toggleTag('project', projectId, tagId, next)}
           onCreate={(name) => actions.createAndAssignTag('project', projectId, name)}
+        />
+      ) : null}
+
+      {duplicating ? (
+        <DuplicateDialog
+          kind="project"
+          title={project.title}
+          onClose={() => setDuplicating(false)}
+          onConfirm={(options) => {
+            const copyId = actions.duplicate('project', projectId, options);
+            if (copyId) setView(`project:${copyId}`);
+          }}
         />
       ) : null}
 

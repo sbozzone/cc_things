@@ -8,6 +8,10 @@ import {
 import type { EntityPatch } from '@/core/patches';
 import type { AddTarget } from '@/core/commands';
 import type { DateOnly, LifecycleStatus, Task } from '@/core/types';
+import {
+  duplicateHeading, duplicateProject, duplicateTask, headingToProject, taskToProject,
+  type DuplicateOptions,
+} from '@/core/duplicate';
 import type { WhenValue } from '@/ui/DatePopover';
 import { useApp } from './store';
 
@@ -288,4 +292,37 @@ export function snoozeReminder(reminderId: string, minutes: 10 | 30 | 60): void 
 export function updateSettings(fields: Partial<import('@/core/types').Settings>): void {
   const state = app();
   state.dispatch([{ table: 'settings', id: 'settings', patch: { ...fields, updatedAt: state.ctx().now } }]);
+}
+
+/* ------------------------------------------------- duplicate and promote */
+
+export function duplicate(
+  kind: 'task' | 'heading' | 'project', id: string, options: DuplicateOptions,
+): string | null {
+  const state = app();
+  const ctx = state.ctx();
+  const result =
+    kind === 'task' ? duplicateTask(state.db, ctx, id, options)
+    : kind === 'heading' ? duplicateHeading(state.db, ctx, id, options)
+    : duplicateProject(state.db, ctx, id, options);
+
+  if (result.patches.length === 0) return null;
+  state.dispatch(result.patches, {
+    undoLabel: 'duplicate',
+    toast: { message: `Duplicated ${kind}`, tone: 'info', actionLabel: 'Undo', action: () => app().undo() },
+  });
+  return result.id;
+}
+
+/** Promotes a task or heading into a project of its own; Undo reverses it exactly (R10). */
+export function promoteToProject(kind: 'task' | 'heading', id: string): string | null {
+  const state = app();
+  const ctx = state.ctx();
+  const result = kind === 'task' ? taskToProject(state.db, ctx, id) : headingToProject(state.db, ctx, id);
+  if (result.patches.length === 0) return null;
+  state.dispatch(result.patches, {
+    undoLabel: 'convert to project',
+    toast: { message: 'Converted to a project', tone: 'info', actionLabel: 'Undo', action: () => app().undo() },
+  });
+  return result.id;
 }

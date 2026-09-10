@@ -21,7 +21,7 @@ Nothing else is required. With no configuration the app is fully usable: it stor
 everything in IndexedDB on the device, works offline, and says so in Settings.
 
 ```bash
-npm run verify     # typecheck + 94 unit tests + production build
+npm run verify     # typecheck + 103 unit tests + production build
 ```
 
 ## Deploying to Vercel

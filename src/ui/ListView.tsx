@@ -8,12 +8,13 @@ import type { CalendarEvent, Project, Task } from '@/core/types';
 import { useApp } from '@/state/store';
 import * as actions from '@/state/actions';
 import { TaskEditor } from './TaskEditor';
-import { Button, Chip, IconButton, Modal, ProgressRing, StatusControl } from './primitives';
+import { Button, Chip, IconButton, Modal, Popover, ProgressRing, StatusControl } from './primitives';
 import { WhenPopover, DeadlinePopover, type WhenValue } from './DatePopover';
 import { MovePicker } from './Pickers';
+import { DuplicateDialog } from './DuplicateDialog';
 import {
-  AlertIcon, CalendarIcon, ChecklistIcon, EveningIcon, FlagIcon, MoveIcon, NoteIcon,
-  PlusIcon, RepeatIcon, TrashIcon, ChevronIcon,
+  AlertIcon, CalendarIcon, ChecklistIcon, CopyIcon, EveningIcon, FlagIcon, MoreIcon,
+  MoveIcon, NoteIcon, PlusIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon,
 } from './icons';
 import { usePhone } from './useMediaQuery';
 
@@ -305,18 +306,109 @@ function InlineComposer({ target, onDone }: { target: AddTarget; onDone: () => v
   );
 }
 
-function SectionHeader({
-  section, onAdd, view,
-}: {
-  section: ListSection;
-  onAdd: () => void;
-  view: string;
-}) {
-  const openItem = useApp((s) => s.openItem);
-  if (!section.title && !section.addTarget) return null;
-  if (!section.title) {
-    return section.addTarget ? null : null;
+/** Heading actions: rename, archive, duplicate, promote and delete (R08, R10). */
+function HeadingMenu({ headingId, title }: { headingId: string; title: string }) {
+  const db = useApp((s) => s.db);
+  const setView = useApp((s) => s.setView);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  const [draft, setDraft] = useState(title);
+
+  const heading = db.headings[headingId];
+  const openTasks = Object.values(db.tasks).filter(
+    (t) => t.headingId === headingId && t.deletedAt === null && t.status === 'open',
+  ).length;
+
+  if (renaming) {
+    return (
+      <input
+        type="text"
+        autoFocus
+        value={draft}
+        aria-label={`Rename heading ${title}`}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          if (draft.trim()) actions.renameHeading(headingId, draft);
+          setRenaming(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && draft.trim()) actions.renameHeading(headingId, draft);
+          if (event.key === 'Enter' || event.key === 'Escape') setRenaming(false);
+        }}
+        className="h-7 rounded-md border border-accent bg-surface px-2 text-[13px] outline-none"
+      />
+    );
   }
+
+  const item = 'flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13.5px] hover:bg-surface-2';
+
+  return (
+    <>
+      <IconButton label={`Actions for heading ${title}`} onClick={(event) => setAnchor(event.currentTarget)}>
+        <MoreIcon size={15} />
+      </IconButton>
+      {anchor ? (
+        <Popover anchor={anchor} onClose={() => setAnchor(null)} label={`Heading ${title}`} width={230}>
+          <button type="button" className={item} onClick={() => { setDraft(title); setRenaming(true); setAnchor(null); }}>
+            Rename
+          </button>
+          <button type="button" className={item} onClick={() => { setDuplicating(true); setAnchor(null); }}>
+            <CopyIcon size={14} />Duplicate
+          </button>
+          <button
+            type="button"
+            className={item}
+            onClick={() => {
+              const projectId = actions.promoteToProject('heading', headingId);
+              setAnchor(null);
+              if (projectId) setView(`project:${projectId}`);
+            }}
+          >
+            <PromoteIcon size={14} />Make it a project
+          </button>
+          <button
+            type="button"
+            className={item}
+            disabled={openTasks > 0 || heading?.archivedAt !== null}
+            onClick={() => { actions.archiveHeading(headingId); setAnchor(null); }}
+          >
+            Archive
+            {openTasks > 0 ? (
+              <span className="ml-auto text-[11.5px] text-faint">{openTasks} still open</span>
+            ) : null}
+          </button>
+          <div className="my-1 border-t border-line" />
+          <button
+            type="button"
+            className={`${item} text-danger`}
+            onClick={() => { actions.deleteHeading(headingId, false); setAnchor(null); }}
+          >
+            <TrashIcon size={14} />Delete, keep the tasks
+          </button>
+          <button
+            type="button"
+            className={`${item} text-danger`}
+            onClick={() => { actions.deleteHeading(headingId, true); setAnchor(null); }}
+          >
+            <TrashIcon size={14} />Delete with its tasks
+          </button>
+        </Popover>
+      ) : null}
+      {duplicating ? (
+        <DuplicateDialog
+          kind="heading"
+          title={title}
+          onClose={() => setDuplicating(false)}
+          onConfirm={(options) => actions.duplicate('heading', headingId, options)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function SectionHeader({ section, onAdd }: { section: ListSection; onAdd: () => void }) {
+  if (!section.title) return null;
   const isHeading = section.id.startsWith('heading:');
   return (
     <div className="mt-4 mb-1 flex items-center gap-2 px-2 first:mt-0">
@@ -325,19 +417,10 @@ function SectionHeader({
       </h2>
       {section.subtitle ? <span className="text-[12px] text-faint">{section.subtitle}</span> : null}
       <span className="h-px flex-1 bg-line" aria-hidden="true" />
-      {isHeading ? (
-        <IconButton
-          label={`Archive heading ${section.title}`}
-          onClick={() => actions.archiveHeading(section.id.slice(8))}
-        >
-          <ChecklistIcon size={14} />
-        </IconButton>
-      ) : null}
+      {isHeading ? <HeadingMenu headingId={section.id.slice(8)} title={section.title} /> : null}
       {section.addTarget ? (
         <IconButton label={`Add a task to ${section.title}`} onClick={onAdd}><PlusIcon size={15} /></IconButton>
       ) : null}
-      <span className="sr-only">{view}</span>
-      <span hidden onClick={() => openItem(null)} />
     </div>
   );
 }
@@ -435,7 +518,7 @@ export function ListView({ doc }: { doc: ListDocument }) {
           const orderedIds = orderedIdsBySection.get(section.id) ?? [];
           return (
             <section key={section.id} aria-label={section.title ?? doc.title}>
-              <SectionHeader section={section} view={doc.view} onAdd={() => addTo(section)} />
+              <SectionHeader section={section} onAdd={() => addTo(section)} />
               <ul
                 role={section.isEventSection ? 'list' : 'listbox'}
                 aria-multiselectable={section.isEventSection ? undefined : true}

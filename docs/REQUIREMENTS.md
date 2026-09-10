@@ -25,7 +25,7 @@ and — where something is not built — exactly what is missing and why.
 | R07 | Areas and projects | ✅ | `core/types.ts`, `core/commands.ts`. One structural parent per task; nested areas and projects excluded by the model. |
 | R08 | Project headings | ✅ | `core/commands.ts` (`moveHeading`, `archiveHeading`). A heading moves with all its tasks in order; archiving is blocked while a child is open. |
 | R09 | Project status and progress | ✅ | `core/membership.ts` (`projectProgress`), `ui/ProjectHeader.tsx`. Accessible percentage; empty denominator shows none; completing a project asks how to resolve open tasks. |
-| R10 | Duplicate and promote | ➖ | **Not built.** Duplicating a task, heading or project, and converting a task or heading into a project. The underlying copy machinery exists (`core/recurrence.ts` `materialize`, `core/portability.ts` copy mode) but no command or UI is wired up. This is the one P1 gap with no external dependency. |
+| R10 | Duplicate and promote | ✅ | `core/duplicate.ts`, `ui/DuplicateDialog.tsx`, heading menu in `ui/ListView.tsx`. Fresh ids, original untouched, choices for keeping dates and resetting completion; task→project turns checklist rows into child tasks; heading→project keeps its tasks with their notes, tags, order and dates. Reversible through Undo. |
 
 ## 5. Navigation and list membership
 
@@ -155,8 +155,9 @@ Two deliberate simplifications, both preserving the stated behaviour:
 | A11 | Export, import, repeated merge | `portability.test.ts` (six cases) |
 | A12 | Keyboard and screen reader only | Not automated. Keyboard paths exist and were exercised by hand; no screen-reader pass was run. |
 
-**94 unit tests** cover the domain rules. **12 browser interaction checks** cover capture,
-editing, scheduling, list membership, headings, undo and reload persistence.
+**103 unit tests** cover the domain rules. **18 browser interaction checks** cover
+capture, editing, scheduling, list membership, headings, duplication, promotion, undo
+and reload persistence.
 
 The gap worth naming: everything requiring **two live devices against a real database**
 is implemented but not yet exercised end to end. That is the first thing to test after

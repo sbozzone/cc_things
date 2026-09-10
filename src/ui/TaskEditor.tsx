@@ -13,9 +13,11 @@ import { Markdown } from './Markdown';
 import { WhenPopover, DeadlinePopover, type WhenValue } from './DatePopover';
 import { MovePicker, TagPicker } from './Pickers';
 import {
-  CalendarIcon, ChecklistIcon, CloseIcon, FlagIcon, MoveIcon, NoteIcon, RepeatIcon, TagIcon, TrashIcon,
+  CalendarIcon, ChecklistIcon, CloseIcon, CopyIcon, FlagIcon, MoveIcon, NoteIcon,
+  PromoteIcon, RepeatIcon, TagIcon, TrashIcon,
 } from './icons';
 import { RepeatEditor } from './RepeatEditor';
+import { DuplicateDialog } from './DuplicateDialog';
 
 /**
  * The expanded task editor. Optional fields are revealed on demand rather than always
@@ -25,11 +27,13 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
   const db = useApp((s) => s.db);
   const today = useApp((s) => s.today);
   const settings = useApp((s) => s.db.settings);
+  const setView = useApp((s) => s.setView);
   const [popover, setPopover] = useState<'when' | 'deadline' | 'move' | 'tags' | 'repeat' | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [showNotes, setShowNotes] = useState(task.notes.trim().length > 0);
   const [notesFocused, setNotesFocused] = useState(false);
   const [newChecklistText, setNewChecklistText] = useState('');
+  const [duplicating, setDuplicating] = useState(false);
   const titleRef = useRef<HTMLDivElement | null>(null);
 
   const checklist = Object.values(db.checklistItems)
@@ -227,6 +231,21 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
         <Button size="sm" variant="ghost" keepFocus onClick={openPopover('repeat')}>
           <RepeatIcon size={14} />{template ? describeRule(template.rule) : 'Repeat'}
         </Button>
+        <Button size="sm" variant="ghost" keepFocus onClick={() => setDuplicating(true)}>
+          <CopyIcon size={14} />Duplicate
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          keepFocus
+          onClick={() => {
+            const projectId = actions.promoteToProject('task', task.id);
+            onClose();
+            if (projectId) setView(`project:${projectId}`);
+          }}
+        >
+          <PromoteIcon size={14} />Make project
+        </Button>
         <span className="flex-1" />
         <IconButton label="Move to Trash" tone="danger" keepFocus onClick={() => { actions.deleteTasks([task.id]); onClose(); }}>
           <TrashIcon />
@@ -288,6 +307,14 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
       ) : null}
       {popover === 'repeat' ? (
         <RepeatEditor anchor={anchor} onClose={() => setPopover(null)} task={task} />
+      ) : null}
+      {duplicating ? (
+        <DuplicateDialog
+          kind="task"
+          title={task.title || 'Untitled'}
+          onClose={() => setDuplicating(false)}
+          onConfirm={(options) => actions.duplicate('task', task.id, options)}
+        />
       ) : null}
     </div>
   );
