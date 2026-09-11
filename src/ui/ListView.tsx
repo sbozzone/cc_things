@@ -13,39 +13,65 @@ import { WhenPopover, DeadlinePopover, type WhenValue } from './DatePopover';
 import { MovePicker } from './Pickers';
 import { DuplicateDialog } from './DuplicateDialog';
 import {
-  AlertIcon, CalendarIcon, ChecklistIcon, CopyIcon, EveningIcon, FlagIcon, MoreIcon,
-  MoveIcon, NoteIcon, PlusIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon,
+  AlertIcon, ArchiveBoxIcon, CalendarIcon, ChecklistIcon, CopyIcon, EveningIcon, FlagIcon,
+  MoreIcon, MoveIcon, NoteIcon, PlusIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon,
 } from './icons';
 import { usePhone } from './useMediaQuery';
+import { viewStyle } from './view-style';
 
 /** Row currently being dragged. Drag is an accelerator; every move has a menu equivalent (R26). */
 let dragSource: { id: string; sectionId: string } | null = null;
 
+/** A small tinted pill. Colour is paired with its own foreground so contrast holds. */
+function Pill({
+  tone, icon, children,
+}: {
+  tone: 'warm' | 'danger' | 'cool' | 'neutral';
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const tones = {
+    warm: 'bg-chip-warm text-chip-warm-fg',
+    danger: 'bg-chip-danger text-chip-danger-fg',
+    cool: 'bg-chip-cool text-chip-cool-fg',
+    neutral: 'bg-chip-neutral text-chip-neutral-fg',
+  } as const;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-[1px] text-[11.5px] font-medium ${tones[tone]}`}>
+      {icon}
+      {children}
+    </span>
+  );
+}
+
 function DateChip({ task, today, hideStart }: { task: Task; today: string; hideStart?: boolean }) {
   const chips: React.ReactNode[] = [];
   const isEvening = task.eveningDate !== null && task.eveningDate === task.startDate;
+
   // Inside Today the start date is implied by the list itself, so it is not repeated.
   if (task.startDate && !(hideStart && task.startDate <= today)) {
     chips.push(
-      <span key="start" className="inline-flex items-center gap-1 text-[12px] text-muted">
-        {isEvening ? <EveningIcon size={12} /> : <CalendarIcon size={12} />}
+      <Pill
+        key="start"
+        tone={task.startDate <= today ? 'warm' : 'neutral'}
+        icon={isEvening ? <EveningIcon size={11} /> : <CalendarIcon size={11} />}
+      >
         {formatDateLabel(task.startDate, today)}
-      </span>,
+      </Pill>,
     );
   }
+  if (isEvening && hideStart) {
+    chips.push(<Pill key="evening" tone="warm" icon={<EveningIcon size={11} />}>Evening</Pill>);
+  }
   if (task.planning === 'someday' && !task.startDate) {
-    chips.push(<span key="someday" className="text-[12px] text-[var(--someday)]">Someday</span>);
+    chips.push(<Pill key="someday" tone="neutral" icon={<ArchiveBoxIcon size={11} />}>Someday</Pill>);
   }
   if (task.deadline) {
     const overdue = task.deadline < today;
     chips.push(
-      <span
-        key="due"
-        className={`inline-flex items-center gap-1 text-[12px] ${overdue ? 'font-medium text-danger' : 'text-[var(--upcoming)]'}`}
-      >
-        <FlagIcon size={12} />
-        {overdue ? 'Overdue ' : ''}{formatDateLabel(task.deadline, today)}
-      </span>,
+      <Pill key="due" tone={overdue ? 'danger' : 'warm'} icon={<FlagIcon size={11} />}>
+        {overdue ? 'Overdue · ' : ''}{formatDateLabel(task.deadline, today)}
+      </Pill>,
     );
   }
   return <>{chips}</>;
@@ -180,10 +206,13 @@ function TaskRow({
         else if (selection.length > 0) setSelection([]);
         else openItem(task.id);
       }}
-      className={`group relative flex cursor-default items-start gap-2.5 rounded-md px-2 py-[7px] ${
+      className={`group relative flex cursor-default items-start gap-2.5 rounded-lg px-2.5 py-2 transition-colors ${
         selected ? 'bg-selected' : 'hover:bg-surface-2'
       } ${dropSide === 'above' ? 'shadow-[inset_0_2px_0_0_var(--accent)]' : dropSide === 'below' ? 'shadow-[inset_0_-2px_0_0_var(--accent)]' : ''}`}
     >
+      {selected ? (
+        <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-accent" />
+      ) : null}
       <StatusControl
         status={task.status}
         label={task.title || 'Untitled task'}
@@ -193,7 +222,7 @@ function TaskRow({
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className={`text-[14.5px] ${task.status !== 'open' ? 'text-muted line-through' : ''}`}>
+          <span className={`text-[14.5px] leading-snug ${task.status !== 'open' ? 'text-muted line-through' : ''}`}>
             {task.title || <span className="text-faint">Untitled</span>}
           </span>
           {meta.repeating ? <RepeatIcon size={12} className="translate-y-[1px] text-faint" /> : null}
@@ -411,8 +440,17 @@ function SectionHeader({ section, onAdd }: { section: ListSection; onAdd: () => 
   if (!section.title) return null;
   const isHeading = section.id.startsWith('heading:');
   return (
-    <div className="mt-4 mb-1 flex items-center gap-2 px-2 first:mt-0">
-      <h2 className={`text-[13px] font-semibold ${isHeading ? 'text-ink' : 'text-muted'}`}>
+    <div className="mt-5 mb-1.5 flex items-center gap-2 px-2.5 first:mt-1">
+      {isHeading ? (
+        <span aria-hidden="true" className="h-[13px] w-[3px] shrink-0 rounded-full view-accent-bg opacity-70" />
+      ) : null}
+      <h2
+        className={
+          isHeading
+            ? 'text-[13.5px] font-semibold tracking-[-0.01em] text-ink'
+            : 'text-[11.5px] font-semibold uppercase tracking-[0.08em] text-faint'
+        }
+      >
         {section.title}
       </h2>
       {section.subtitle ? <span className="text-[12px] text-faint">{section.subtitle}</span> : null}
@@ -508,9 +546,14 @@ export function ListView({ doc }: { doc: ListDocument }) {
 
   return (
     <>
-      <div data-list-root className="pb-24">
+      <div data-list-root className="pt-1 pb-24">
         {isEmpty && !composerSection ? (
-          <p className="px-2 py-10 text-center text-[14px] text-muted">{doc.emptyMessage}</p>
+          <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
+            <span aria-hidden="true" className="badge-wash flex h-14 w-14 items-center justify-center rounded-2xl [&>svg]:h-6 [&>svg]:w-6">
+              {viewStyle(doc.view).icon}
+            </span>
+            <p className="max-w-[34ch] text-[14px] leading-relaxed text-muted">{doc.emptyMessage}</p>
+          </div>
         ) : null}
 
         {doc.sections.map((section) => {

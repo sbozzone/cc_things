@@ -245,8 +245,8 @@ export function StatusControl({
       }}
       className="mt-[1px] flex h-6 w-6 shrink-0 items-center justify-center rounded-[5px] border transition-colors"
       style={{
-        borderColor: status === 'open' ? 'var(--border-strong)' : 'transparent',
-        background: status === 'completed' ? 'var(--accent)' : status === 'canceled' ? 'var(--border-strong)' : 'transparent',
+        borderColor: status === 'open' ? 'var(--control-border)' : 'transparent',
+        background: status === 'completed' ? 'var(--accent)' : status === 'canceled' ? 'var(--control-border)' : 'transparent',
         borderRadius: tone === 'project' ? '50%' : undefined,
       }}
     >

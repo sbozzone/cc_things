@@ -119,18 +119,20 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
         {!notesOpen && !project.notes.trim() ? (
           <Button size="sm" variant="ghost" keepFocus onClick={() => setNotesOpen(true)}>Notes</Button>
         ) : null}
-        <label className="ml-auto flex items-center gap-1.5 px-1 text-[12.5px] text-muted">
-          <input type="checkbox" checked={showLogged} onChange={(event) => setShowLogged(event.target.checked)} className="h-4 w-4" />
-          Show logged
-        </label>
-        {project.status === 'open' ? (
-          <Button size="sm" variant="ghost" keepFocus onClick={() => setConfirmComplete(true)}>Complete project</Button>
-        ) : (
-          <Button size="sm" variant="ghost" keepFocus onClick={() => actions.setProjectStatus(projectId, 'open', null)}>Reopen</Button>
-        )}
-        <IconButton label="Move project to Trash" tone="danger" keepFocus onClick={() => { actions.deleteProject(projectId); setView('anytime'); }}>
-          <TrashIcon />
-        </IconButton>
+        <span className="ml-auto flex items-center gap-1">
+          <label className="flex items-center gap-1.5 px-1 text-[12.5px] text-muted">
+            <input type="checkbox" checked={showLogged} onChange={(event) => setShowLogged(event.target.checked)} className="h-4 w-4" />
+            Show logged
+          </label>
+          {project.status === 'open' ? (
+            <Button size="sm" variant="ghost" keepFocus onClick={() => setConfirmComplete(true)}>Complete</Button>
+          ) : (
+            <Button size="sm" variant="ghost" keepFocus onClick={() => actions.setProjectStatus(projectId, 'open', null)}>Reopen</Button>
+          )}
+          <IconButton label="Move project to Trash" tone="danger" keepFocus onClick={() => { actions.deleteProject(projectId); setView('anytime'); }}>
+            <TrashIcon />
+          </IconButton>
+        </span>
       </div>
 
       {newHeading !== null ? (

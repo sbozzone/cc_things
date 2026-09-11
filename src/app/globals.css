@@ -4,81 +4,163 @@
  * Design tokens. Light values live on :root; dark values are redefined so that both an
  * explicit theme choice and the system setting resolve correctly (R27).
  */
+/*
+ * Design tokens (R27).
+ *
+ * Dark values are declared once as `--d-*` and only *assigned* twice — under the system
+ * preference and under an explicit choice — so changing a colour is a one-line edit
+ * rather than three.
+ */
 :root {
-  --bg: #f6f6f4;
+  /* Light */
+  --bg: #f7f6f3;
   --surface: #ffffff;
-  --surface-2: #fbfbfa;
-  --sidebar: #ebebe8;
-  --border: #dedddb;
-  --border-strong: #c8c7c4;
-  --text: #1c1c1b;
-  --text-muted: #6a6965;
-  --text-faint: #8d8c88;
-  --accent: #2f6bd8;
-  --accent-soft: #e5edfc;
+  --surface-2: #f2f1ed;
+  --sidebar: #efece6;
+  --border: #e4e1d9;
+  --border-strong: #cbc7bc;
+  /*
+   * Form-control outlines are UI components needing 3:1, which divider lines do not.
+   * Chosen to clear 3:1 against every background a control sits on — including the
+   * selected-row tint, which is the tightest case.
+   */
+  --control-border: #84827a;
+  --text: #191917;
+  --text-muted: #5d5b54;
+  --text-faint: #6a6860;
+  --accent: #3a52d4;
+  --accent-soft: #e8ebfc;
   --accent-contrast: #ffffff;
-  --today: #d99000;
-  --upcoming: #c2410c;
-  --anytime: #0f766e;
-  --someday: #92730c;
-  --logbook: #15803d;
-  --danger: #b42318;
-  --danger-soft: #fdeceb;
-  --selected: #dbe7fb;
-  --shadow: 0 1px 2px rgb(20 20 20 / 6%), 0 8px 24px rgb(20 20 20 / 8%);
-  --radius: 8px;
+  --selected: #dde3fb;
+
+  /* Each list carries its own hue, used for its icon and its page badge. */
+  --today: #b57500;
+  --upcoming: #cf4f2a;
+  --anytime: #0c877a;
+  --someday: #97790f;
+  --logbook: #1d874a;
+  --danger: #b3261e;
+  --danger-soft: #fdeae7;
+
+  /* Tinted pills. Foreground and background are paired so contrast holds in both themes. */
+  --chip-warm-bg: #fbf0da;
+  --chip-warm-fg: #7f5307;
+  --chip-danger-bg: #fdeae7;
+  --chip-danger-fg: #9d2a1d;
+  --chip-cool-bg: #e4f3f1;
+  --chip-cool-fg: #09655b;
+  --chip-neutral-bg: #efece6;
+  --chip-neutral-fg: #5d5b54;
+
+  --shadow-sm: 0 1px 2px rgb(30 28 24 / 6%), 0 1px 3px rgb(30 28 24 / 4%);
+  --shadow: 0 1px 2px rgb(30 28 24 / 5%), 0 4px 10px rgb(30 28 24 / 6%), 0 16px 34px rgb(30 28 24 / 9%);
+  --radius: 9px;
   color-scheme: light;
+
+  /* Dark values, declared once. */
+  --d-bg: #121316;
+  --d-surface: #1a1c20;
+  --d-surface-2: #23262c;
+  --d-sidebar: #0d0e11;
+  --d-border: #2c2f36;
+  --d-border-strong: #434752;
+  --d-control-border: #787b83;
+  --d-text: #edeff2;
+  --d-text-muted: #a4a9b3;
+  --d-text-faint: #7a808b;
+  --d-accent: #8098ff;
+  --d-accent-soft: #202949;
+  --d-accent-contrast: #0b0f1c;
+  --d-selected: #26324f;
+  --d-today: #f0b64a;
+  --d-upcoming: #f5906a;
+  --d-anytime: #4ec9b8;
+  --d-someday: #d6b455;
+  --d-logbook: #5fc783;
+  --d-danger: #f58a80;
+  --d-danger-soft: #3a211e;
+  --d-chip-warm-bg: #382d16;
+  --d-chip-warm-fg: #f0c471;
+  --d-chip-danger-bg: #3d211d;
+  --d-chip-danger-fg: #f8a79c;
+  --d-chip-cool-bg: #11322f;
+  --d-chip-cool-fg: #6fd8c7;
+  --d-chip-neutral-bg: #262930;
+  --d-chip-neutral-fg: #a4a9b3;
+  --d-shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --d-shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 6px 16px rgb(0 0 0 / 40%), 0 18px 40px rgb(0 0 0 / 45%);
 }
 
+/* The dark assignment list, shared by both ways of arriving at dark. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #17181a;
-    --surface: #1f2023;
-    --surface-2: #232427;
-    --sidebar: #141518;
-    --border: #33353a;
-    --border-strong: #45474d;
-    --text: #ecedee;
-    --text-muted: #a2a4a9;
-    --text-faint: #7e8085;
-    --accent: #6f9bff;
-    --accent-soft: #1e2b47;
-    --accent-contrast: #0d1220;
-    --today: #e8b23a;
-    --upcoming: #f08a5d;
-    --anytime: #4fbfae;
-    --someday: #cfa93f;
-    --logbook: #57b877;
-    --danger: #f38079;
-    --danger-soft: #3a1f1e;
-    --selected: #23375c;
-    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 45%);
+    --bg: var(--d-bg);
+    --surface: var(--d-surface);
+    --surface-2: var(--d-surface-2);
+    --sidebar: var(--d-sidebar);
+    --border: var(--d-border);
+    --border-strong: var(--d-border-strong);
+    --control-border: var(--d-control-border);
+    --text: var(--d-text);
+    --text-muted: var(--d-text-muted);
+    --text-faint: var(--d-text-faint);
+    --accent: var(--d-accent);
+    --accent-soft: var(--d-accent-soft);
+    --accent-contrast: var(--d-accent-contrast);
+    --selected: var(--d-selected);
+    --today: var(--d-today);
+    --upcoming: var(--d-upcoming);
+    --anytime: var(--d-anytime);
+    --someday: var(--d-someday);
+    --logbook: var(--d-logbook);
+    --danger: var(--d-danger);
+    --danger-soft: var(--d-danger-soft);
+    --chip-warm-bg: var(--d-chip-warm-bg);
+    --chip-warm-fg: var(--d-chip-warm-fg);
+    --chip-danger-bg: var(--d-chip-danger-bg);
+    --chip-danger-fg: var(--d-chip-danger-fg);
+    --chip-cool-bg: var(--d-chip-cool-bg);
+    --chip-cool-fg: var(--d-chip-cool-fg);
+    --chip-neutral-bg: var(--d-chip-neutral-bg);
+    --chip-neutral-fg: var(--d-chip-neutral-fg);
+    --shadow-sm: var(--d-shadow-sm);
+    --shadow: var(--d-shadow);
     color-scheme: dark;
   }
 }
 
 :root[data-theme='dark'] {
-  --bg: #17181a;
-  --surface: #1f2023;
-  --surface-2: #232427;
-  --sidebar: #141518;
-  --border: #33353a;
-  --border-strong: #45474d;
-  --text: #ecedee;
-  --text-muted: #a2a4a9;
-  --text-faint: #7e8085;
-  --accent: #6f9bff;
-  --accent-soft: #1e2b47;
-  --accent-contrast: #0d1220;
-  --today: #e8b23a;
-  --upcoming: #f08a5d;
-  --anytime: #4fbfae;
-  --someday: #cfa93f;
-  --logbook: #57b877;
-  --danger: #f38079;
-  --danger-soft: #3a1f1e;
-  --selected: #23375c;
-  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 45%);
+  --bg: var(--d-bg);
+  --surface: var(--d-surface);
+  --surface-2: var(--d-surface-2);
+  --sidebar: var(--d-sidebar);
+  --border: var(--d-border);
+  --border-strong: var(--d-border-strong);
+  --control-border: var(--d-control-border);
+  --text: var(--d-text);
+  --text-muted: var(--d-text-muted);
+  --text-faint: var(--d-text-faint);
+  --accent: var(--d-accent);
+  --accent-soft: var(--d-accent-soft);
+  --accent-contrast: var(--d-accent-contrast);
+  --selected: var(--d-selected);
+  --today: var(--d-today);
+  --upcoming: var(--d-upcoming);
+  --anytime: var(--d-anytime);
+  --someday: var(--d-someday);
+  --logbook: var(--d-logbook);
+  --danger: var(--d-danger);
+  --danger-soft: var(--d-danger-soft);
+  --chip-warm-bg: var(--d-chip-warm-bg);
+  --chip-warm-fg: var(--d-chip-warm-fg);
+  --chip-danger-bg: var(--d-chip-danger-bg);
+  --chip-danger-fg: var(--d-chip-danger-fg);
+  --chip-cool-bg: var(--d-chip-cool-bg);
+  --chip-cool-fg: var(--d-chip-cool-fg);
+  --chip-neutral-bg: var(--d-chip-neutral-bg);
+  --chip-neutral-fg: var(--d-chip-neutral-fg);
+  --shadow-sm: var(--d-shadow-sm);
+  --shadow: var(--d-shadow);
   color-scheme: dark;
 }
 
@@ -89,6 +171,7 @@
   --color-sidebar: var(--sidebar);
   --color-line: var(--border);
   --color-line-strong: var(--border-strong);
+  --color-control: var(--control-border);
   --color-ink: var(--text);
   --color-muted: var(--text-muted);
   --color-faint: var(--text-faint);
@@ -103,6 +186,14 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-selected: var(--selected);
+  --color-chip-warm: var(--chip-warm-bg);
+  --color-chip-warm-fg: var(--chip-warm-fg);
+  --color-chip-danger: var(--chip-danger-bg);
+  --color-chip-danger-fg: var(--chip-danger-fg);
+  --color-chip-cool: var(--chip-cool-bg);
+  --color-chip-cool-fg: var(--chip-cool-fg);
+  --color-chip-neutral: var(--chip-neutral-bg);
+  --color-chip-neutral-fg: var(--chip-neutral-fg);
 }
 
 /*
@@ -191,6 +282,26 @@
   transition: top 0.15s ease;
 }
 .skip-link:focus { top: 8px; }
+
+/*
+ * Each list sets --view-accent on the page; anything inside can pick it up. That is what
+ * ties a list's colour to its icon, its badge and its title rule without prop-drilling.
+ */
+.view-accent { color: var(--view-accent, var(--accent)); }
+.view-accent-bg { background: var(--view-accent, var(--accent)); }
+
+/* A soft wash of the list's hue behind its page badge. */
+.badge-wash {
+  background: color-mix(in srgb, var(--view-accent, var(--accent)) 14%, transparent);
+  color: var(--view-accent, var(--accent));
+}
+
+/* Sticky page header: content slides under it rather than colliding with it. */
+.page-header {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.5) blur(10px);
+  -webkit-backdrop-filter: saturate(1.5) blur(10px);
+}
 
 @keyframes pop-in {
   from { opacity: 0; transform: translateY(4px) scale(0.985); }

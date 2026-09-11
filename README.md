@@ -21,7 +21,7 @@ Nothing else is required. With no configuration the app is fully usable: it stor
 everything in IndexedDB on the device, works offline, and says so in Settings.
 
 ```bash
-npm run verify     # typecheck + 103 unit tests + production build
+npm run verify     # typecheck + 103 unit tests + contrast audit + production build
 ```
 
 ## Deploying to Vercel
@@ -128,6 +128,17 @@ Repeating a create with the same idempotency key returns the original id. An inv
 parent returns an actionable error and writes nothing partial.
 
 Stable links: `/?view=today`, `/?view=project:<id>`, `/?task=<id>`.
+
+## Appearance
+
+Each list carries its own hue — amber for Today, coral for Upcoming, teal for Anytime —
+used for its sidebar icon, its page badge and the wash behind it, so a glance at the
+header tells you where you are. Dates render as tinted pills rather than grey text, and
+an overdue deadline is the only red on the page.
+
+Both themes are held to WCAG 2.2 AA by `npm run check:contrast`, which asserts every
+text and UI-component pair in `globals.css` and fails the build if a colour change drops
+below the threshold.
 
 ## Keyboard
 

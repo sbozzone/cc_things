@@ -8,20 +8,8 @@ import { BUILT_IN_ORDER, VIEW_TITLES, type ViewKey } from '@/core/selectors';
 import { useApp, useCounts, useIndexes } from '@/state/store';
 import * as actions from '@/state/actions';
 import { Button, IconButton, ProgressRing } from './primitives';
-import {
-  ArchiveBoxIcon, BookIcon, CalendarIcon, CloudIcon, FolderIcon, InboxIcon, LayersIcon,
-  PlusIcon, SearchIcon, SettingsIcon, StarIcon, TagIcon, TrashIcon,
-} from './icons';
-
-const VIEW_ICONS: Record<string, { icon: React.ReactNode; color: string }> = {
-  inbox: { icon: <InboxIcon size={15} />, color: 'var(--text-muted)' },
-  today: { icon: <StarIcon size={15} />, color: 'var(--today)' },
-  upcoming: { icon: <CalendarIcon size={15} />, color: 'var(--upcoming)' },
-  anytime: { icon: <LayersIcon size={15} />, color: 'var(--anytime)' },
-  someday: { icon: <ArchiveBoxIcon size={15} />, color: 'var(--someday)' },
-  logbook: { icon: <BookIcon size={15} />, color: 'var(--logbook)' },
-  trash: { icon: <TrashIcon size={15} />, color: 'var(--text-faint)' },
-};
+import { CloudIcon, FolderIcon, LayersIcon, PlusIcon, SearchIcon, SettingsIcon, TagIcon } from './icons';
+import { sidebarIcon } from './view-style';
 
 const SYNC_LABELS: Record<string, string> = {
   local: 'Saved on this device',
@@ -50,15 +38,35 @@ function NavItem({
         type="button"
         aria-current={active ? 'page' : undefined}
         onClick={() => onSelect(view)}
-        className={`flex min-h-[36px] w-full items-center gap-2.5 rounded-md py-1.5 pr-2 text-left text-[14px] transition-colors ${
-          active ? 'bg-selected font-medium' : 'hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)]'
+        className={`group relative flex min-h-[38px] w-full items-center gap-2.5 rounded-lg py-1.5 pr-2 text-left text-[14px] transition-all ${
+          active
+            ? 'bg-surface font-semibold shadow-[var(--shadow-sm)]'
+            : 'hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
         }`}
-        style={{ paddingLeft: 8 + indent * 14 }}
+        style={{ paddingLeft: 10 + indent * 14 }}
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center" style={{ color }} aria-hidden="true">{icon}</span>
+        {/* The active row is marked by a bar in the list's own colour, not by fill alone. */}
+        <span
+          aria-hidden="true"
+          className="absolute left-0 top-1/2 h-[18px] w-[3px] -translate-y-1/2 rounded-r-full transition-opacity"
+          style={{ background: color ?? 'var(--accent)', opacity: active ? 1 : 0 }}
+        />
+        <span
+          className="flex h-5 w-5 shrink-0 items-center justify-center transition-transform group-hover:scale-110"
+          style={{ color }}
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
         <span className="min-w-0 flex-1 truncate">{label}</span>
         {count !== undefined && count > 0 ? (
-          <span className="shrink-0 text-[12px] tabular-nums text-faint">{count}</span>
+          <span
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[11.5px] font-medium tabular-nums ${
+              active ? 'bg-accent-soft text-accent' : 'text-faint'
+            }`}
+          >
+            {count}
+          </span>
         ) : null}
       </button>
     </li>
@@ -104,8 +112,18 @@ export function Sidebar({
 
   return (
     <nav aria-label="Lists" className="flex h-full flex-col bg-sidebar">
-      <div className="flex items-center gap-1 px-2 pt-3 pb-1">
-        <span className="flex-1 select-none px-1 text-[14px] font-semibold tracking-tight">Clearing</span>
+      <div className="flex items-center gap-1 px-2 pt-3 pb-2">
+        <span className="flex flex-1 select-none items-center gap-2 px-1">
+          <span
+            aria-hidden="true"
+            className="flex h-6 w-6 items-center justify-center rounded-[7px] bg-accent text-accent-contrast shadow-[var(--shadow-sm)]"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m4 12.5 5.2 5.2L20 6.6" />
+            </svg>
+          </span>
+          <span className="text-[15px] font-semibold tracking-[-0.01em]">Clearing</span>
+        </span>
         <IconButton label="Search" onClick={onOpenSearch}><SearchIcon size={15} /></IconButton>
         <IconButton label="Settings" onClick={onOpenSettings}><SettingsIcon size={15} /></IconButton>
       </div>
@@ -118,8 +136,8 @@ export function Sidebar({
               view={key}
               label={VIEW_TITLES[key] as string}
               count={counts[key]}
-              icon={VIEW_ICONS[key]?.icon}
-              color={VIEW_ICONS[key]?.color}
+              icon={sidebarIcon(key).icon}
+              color={sidebarIcon(key).accent}
               active={view === key}
               onSelect={select}
             />
@@ -128,7 +146,7 @@ export function Sidebar({
 
         {indexes.areas.length > 0 || indexes.unfiledProjects.length > 0 ? (
           <div className="mt-4">
-            <h2 className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-faint">Areas</h2>
+            <h2 className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-faint">Areas</h2>
             <ul className="space-y-0.5">
               {indexes.areas.map((area) => (
                 <li key={area.id}>
@@ -174,7 +192,7 @@ export function Sidebar({
 
         {tags.length > 0 ? (
           <div className="mt-4">
-            <h2 className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-faint">
+            <h2 className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-faint">
               Filter by tag{tagFilter.length > 0 ? ` (${tagFilter.length})` : ''}
             </h2>
             <div className="flex flex-wrap gap-1 px-1">
@@ -205,7 +223,7 @@ export function Sidebar({
 
         <div className="mt-4">
           <ul className="space-y-0.5">
-            <NavItem view="trash" label="Trash" icon={VIEW_ICONS.trash?.icon} color="var(--text-faint)" active={view === 'trash'} onSelect={select} />
+            <NavItem view="trash" label="Trash" icon={sidebarIcon('trash').icon} color="var(--text-faint)" active={view === 'trash'} onSelect={select} />
           </ul>
         </div>
       </div>

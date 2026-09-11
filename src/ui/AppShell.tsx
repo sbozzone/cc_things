@@ -17,6 +17,7 @@ import { DueReminders } from './DueReminders';
 import { IconButton } from './primitives';
 import { InboxIcon, LayersIcon, PlusIcon, SearchIcon, UndoIcon } from './icons';
 import { usePhone } from './useMediaQuery';
+import { viewStyle } from './view-style';
 
 const JUMP_KEYS: Record<string, ViewKey> = {
   '1': 'inbox', '2': 'today', '3': 'upcoming', '4': 'anytime', '5': 'someday', '6': 'logbook',
@@ -168,6 +169,7 @@ export function AppShell() {
 
   const isProject = view.startsWith('project:');
   const isArea = view.startsWith('area:');
+  const { icon, accent } = viewStyle(view);
 
   return (
     <div className="flex h-dvh overflow-hidden">
@@ -192,32 +194,46 @@ export function AppShell() {
         </div>
       ) : null}
 
-      <main id="main" className="scroll-area min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[760px] px-3 pt-3 sm:px-6 sm:pt-6">
-          <div className="mb-3 flex items-center gap-2">
+      <main id="main" className="scroll-area min-w-0 flex-1 overflow-y-auto" style={{ '--view-accent': accent } as React.CSSProperties}>
+        <div className="mx-auto w-full max-w-[780px] px-3 sm:px-6">
+          <header className="page-header sticky top-0 z-20 -mx-3 flex items-center gap-3 px-3 pb-2.5 pt-3 sm:-mx-6 sm:px-6 sm:pt-5">
             {isPhone ? (
               <IconButton label="Open lists" onClick={() => setSidebarOpen(true)}><LayersIcon /></IconButton>
             ) : null}
             {!isProject && !isArea ? (
-              <div className="min-w-0 flex-1">
-                <h1 className="truncate text-[22px] font-semibold leading-tight">{doc.title}</h1>
-                {doc.subtitle ? <p className="text-[12.5px] text-muted">{doc.subtitle}</p> : null}
-              </div>
+              <>
+                {/* The list's own hue, washed behind its glyph, so each page is recognisable at a glance. */}
+                <span aria-hidden="true" className="badge-wash flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]">
+                  {icon}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h1 className="truncate text-[25px] font-semibold leading-none tracking-[-0.02em]">{doc.title}</h1>
+                  {doc.subtitle ? <p className="mt-1 truncate text-[12.5px] text-muted">{doc.subtitle}</p> : null}
+                </div>
+              </>
             ) : (
               <span className="min-w-0 flex-1" />
             )}
-            <span className="shrink-0 text-[12.5px] text-faint" aria-live="polite">
+            <span className={`shrink-0 text-[12.5px] text-faint ${isPhone ? 'sr-only' : ''}`} aria-live="polite">
               {doc.openCount > 0
                 ? `${doc.openCount} open${doc.filtered ? ', filtered' : ''}`
                 : doc.filtered ? 'Filtered' : ''}
             </span>
             {isPhone ? <IconButton label="Search" onClick={() => setOverlay('search')}><SearchIcon /></IconButton> : null}
             {undoDepth > 0 ? <IconButton label="Undo" onClick={undo}><UndoIcon /></IconButton> : null}
-            <IconButton label={`Add a task to ${doc.title}`} onClick={addHere}><PlusIcon /></IconButton>
             {!isPhone ? (
               <IconButton label="Quick capture to Inbox" onClick={() => setOverlay('capture')}><InboxIcon /></IconButton>
             ) : null}
-          </div>
+            <button
+              type="button"
+              aria-label={`Add a task to ${doc.title}`}
+              title={`Add a task to ${doc.title}`}
+              onClick={addHere}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-contrast shadow-[var(--shadow-sm)] transition-transform hover:scale-105 active:scale-95"
+            >
+              <PlusIcon size={17} />
+            </button>
+          </header>
 
           {tagFilter.length > 0 ? (
             <div className="mb-2 flex items-center gap-2 rounded-md bg-accent-soft px-2.5 py-1.5 text-[12.5px] text-accent">

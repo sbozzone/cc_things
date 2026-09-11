@@ -133,7 +133,7 @@ Two deliberate simplifications, both preserving the stated behaviour:
 | | Requirement | Status |
 | --- | --- | --- |
 | N01–N04 | Interaction speed, search/startup, sync delivery, notification scheduling | ⚙️ Designed for, **not measured.** No benchmark run against the stated 10 000-task fixture exists, so no claim is made about the p95 targets. |
-| N05 | Accessibility | ⚙️ Built to WCAG 2.2 AA: keyboard paths for every action, visible focus, roles and labels throughout, status conveyed beyond colour, no drag required, 44px touch targets on the phone layout. **Not audited** — no automated axe run or screen-reader pass. |
+| N05 | Accessibility | ⚙️ Built to WCAG 2.2 AA: keyboard paths for every action, visible focus, roles and labels throughout, status conveyed beyond colour, no drag required, 44px touch targets on the phone layout. **Colour contrast is checked automatically** — `npm run check:contrast` asserts every text and UI-component pair in both themes against AA, and runs as part of `npm run verify`. Still **not audited** for the rest: no automated axe run or screen-reader pass. |
 | N06 | Responsive behaviour | ✅ 320px upward, no horizontal scrolling in core flows, text zoom unrestricted (`maximumScale: 5`), reduced motion honoured from both the system and the in-app setting. |
 | N07 | Reliability and recovery | ⚙️ Client-side replay is implemented and tested. Availability, restore-time and backup targets are properties of the chosen host and database, not of this code. |
 | N08 | Safe content handling | ✅ Notes and pasted content never rendered as HTML; inbound email sanitized; imports validated whole-or-nothing; sync operations validated against an allow-list; calendar fetches restricted to public HTTPS. |

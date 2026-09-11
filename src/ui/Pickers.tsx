@@ -211,7 +211,7 @@ export function TagPicker({
                 <span
                   aria-hidden="true"
                   className={`flex h-4 w-4 items-center justify-center rounded-[4px] border text-[10px] ${
-                    isDirect ? 'border-accent bg-accent text-accent-contrast' : 'border-line-strong'
+                    isDirect ? 'border-accent bg-accent text-accent-contrast' : 'border-control'
                   }`}
                 >
                   {isDirect ? '✓' : ''}
