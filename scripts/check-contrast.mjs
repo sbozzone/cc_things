@@ -18,28 +18,30 @@ const ratio = (a, b) => {
 };
 
 const light = {
-  bg: '#f7f6f3', surface: '#ffffff', surface2: '#f2f1ed', sidebar: '#efece6',
-  text: '#191917', muted: '#5d5b54', faint: '#6a6860',
-  accent: '#3a52d4', accentSoft: '#e8ebfc', accentContrast: '#ffffff', selected: '#dde3fb',
+  bg: '#f7f8fb', surface: '#ffffff', surface2: '#eef1f7', sidebar: '#f5f7fa',
+  text: '#1a1d29', muted: '#575e6f', faint: '#6a6860',
+  accent: '#2159d6', accentSoft: '#e6eefd', accentContrast: '#ffffff', selected: '#dbe7fd',
+  inbox: '#4a6fb5',
   today: '#b57500', upcoming: '#cf4f2a', anytime: '#0c877a', someday: '#97790f',
   logbook: '#1d874a', danger: '#b3261e', dangerSoft: '#fdeae7',
   chipWarmBg: '#fbf0da', chipWarmFg: '#7f5307',
   chipDangerBg: '#fdeae7', chipDangerFg: '#9d2a1d',
   chipCoolBg: '#e4f3f1', chipCoolFg: '#09655b',
-  chipNeutralBg: '#efece6', chipNeutralFg: '#5d5b54',
-  borderStrong: '#cbc7bc', control: '#84827a',
+  chipNeutralBg: '#eef1f7', chipNeutralFg: '#575e6f',
+  borderStrong: '#c6ccdb', control: '#84827a',
 };
 const dark = {
-  bg: '#121316', surface: '#1a1c20', surface2: '#23262c', sidebar: '#0d0e11',
-  text: '#edeff2', muted: '#a4a9b3', faint: '#7a808b',
-  accent: '#8098ff', accentSoft: '#202949', accentContrast: '#0b0f1c', selected: '#26324f',
+  bg: '#0f1115', surface: '#171a20', surface2: '#1f232b', sidebar: '#0b0d11',
+  text: '#eceef3', muted: '#a2a8b6', faint: '#7a808b',
+  accent: '#7aa2ff', accentSoft: '#1b2540', accentContrast: '#0b0f1c', selected: '#23304d',
+  inbox: '#86a9e6',
   today: '#f0b64a', upcoming: '#f5906a', anytime: '#4ec9b8', someday: '#d6b455',
   logbook: '#5fc783', danger: '#f58a80', dangerSoft: '#3a211e',
   chipWarmBg: '#382d16', chipWarmFg: '#f0c471',
   chipDangerBg: '#3d211d', chipDangerFg: '#f8a79c',
   chipCoolBg: '#11322f', chipCoolFg: '#6fd8c7',
-  chipNeutralBg: '#262930', chipNeutralFg: '#a4a9b3',
-  borderStrong: '#434752', control: '#787b83',
+  chipNeutralBg: '#22262f', chipNeutralFg: '#a2a8b6',
+  borderStrong: '#3e434f', control: '#787b83',
 };
 
 // [label, fg, bg, minimum]  — 4.5 for normal text, 3.0 for large text / UI components.
@@ -62,6 +64,7 @@ const pairs = (t) => [
   ['danger text on danger-soft', t.danger, t.dangerSoft, 4.5],
   ['body text on selected row', t.text, t.selected, 4.5],
   // Icons and bars are UI components: 3:1.
+  ['Inbox icon', t.inbox, t.sidebar, 3],
   ['Today icon', t.today, t.sidebar, 3],
   ['Upcoming icon', t.upcoming, t.sidebar, 3],
   ['Anytime icon', t.anytime, t.sidebar, 3],

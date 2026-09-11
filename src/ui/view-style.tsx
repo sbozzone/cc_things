@@ -1,7 +1,7 @@
 import type { ViewKey } from '@/core/selectors';
 import {
   ArchiveBoxIcon, BookIcon, CalendarIcon, FlagIcon, FolderIcon, InboxIcon, LayersIcon,
-  RepeatIcon, StarIcon, TagIcon, TrashIcon,
+  LogbookIcon, RepeatIcon, SunIcon, TagIcon, TrashIcon,
 } from './icons';
 
 /**
@@ -15,12 +15,12 @@ export interface ViewStyle {
 }
 
 const BUILT_IN: Record<string, ViewStyle> = {
-  inbox: { icon: <InboxIcon size={17} />, accent: 'var(--text-muted)' },
-  today: { icon: <StarIcon size={17} />, accent: 'var(--today)' },
+  inbox: { icon: <InboxIcon size={17} />, accent: 'var(--inbox)' },
+  today: { icon: <SunIcon size={17} />, accent: 'var(--today)' },
   upcoming: { icon: <CalendarIcon size={17} />, accent: 'var(--upcoming)' },
   anytime: { icon: <LayersIcon size={17} />, accent: 'var(--anytime)' },
   someday: { icon: <ArchiveBoxIcon size={17} />, accent: 'var(--someday)' },
-  logbook: { icon: <BookIcon size={17} />, accent: 'var(--logbook)' },
+  logbook: { icon: <LogbookIcon size={17} />, accent: 'var(--logbook)' },
   trash: { icon: <TrashIcon size={17} />, accent: 'var(--text-faint)' },
   tomorrow: { icon: <CalendarIcon size={17} />, accent: 'var(--upcoming)' },
   deadlines: { icon: <FlagIcon size={17} />, accent: 'var(--danger)' },

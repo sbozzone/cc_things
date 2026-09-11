@@ -27,7 +27,10 @@ function Icon({ children, size = 16, ...props }: SVGProps<SVGSVGElement> & { siz
 }
 
 export const InboxIcon = (p: IconProps) => (
-  <Icon {...p}><path d="M3 13h4l1.5 3h7L17 13h4" /><path d="M4.6 6.6 3 13v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5l-1.6-6.4A2 2 0 0 0 17.5 5h-11a2 2 0 0 0-1.9 1.6z" /></Icon>
+  <Icon {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="2.5" />
+    <path d="M3 13.5h4.5l1.2 2h6.6l1.2-2H21" />
+  </Icon>
 );
 export const StarIcon = (p: IconProps) => (
   <Icon {...p}><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z" /></Icon>
@@ -55,10 +58,13 @@ export const SearchIcon = (p: IconProps) => (
 );
 export const SettingsIcon = (p: IconProps) => (
   <Icon {...p}>
-    <path d="M4 7h10M18 7h2M4 12h2M10 12h10M4 17h8M16 17h4" />
-    <circle cx="16" cy="7" r="2.1" /><circle cx="8" cy="12" r="2.1" /><circle cx="14" cy="17" r="2.1" />
+    {/* Hub, ring and eight teeth: still legible once the whole glyph is 15px wide. */}
+    <circle cx="12" cy="12" r="3.1" />
+    <circle cx="12" cy="12" r="6.3" />
+    <path d="M12 2.9v2.9M12 18.2v2.9M21.1 12h-2.9M5.8 12H2.9M18.4 5.6l-2 2M7.6 16.4l-2 2M18.4 18.4l-2-2M7.6 7.6l-2-2" />
   </Icon>
 );
+
 export const FolderIcon = (p: IconProps) => (
   <Icon {...p}><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></Icon>
 );
@@ -109,4 +115,24 @@ export const PromoteIcon = (p: IconProps) => (
 );
 export const MoreIcon = (p: IconProps) => (
   <Icon {...p}><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" /></Icon>
+);
+
+/** Today reads as a sun rather than a star, as in the reference layout. */
+export const SunIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6" />
+  </Icon>
+);
+
+/** Logbook: a bound book carrying a tick. */
+export const LogbookIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h12.5v15.5H7a2.5 2.5 0 0 0-2.5 2.5z" />
+    <path d="m9 10.8 2.1 2.1 4.2-4.3" />
+  </Icon>
+);
+
+export const UserIcon = (p: IconProps) => (
+  <Icon {...p}><circle cx="12" cy="8.5" r="3.6" /><path d="M4.8 20a7.4 7.4 0 0 1 14.4 0" /></Icon>
 );

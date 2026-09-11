@@ -13,27 +13,28 @@
  */
 :root {
   /* Light */
-  --bg: #f7f6f3;
+  --bg: #f7f8fb;
   --surface: #ffffff;
-  --surface-2: #f2f1ed;
-  --sidebar: #efece6;
-  --border: #e4e1d9;
-  --border-strong: #cbc7bc;
+  --surface-2: #eef1f7;
+  --sidebar: #f5f7fa;
+  --border: #e3e7f0;
+  --border-strong: #c6ccdb;
   /*
    * Form-control outlines are UI components needing 3:1, which divider lines do not.
    * Chosen to clear 3:1 against every background a control sits on — including the
    * selected-row tint, which is the tightest case.
    */
   --control-border: #84827a;
-  --text: #191917;
-  --text-muted: #5d5b54;
+  --text: #1a1d29;
+  --text-muted: #575e6f;
   --text-faint: #6a6860;
-  --accent: #3a52d4;
-  --accent-soft: #e8ebfc;
+  --accent: #2159d6;
+  --accent-soft: #e6eefd;
   --accent-contrast: #ffffff;
-  --selected: #dde3fb;
+  --selected: #dbe7fd;
 
   /* Each list carries its own hue, used for its icon and its page badge. */
+  --inbox: #4a6fb5;
   --today: #b57500;
   --upcoming: #cf4f2a;
   --anytime: #0c877a;
@@ -49,8 +50,8 @@
   --chip-danger-fg: #9d2a1d;
   --chip-cool-bg: #e4f3f1;
   --chip-cool-fg: #09655b;
-  --chip-neutral-bg: #efece6;
-  --chip-neutral-fg: #5d5b54;
+  --chip-neutral-bg: #eef1f7;
+  --chip-neutral-fg: #575e6f;
 
   --shadow-sm: 0 1px 2px rgb(30 28 24 / 6%), 0 1px 3px rgb(30 28 24 / 4%);
   --shadow: 0 1px 2px rgb(30 28 24 / 5%), 0 4px 10px rgb(30 28 24 / 6%), 0 16px 34px rgb(30 28 24 / 9%);
@@ -58,20 +59,21 @@
   color-scheme: light;
 
   /* Dark values, declared once. */
-  --d-bg: #121316;
-  --d-surface: #1a1c20;
-  --d-surface-2: #23262c;
-  --d-sidebar: #0d0e11;
-  --d-border: #2c2f36;
-  --d-border-strong: #434752;
+  --d-bg: #0f1115;
+  --d-surface: #171a20;
+  --d-surface-2: #1f232b;
+  --d-sidebar: #0b0d11;
+  --d-border: #272b34;
+  --d-border-strong: #3e434f;
   --d-control-border: #787b83;
-  --d-text: #edeff2;
-  --d-text-muted: #a4a9b3;
+  --d-text: #eceef3;
+  --d-text-muted: #a2a8b6;
   --d-text-faint: #7a808b;
-  --d-accent: #8098ff;
-  --d-accent-soft: #202949;
+  --d-accent: #7aa2ff;
+  --d-accent-soft: #1b2540;
   --d-accent-contrast: #0b0f1c;
-  --d-selected: #26324f;
+  --d-selected: #23304d;
+  --d-inbox: #86a9e6;
   --d-today: #f0b64a;
   --d-upcoming: #f5906a;
   --d-anytime: #4ec9b8;
@@ -85,8 +87,8 @@
   --d-chip-danger-fg: #f8a79c;
   --d-chip-cool-bg: #11322f;
   --d-chip-cool-fg: #6fd8c7;
-  --d-chip-neutral-bg: #262930;
-  --d-chip-neutral-fg: #a4a9b3;
+  --d-chip-neutral-bg: #22262f;
+  --d-chip-neutral-fg: #a2a8b6;
   --d-shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
   --d-shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 6px 16px rgb(0 0 0 / 40%), 0 18px 40px rgb(0 0 0 / 45%);
 }
@@ -108,6 +110,7 @@
     --accent-soft: var(--d-accent-soft);
     --accent-contrast: var(--d-accent-contrast);
     --selected: var(--d-selected);
+    --inbox: var(--d-inbox);
     --today: var(--d-today);
     --upcoming: var(--d-upcoming);
     --anytime: var(--d-anytime);
@@ -178,6 +181,7 @@
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-accent-contrast: var(--accent-contrast);
+  --color-inbox: var(--inbox);
   --color-today: var(--today);
   --color-upcoming: var(--upcoming);
   --color-anytime: var(--anytime);

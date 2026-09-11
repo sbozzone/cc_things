@@ -176,7 +176,7 @@ export function AppShell() {
       <a href="#main" className="skip-link">Skip to list</a>
 
       {!isPhone ? (
-        <aside className="w-[248px] shrink-0 border-r border-line">
+        <aside className="w-[276px] shrink-0 border-r border-line">
           <Sidebar onOpenSearch={() => setOverlay('search')} onOpenSettings={() => setOverlay('settings')} />
         </aside>
       ) : null}
@@ -184,7 +184,7 @@ export function AppShell() {
       {isPhone && sidebarOpen ? (
         <div className="fixed inset-0 z-40 flex">
           <div className="absolute inset-0 bg-black/35" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
-          <aside className="relative z-10 w-[82vw] max-w-[300px] border-r border-line shadow-[var(--shadow)]">
+          <aside className="relative z-10 w-[86vw] max-w-[330px] border-r border-line shadow-[var(--shadow)]">
             <Sidebar
               onOpenSearch={() => { setOverlay('search'); setSidebarOpen(false); }}
               onOpenSettings={() => { setOverlay('settings'); setSidebarOpen(false); }}

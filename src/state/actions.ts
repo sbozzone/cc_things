@@ -179,6 +179,14 @@ export function createAndAssignTag(targetType: 'task' | 'project' | 'area', targ
   state.dispatch(patches, { undoLabel: 'tag' });
 }
 
+/** Creates a tag on its own, from the sidebar, with nothing to attach it to yet. */
+export function createTagNamed(name: string): string {
+  const state = app();
+  const result = commands.createTag(state.db, state.ctx(), name);
+  state.dispatch(result.patches, { undoLabel: 'new tag' });
+  return result.id;
+}
+
 export function inheritedTagsOf(taskId: string): { tagId: string; from: string }[] {
   const state = app();
   const effective = effectiveTaskTags(state.db, state.indexes().tagIndex, taskId);

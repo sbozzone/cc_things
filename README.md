@@ -131,10 +131,17 @@ Stable links: `/?view=today`, `/?view=project:<id>`, `/?task=<id>`.
 
 ## Appearance
 
+The sidebar leads with a Quick find field (⌘K), then the six built-in lists, then your
+areas and tags as separate sections with their own add buttons. The special views —
+Tomorrow, Deadlines, Repeating, All Projects, Logged Projects and Trash — sit behind
+"More lists" so they stay reachable without crowding the navigation. The account and
+sync status live along the bottom edge.
+
 Each list carries its own hue — amber for Today, coral for Upcoming, teal for Anytime —
 used for its sidebar icon, its page badge and the wash behind it, so a glance at the
-header tells you where you are. Dates render as tinted pills rather than grey text, and
-an overdue deadline is the only red on the page.
+header tells you where you are. The active row takes a soft fill of the accent while its
+glyph keeps its own colour. Dates render as tinted pills rather than grey text, and an
+overdue deadline is the only red on the page.
 
 Both themes are held to WCAG 2.2 AA by `npm run check:contrast`, which asserts every
 text and UI-component pair in `globals.css` and fails the build if a colour change drops
