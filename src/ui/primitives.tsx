@@ -67,12 +67,19 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
   const ref = useFocusTrap(true, onClose);
   const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
   const [isSheet, setIsSheet] = useState(false);
+  const [sheetStyle, setSheetStyle] = useState<React.CSSProperties>({});
 
   useLayoutEffect(() => {
     const place = () => {
       const sheet = window.innerWidth < 620;
       setIsSheet(sheet);
       if (sheet || !anchor) {
+        // On iOS, fixed bottom sheets otherwise sit behind the software keyboard.
+        // visualViewport tells us exactly how much of the layout viewport is obscured.
+        const viewport = window.visualViewport;
+        const visibleHeight = viewport?.height ?? window.innerHeight;
+        const keyboardInset = Math.max(0, window.innerHeight - visibleHeight - (viewport?.offsetTop ?? 0));
+        setSheetStyle({ bottom: keyboardInset, maxHeight: Math.max(240, visibleHeight - 12) });
         setStyle({});
         return;
       }
@@ -88,11 +95,23 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
     place();
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
+    window.visualViewport?.addEventListener('resize', place);
+    window.visualViewport?.addEventListener('scroll', place);
     return () => {
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
+      window.visualViewport?.removeEventListener('resize', place);
+      window.visualViewport?.removeEventListener('scroll', place);
     };
   }, [anchor, width, ref]);
+
+  useEffect(() => {
+    if (!isSheet) return;
+    // A task title is commonly still focused when its action bar is tapped. Hiding the
+    // keyboard lets the destination list be visible immediately; search remains optional.
+    const active = document.activeElement as HTMLElement | null;
+    if (active?.matches('input, textarea')) active.blur();
+  }, [isSheet]);
 
   return (
     <>
@@ -104,10 +123,10 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
         tabIndex={-1}
         className={
           isSheet
-            ? 'pop-in fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl border-t border-line bg-surface p-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[var(--shadow)] scroll-area'
+            ? 'pop-in fixed inset-x-0 z-50 overflow-y-auto rounded-t-2xl border-t border-line bg-surface p-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[var(--shadow)] scroll-area'
             : 'pop-in z-50 max-h-[70vh] overflow-y-auto rounded-[10px] border border-line bg-surface p-2 shadow-[var(--shadow)] scroll-area'
         }
-        style={isSheet ? undefined : style}
+        style={isSheet ? sheetStyle : style}
       >
         {isSheet ? (
           <div className="mb-2 flex items-center justify-between px-1">

@@ -216,7 +216,7 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
           {directTags.length + inherited.length > 0 ? `${directTags.length + inherited.length} tags` : 'Tags'}
         </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={openPopover('move')}>
-          <MoveIcon size={14} />{contextLabel ?? 'Move'}
+          <MoveIcon size={14} />{contextLabel ? `Move · ${contextLabel}` : 'Move'}
         </Button>
         {!showNotes && !task.notes.trim() ? (
           <Button size="sm" variant="ghost" keepFocus onClick={() => { setShowNotes(true); setNotesFocused(true); }}>

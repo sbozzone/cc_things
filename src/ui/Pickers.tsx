@@ -79,7 +79,9 @@ export function MovePicker({
       <div className="px-1 pb-1">
         <input
           type="text"
-          autoFocus
+          // A phone sheet intentionally opens without raising the keyboard; all choices
+          // are visible immediately, while tapping here still enables search.
+          autoFocus={typeof window !== 'undefined' && window.innerWidth >= 620}
           value={query}
           aria-label={`${title} — search destinations`}
           placeholder="Search areas, projects, headings…"
