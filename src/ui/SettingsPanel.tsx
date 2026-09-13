@@ -15,6 +15,14 @@ const TABS = ['General', 'Account & sync', 'Calendar', 'Data', 'Keyboard'] as co
 type Tab = (typeof TABS)[number];
 
 const APPEARANCE_KEY = 'clearing.appearance';
+const BUILD_TIMESTAMP = process.env.NEXT_PUBLIC_BUILD_TIMESTAMP ?? 'development build';
+
+function buildStampLabel(): string {
+  if (BUILD_TIMESTAMP === 'development build') return BUILD_TIMESTAMP;
+  const date = new Date(BUILD_TIMESTAMP);
+  if (Number.isNaN(date.valueOf())) return BUILD_TIMESTAMP;
+  return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+}
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -304,7 +312,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
       </div>
       <div className="flex items-center gap-2 border-t border-line px-4 py-2 text-[12px] text-muted">
         <CloudIcon size={14} />
-        Everything works offline. When an account is connected, changes sync as soon as you are back online.
+        <span className="flex-1">Everything works offline. When an account is connected, changes sync as soon as you are back online.</span>
+        <time className="shrink-0 text-right text-[10px]" dateTime={BUILD_TIMESTAMP} title="Build timestamp">Build {buildStampLabel()}</time>
       </div>
     </Modal>
   );
