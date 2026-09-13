@@ -65,7 +65,7 @@ export function validatePackage(value: unknown): ValidationResult {
   const pkg = value as Partial<ExportPackage> | null;
 
   if (!pkg || typeof pkg !== 'object') return { ok: false, errors: ['The file is not a JSON object.'], counts };
-  if (pkg.format !== EXPORT_FORMAT) errors.push('This file is not a Clearing export package.');
+  if (pkg.format !== EXPORT_FORMAT) errors.push('This file is not a getToDo export package.');
   if (pkg.formatVersion !== 1) errors.push(`Unsupported package version: ${String(pkg.formatVersion)}.`);
   if (typeof pkg.schemaVersion !== 'number' || pkg.schemaVersion > SCHEMA_VERSION) {
     errors.push('The package was written by a newer version of the app.');
@@ -240,7 +240,7 @@ export function exportText(db: Database): string {
     }
   };
 
-  write('Clearing export');
+  write('getToDo export');
   write(`Generated ${new Date().toISOString()}`);
   write();
 

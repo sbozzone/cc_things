@@ -155,12 +155,12 @@ function DataTab({ onClose }: { onClose: () => void }) {
   return (
     <div>
       <Row label="Export a JSON package" hint="Tasks, hierarchy, notes, tags, schedules and history. No credentials, no cached calendar events.">
-        <Button size="sm" onClick={() => download(`clearing-${stamp}.json`, JSON.stringify(exportDatabase(db), null, 2), 'application/json')}>
+        <Button size="sm" onClick={() => download(`gettodo-${stamp}.json`, JSON.stringify(exportDatabase(db), null, 2), 'application/json')}>
           Export JSON
         </Button>
       </Row>
       <Row label="Export readable text" hint="A plain outline you can read anywhere.">
-        <Button size="sm" onClick={() => download(`clearing-${stamp}.txt`, exportText(db), 'text/plain')}>Export text</Button>
+        <Button size="sm" onClick={() => download(`gettodo-${stamp}.txt`, exportText(db), 'text/plain')}>Export text</Button>
       </Row>
       <Row label="Import a package" hint="You will see a count preview and choose merge or copy before anything is written.">
         <Button size="sm" onClick={() => fileRef.current?.click()}>Choose file…</Button>

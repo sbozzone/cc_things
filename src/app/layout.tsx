@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Clearing',
+  title: 'getToDo',
   description: 'A calm task manager: capture a thought, plan your day, keep commitments visible.',
-  applicationName: 'Clearing',
+  applicationName: 'getToDo',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, title: 'Clearing', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'getToDo', statusBarStyle: 'default' },
   icons: { icon: '/icon.svg', apple: '/apple-icon.png' },
 };
 

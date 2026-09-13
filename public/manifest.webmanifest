@@ -1,6 +1,6 @@
 {
-  "name": "Clearing",
-  "short_name": "Clearing",
+  "name": "getToDo",
+  "short_name": "getToDo",
   "description": "A calm task manager: capture a thought, plan your day, keep commitments visible.",
   "start_url": "/",
   "scope": "/",

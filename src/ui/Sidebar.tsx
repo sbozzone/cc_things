@@ -161,7 +161,7 @@ export function Sidebar({
             <path d="m4 12.5 5.2 5.2L20 6.6" />
           </svg>
         </span>
-        <span className="text-[22px] font-bold tracking-[-0.02em]">Clearing</span>
+        <span className="text-[22px] font-bold tracking-[-0.02em]">getToDo</span>
       </div>
 
       {/* Quick find sits in the panel rather than behind an icon in the header. */}

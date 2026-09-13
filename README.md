@@ -1,4 +1,4 @@
-# Clearing
+# getToDo
 
 A calm, local-first task manager: capture a thought, organise work, choose what to do
 today, and keep commitments visible. Built from
@@ -34,22 +34,48 @@ That is a complete, working deployment — local-first, offline-capable, install
 
 ### Turning on accounts and cross-device sync
 
-Sync is optional and off until both variables are present. A half-configured deployment
-never pretends to be syncing.
+For a personal deployment, use **Vercel Hobby** for the app and a free **Neon Postgres**
+database for its shared data. Vercel Postgres itself is no longer offered for new
+projects; this app works with any standard Postgres URL.
 
-1. In the Vercel project, **Storage → Create Database → Postgres**, and attach it. That
-   sets `POSTGRES_URL`. Any other Postgres works too — set `DATABASE_URL` instead
-   (Neon, Supabase and Railway connection strings all work as-is).
-2. Add an environment variable `AUTH_SECRET`, at least 32 characters:
+Sync is optional and stays off until both variables below are present. A half-configured
+deployment never pretends to be syncing.
 
-   ```bash
-   openssl rand -base64 48
+1. Create a free database at [Neon](https://neon.com). Copy its **pooled** connection
+   string (it begins with `postgresql://`). Neon is a good fit here because its free
+   tier does not have an inactivity expiry and provides 0.5 GB of storage — ample for a
+   one-person task list.
+2. In the Vercel project, go to **Settings → Environment Variables** and add
+   `DATABASE_URL` with that connection string. Enable it for **Production** (and Preview
+   if you want preview deployments to sync too).
+3. Add `AUTH_SECRET`, a random value at least 32 characters long. On Windows PowerShell:
+
+   ```powershell
+   [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
    ```
 
-3. Redeploy. The database schema is created on first use — there is no migration step.
+4. Redeploy. The schema is created automatically on the first request.
 
-Then open the app, go to **Settings → Account & sync**, and create an account. Work
-already on the device stays there and is uploaded to the account.
+Open the deployed app on your computer and create one account in **Settings → Account &
+sync**. Sign in with that same account on iPhone and iPad; after each device reports
+**Up to date**, all three have a durable local offline copy plus the shared database.
+
+### Install it on your devices
+
+The site is responsive and installable as a PWA; no App Store account is needed.
+
+- **iPhone / iPad:** open the Vercel URL in Safari, choose **Share → Add to Home Screen**,
+  then open getToDo from the new icon and sign in.
+- **PC:** open the URL in Edge or Chrome and use the browser's **Install app** button in
+  the address bar, or simply keep using the browser tab.
+
+### Keep a recovery copy
+
+Cloud sync protects against losing a browser or device, but every free provider has
+limits. Use **Settings → Data → Export** after important changes (or once a month) and
+save the exported file in a cloud folder you already trust, such as OneDrive or iCloud
+Drive. That gives you an independent recovery copy even if you accidentally delete data
+or decide to change providers later.
 
 ### Optional: inbound email capture
 
