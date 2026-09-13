@@ -176,6 +176,9 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
       {popover === 'area' ? (
         <MovePicker
           anchor={anchor} onClose={() => setPopover(null)} db={db} title="Move project to area"
+          currentTarget={project.areaId
+            ? { parentType: 'area', parentId: project.areaId, headingId: null }
+            : { parentType: 'inbox', parentId: null, headingId: null }}
           onPick={(target) => actions.updateProject(projectId, { areaId: target.parentType === 'area' ? target.parentId : null })}
         />
       ) : null}

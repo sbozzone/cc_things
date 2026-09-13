@@ -312,3 +312,23 @@
   to { opacity: 1; transform: none; }
 }
 .pop-in { animation: pop-in 0.13s ease-out; }
+
+/* iOS recommends a 44pt minimum hit area. Keep the artwork compact while making the
+ * interactive box forgiving enough for a thumb on phone-sized layouts. */
+@media (max-width: 619px) {
+  button,
+  [role='button'],
+  [role='option'],
+  [role='tab'] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+  select,
+  textarea,
+  label:has(input[type='checkbox']),
+  label:has(input[type='radio']) {
+    min-height: 44px;
+  }
+}

@@ -267,22 +267,26 @@ export function StatusControl({
         event.stopPropagation();
         if (isOpen) onCancel();
       }}
-      className="mt-[1px] flex h-6 w-6 shrink-0 items-center justify-center rounded-[5px] border transition-colors"
-      style={{
-        borderColor: status === 'open' ? 'var(--control-border)' : 'transparent',
-        background: status === 'completed' ? 'var(--accent)' : status === 'canceled' ? 'var(--control-border)' : 'transparent',
-        borderRadius: tone === 'project' ? '50%' : undefined,
-      }}
+      className="mt-[1px] flex h-6 w-6 shrink-0 items-center justify-center"
     >
-      {status === 'completed' ? (
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent-contrast)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="m4 12.5 5.2 5.2L20 6.6" />
-        </svg>
-      ) : status === 'canceled' ? (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--surface)" strokeWidth="3.6" strokeLinecap="round" aria-hidden="true">
-          <path d="M5 12h14" />
-        </svg>
-      ) : null}
+      <span
+        className="flex h-6 w-6 items-center justify-center rounded-[5px] border transition-colors"
+        style={{
+          borderColor: status === 'open' ? 'var(--control-border)' : 'transparent',
+          background: status === 'completed' ? 'var(--accent)' : status === 'canceled' ? 'var(--control-border)' : 'transparent',
+          borderRadius: tone === 'project' ? '50%' : undefined,
+        }}
+      >
+        {status === 'completed' ? (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent-contrast)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m4 12.5 5.2 5.2L20 6.6" />
+          </svg>
+        ) : status === 'canceled' ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--surface)" strokeWidth="3.6" strokeLinecap="round" aria-hidden="true">
+            <path d="M5 12h14" />
+          </svg>
+        ) : null}
+      </span>
     </button>
   );
 }

@@ -303,7 +303,13 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
         />
       ) : null}
       {popover === 'move' ? (
-        <MovePicker anchor={anchor} onClose={() => setPopover(null)} db={db} onPick={(target) => actions.moveTasks([task.id], target)} />
+        <MovePicker
+          anchor={anchor}
+          onClose={() => setPopover(null)}
+          db={db}
+          currentTarget={{ parentType: task.parentType, parentId: task.parentId, headingId: task.headingId }}
+          onPick={(target) => actions.moveTasks([task.id], target)}
+        />
       ) : null}
       {popover === 'tags' ? (
         <TagPicker

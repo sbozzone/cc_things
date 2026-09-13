@@ -77,16 +77,18 @@ function GeneralTab() {
         </select>
       </Row>
       <Row label="Reduce motion" hint="Also honoured automatically when the device asks for it.">
-        <input
-          type="checkbox"
-          aria-label="Reduce motion"
-          checked={settings.reducedMotion}
-          className="h-5 w-5"
-          onChange={(event) => {
-            actions.updateSettings({ reducedMotion: event.target.checked });
-            persistAppearance({ reducedMotion: event.target.checked });
-          }}
-        />
+        <label className="flex h-11 w-11 items-center justify-center min-[620px]:h-auto min-[620px]:w-auto">
+          <input
+            type="checkbox"
+            aria-label="Reduce motion"
+            checked={settings.reducedMotion}
+            className="h-5 w-5"
+            onChange={(event) => {
+              actions.updateSettings({ reducedMotion: event.target.checked });
+              persistAppearance({ reducedMotion: event.target.checked });
+            }}
+          />
+        </label>
       </Row>
       <Row label="Today grouping" hint="A flat manual list, or grouped by area and project.">
         <select
@@ -126,13 +128,15 @@ function GeneralTab() {
         </select>
       </Row>
       <Row label="Type to search" hint="Only when focus is outside a text field.">
-        <input
-          type="checkbox"
-          aria-label="Type to search"
-          checked={settings.typeToSearch}
-          className="h-5 w-5"
-          onChange={(event) => actions.updateSettings({ typeToSearch: event.target.checked })}
-        />
+        <label className="flex h-11 w-11 items-center justify-center min-[620px]:h-auto min-[620px]:w-auto">
+          <input
+            type="checkbox"
+            aria-label="Type to search"
+            checked={settings.typeToSearch}
+            className="h-5 w-5"
+            onChange={(event) => actions.updateSettings({ typeToSearch: event.target.checked })}
+          />
+        </label>
       </Row>
     </div>
   );
@@ -311,11 +315,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         {tab === 'Data' ? <DataTab onClose={onClose} /> : null}
         {tab === 'Keyboard' ? <KeyboardHelp /> : null}
       </div>
-      <div className="flex items-center gap-2 border-t border-line px-4 py-2 text-[12px] text-muted">
-        <CloudIcon size={14} />
-        <span className="flex-1">Everything works offline. When an account is connected, changes sync as soon as you are back online.</span>
-        <span className="shrink-0 text-right text-[10px]" title="Application version">v{APP_VERSION}</span>
-        <time className="shrink-0 text-right text-[10px]" dateTime={BUILD_TIMESTAMP} title="Build timestamp">Build {buildStampLabel()}</time>
+      <div className="flex flex-col gap-1.5 border-t border-line px-4 py-2 text-[12px] text-muted min-[620px]:flex-row min-[620px]:items-center min-[620px]:gap-2">
+        <div className="flex items-start gap-2 min-[620px]:flex-1 min-[620px]:items-center">
+          <CloudIcon size={14} className="mt-0.5 shrink-0 min-[620px]:mt-0" />
+          <span className="min-[620px]:hidden">Works offline. Sync resumes when connected.</span>
+          <span className="hidden min-[620px]:inline">Everything works offline. When an account is connected, changes sync as soon as you are back online.</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 pl-[22px] text-[10px] min-[620px]:justify-end min-[620px]:pl-0">
+          <span title="Application version">v{APP_VERSION}</span>
+          <time dateTime={BUILD_TIMESTAMP} title="Build timestamp">Build {buildStampLabel()}</time>
+        </div>
       </div>
     </Modal>
   );

@@ -472,6 +472,19 @@ function SelectionBar({ ids }: { ids: string[] }) {
   const [popover, setPopover] = useState<'when' | 'deadline' | 'move' | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
+  const commonCurrentTarget = useMemo(() => {
+    const tasks = ids.map((id) => db.tasks[id]).filter((task): task is Task => Boolean(task));
+    const first = tasks[0];
+    if (!first || tasks.length !== ids.length) return null;
+    const matches = tasks.every((task) =>
+      task.parentType === first.parentType &&
+      task.parentId === first.parentId &&
+      task.headingId === first.headingId);
+    return matches
+      ? { parentType: first.parentType, parentId: first.parentId, headingId: first.headingId }
+      : null;
+  }, [db.tasks, ids]);
+
   const open = (kind: typeof popover) => (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchor(event.currentTarget);
     setPopover(kind);
@@ -511,6 +524,7 @@ function SelectionBar({ ids }: { ids: string[] }) {
       {popover === 'move' ? (
         <MovePicker
           anchor={anchor} onClose={() => setPopover(null)} db={db}
+          currentTarget={commonCurrentTarget}
           onPick={(target) => { actions.moveTasks(ids, target); clearSelection(); }}
         />
       ) : null}

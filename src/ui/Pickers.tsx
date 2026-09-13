@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { byRank } from '@/core/rank';
 import { tagPath } from '@/core/tags';
 import type { Database } from '@/core/types';
@@ -13,13 +13,14 @@ import { FolderIcon, InboxIcon, LayersIcon, TagIcon } from './icons';
  * by typing, so moving work never requires a drag.
  */
 export function MovePicker({
-  anchor, onClose, db, onPick, title = 'Move to',
+  anchor, onClose, db, onPick, title = 'Move to', currentTarget = null,
 }: {
   anchor: HTMLElement | null;
   onClose: () => void;
   db: Database;
   onPick: (target: AddTarget) => void;
   title?: string;
+  currentTarget?: AddTarget | null;
 }) {
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -64,6 +65,22 @@ export function MovePicker({
     if (!needle) return out;
     return out.filter((o) => `${o.label} ${o.detail ?? ''}`.toLowerCase().includes(needle));
   }, [db, query]);
+
+  const selectedKey = currentTarget?.headingId
+    ? `heading:${currentTarget.headingId}`
+    : currentTarget?.parentType === 'project' && currentTarget.parentId
+      ? `project:${currentTarget.parentId}`
+      : currentTarget?.parentType === 'area' && currentTarget.parentId
+        ? `area:${currentTarget.parentId}`
+        : currentTarget?.parentType === 'inbox'
+          ? 'inbox'
+          : null;
+
+  useEffect(() => {
+    if (query) return;
+    const selectedIndex = options.findIndex((option) => option.key === selectedKey);
+    if (selectedIndex >= 0) setActive(selectedIndex);
+  }, [options, query, selectedKey]);
 
   const icons = {
     inbox: <InboxIcon size={15} />,
@@ -112,27 +129,31 @@ export function MovePicker({
         {options.length === 0 ? (
           <li className="px-2 py-3 text-[13px] text-muted">No destination matches.</li>
         ) : null}
-        {options.map((option, index) => (
-          <li key={option.key}>
-            <button
-              type="button"
-              role="option"
-              aria-selected={index === clamped}
-              onMouseEnter={() => setActive(index)}
-              onClick={() => {
-                onPick(option.target);
-                onClose();
-              }}
-              className={`flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-[14px] ${
-                index === clamped ? 'bg-accent-soft text-accent' : 'hover:bg-surface-2'
-              } ${option.icon === 'heading' ? 'pl-6' : ''}`}
-            >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted">{icons[option.icon]}</span>
-              <span className="flex-1 truncate">{option.label}</span>
-              {option.detail ? <span className="shrink-0 text-[12px] text-faint">{option.detail}</span> : null}
-            </button>
-          </li>
-        ))}
+        {options.map((option, index) => {
+          const isCurrent = option.key === selectedKey;
+          return (
+            <li key={option.key}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={isCurrent}
+                onMouseEnter={() => setActive(index)}
+                onClick={() => {
+                  onPick(option.target);
+                  onClose();
+                }}
+                className={`flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-[14px] ${
+                  index === clamped ? 'bg-accent-soft text-accent' : 'hover:bg-surface-2'
+                } ${option.icon === 'heading' ? 'pl-6' : ''}`}
+              >
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted">{icons[option.icon]}</span>
+                <span className="flex-1 truncate">{option.label}</span>
+                {isCurrent ? <span className="shrink-0 text-[11px] text-faint">Current</span> : null}
+                {option.detail ? <span className="shrink-0 text-[12px] text-faint">{option.detail}</span> : null}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </Popover>
   );
