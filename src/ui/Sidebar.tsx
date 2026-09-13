@@ -8,7 +8,7 @@ import { BUILT_IN_ORDER, VIEW_TITLES, type ViewKey } from '@/core/selectors';
 import { useApp, useCounts, useIndexes } from '@/state/store';
 import * as actions from '@/state/actions';
 import { IconButton, Popover, ProgressRing } from './primitives';
-import { CloudIcon, FolderIcon, MoreIcon, PlusIcon, SearchIcon, SettingsIcon, TagIcon, UserIcon } from './icons';
+import { ChevronIcon, CloudIcon, FolderIcon, MoreIcon, PlusIcon, SearchIcon, SettingsIcon, TagIcon, UserIcon } from './icons';
 import { sidebarIcon, viewStyle } from './view-style';
 
 /** Views that live behind "More lists" rather than in the main navigation. */
@@ -84,11 +84,12 @@ function SectionHeading({ label, addLabel, onAdd }: { label: string; addLabel: s
 const Divider = () => <div className="mx-3 my-3 border-t border-line" aria-hidden="true" />;
 
 export function Sidebar({
-  onOpenSearch, onOpenSettings, onClose,
+  onOpenSearch, onOpenSettings, onClose, onCollapse,
 }: {
   onOpenSearch: () => void;
   onOpenSettings: () => void;
   onClose?: () => void;
+  onCollapse?: () => void;
 }) {
   const db = useApp((s) => s.db);
   const view = useApp((s) => s.view);
@@ -161,7 +162,12 @@ export function Sidebar({
             <path d="m4 12.5 5.2 5.2L20 6.6" />
           </svg>
         </span>
-        <span className="text-[22px] font-bold tracking-[-0.02em]">getToDo</span>
+        <span className="min-w-0 flex-1 text-[22px] font-bold tracking-[-0.02em]">getToDo</span>
+        {onCollapse ? (
+          <IconButton label="Collapse sidebar" onClick={onCollapse}>
+            <ChevronIcon size={17} className="rotate-180" />
+          </IconButton>
+        ) : null}
       </div>
 
       {/* Quick find sits in the panel rather than behind an icon in the header. */}

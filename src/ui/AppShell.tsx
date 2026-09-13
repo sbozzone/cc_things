@@ -175,9 +175,13 @@ export function AppShell() {
     <div className="flex h-dvh overflow-hidden">
       <a href="#main" className="skip-link">Skip to list</a>
 
-      {!isPhone ? (
+      {!isPhone && !settings.sidebarCollapsed ? (
         <aside className="w-[276px] shrink-0 border-r border-line">
-          <Sidebar onOpenSearch={() => setOverlay('search')} onOpenSettings={() => setOverlay('settings')} />
+          <Sidebar
+            onOpenSearch={() => setOverlay('search')}
+            onOpenSettings={() => setOverlay('settings')}
+            onCollapse={() => actions.updateSettings({ sidebarCollapsed: true })}
+          />
         </aside>
       ) : null}
 
@@ -199,6 +203,14 @@ export function AppShell() {
           <header className="page-header sticky top-0 z-20 -mx-3 flex items-center gap-3 px-3 pb-2.5 pt-3 sm:-mx-6 sm:px-6 sm:pt-5">
             {isPhone ? (
               <IconButton label="Open lists" onClick={() => setSidebarOpen(true)}><LayersIcon /></IconButton>
+            ) : null}
+            {!isPhone && settings.sidebarCollapsed ? (
+              <IconButton
+                label="Expand sidebar"
+                onClick={() => actions.updateSettings({ sidebarCollapsed: false })}
+              >
+                <LayersIcon />
+              </IconButton>
             ) : null}
             {!isProject && !isArea ? (
               <>
@@ -280,7 +292,7 @@ export function AppShell() {
         </div>
       </main>
 
-      {isPhone ? (
+      {isPhone && selection.length === 0 ? (
         <button
           type="button"
           aria-label="Quick capture"

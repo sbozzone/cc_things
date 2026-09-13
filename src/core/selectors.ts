@@ -6,6 +6,7 @@ import {
 } from './membership';
 import { buildTagIndex, effectiveProjectTags, effectiveTaskTags, matchesTagFilter, type TagIndex } from './tags';
 import { addDays, formatDateLabel, monthName, weekdayName } from './dates';
+import { datesInRange, hasOccurrence, occurrenceDates } from './recurrence';
 import type {
   Area, CalendarEvent, ChecklistItem, Database, DateOnly, Heading, Project,
   RepeatTemplate, Task,
@@ -181,7 +182,20 @@ export type ListItem =
   | { kind: 'task'; id: string; task: Task; meta: RowMeta }
   | { kind: 'project'; id: string; project: Project; progress: Progress; meta: RowMeta }
   | { kind: 'heading'; id: string; heading: Heading; addTarget: AddTarget }
-  | { kind: 'event'; id: string; event: CalendarEvent };
+  | { kind: 'event'; id: string; event: CalendarEvent }
+  | { kind: 'repeatPreview'; id: string; preview: RepeatPreview };
+
+export interface RepeatPreview {
+  templateId: string;
+  entityKind: RepeatTemplate['entityKind'];
+  title: string;
+  contextLabel: string | null;
+  occurrenceDate: DateOnly;
+  startDate: DateOnly;
+  deadline: DateOnly | null;
+  checklistTotal: number;
+  tagIds: string[];
+}
 
 export interface ListSection {
   id: string;
@@ -396,6 +410,31 @@ function groupByParent(db: Database, ix: Indexes, items: ListItem[]): ListSectio
 
 interface UpcomingEntry { task: Task; start: boolean; deadline: boolean }
 
+const UPCOMING_REPEAT_PREVIEW_DAYS = 90;
+
+function templateContextLabel(db: Database, template: RepeatTemplate): string | null {
+  const snapshot = template.snapshot;
+  if (snapshot.parentType === 'project' && snapshot.parentId) {
+    const project = db.projects[snapshot.parentId];
+    if (!project) return null;
+    const area = project.areaId ? db.areas[project.areaId] : null;
+    const heading = snapshot.headingId ? db.headings[snapshot.headingId] : null;
+    return [area?.title, project.title, heading?.title].filter(Boolean).join(' › ') || null;
+  }
+  if (snapshot.parentType === 'area' && snapshot.parentId) {
+    return db.areas[snapshot.parentId]?.title ?? null;
+  }
+  return null;
+}
+
+function templatePassesFilter(db: Database, ix: Indexes, opts: QueryOptions, template: RepeatTemplate): boolean {
+  const filter = opts.tagFilter ?? [];
+  if (filter.length === 0) return true;
+  const effective = effectiveTaskTags(db, ix.tagIndex, template.id).all;
+  for (const tagId of template.snapshot.tagIds) effective.add(tagId);
+  return matchesTagFilter(effective, ix.tagIndex, filter);
+}
+
 function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocument {
   const byDate = new Map<DateOnly, Map<string, UpcomingEntry>>();
   const put = (date: DateOnly, task: Task, kind: 'start' | 'deadline') => {
@@ -427,7 +466,45 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
     }
   }
 
-  const dates = new Set<DateOnly>([...byDate.keys(), ...projectsByDate.keys(), ...ix.eventsByDate.keys()]);
+  // Future copies stay virtual. They make a repeating schedule visible in Upcoming
+  // without filling storage or creating records before their normal generation day.
+  const repeatPreviewsByDate = new Map<DateOnly, RepeatPreview[]>();
+  const previewThrough = addDays(ix.today, UPCOMING_REPEAT_PREVIEW_DAYS);
+  for (const template of Object.values(db.repeatTemplates)) {
+    if (
+      template.deletedAt !== null || template.pausedAt !== null || template.stoppedAt !== null ||
+      template.rule.type === 'afterCompletion' || !templatePassesFilter(db, ix, opts, template)
+    ) continue;
+
+    // A deadline-based rule can start before its occurrence date, so extend the rule
+    // scan by its lead time and then filter on the actual start date.
+    const scanThrough = addDays(previewThrough, template.useDeadline ? Math.max(0, template.leadDays) : 0);
+    for (const occurrenceDate of datesInRange(
+      template.rule, template.anchorDate, addDays(ix.today, 1), scanThrough, template.endDate,
+    )) {
+      if (hasOccurrence(db, template.id, occurrenceDate)) continue;
+      const { startDate, deadline } = occurrenceDates(template, occurrenceDate);
+      if (startDate <= ix.today || startDate > previewThrough) continue;
+      const preview: RepeatPreview = {
+        templateId: template.id,
+        entityKind: template.entityKind,
+        title: template.snapshot.title,
+        contextLabel: templateContextLabel(db, template),
+        occurrenceDate,
+        startDate,
+        deadline,
+        checklistTotal: template.snapshot.checklist.length,
+        tagIds: template.snapshot.tagIds,
+      };
+      const list = repeatPreviewsByDate.get(startDate) ?? [];
+      list.push(preview);
+      repeatPreviewsByDate.set(startDate, list);
+    }
+  }
+
+  const dates = new Set<DateOnly>([
+    ...byDate.keys(), ...projectsByDate.keys(), ...repeatPreviewsByDate.keys(), ...ix.eventsByDate.keys(),
+  ]);
   const sections: ListSection[] = [];
 
   // The next seven days appear individually from tomorrow, then later date groups.
@@ -436,7 +513,7 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
   const windowSet = new Set(dayWindow);
 
   for (const date of dayWindow) {
-    sections.push(upcomingSection(db, ix, date, byDate, projectsByDate, `${formatDateLabel(date, ix.today)}`, true));
+    sections.push(upcomingSection(db, ix, date, byDate, projectsByDate, repeatPreviewsByDate, `${formatDateLabel(date, ix.today)}`, true));
   }
 
   const later = [...dates].filter((d) => d > ix.today && !windowSet.has(d)).sort();
@@ -450,7 +527,7 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
   for (const [monthKey, groupDates] of monthBuckets) {
     const items: ListItem[] = [];
     for (const date of groupDates) {
-      const section = upcomingSection(db, ix, date, byDate, projectsByDate, '', false);
+      const section = upcomingSection(db, ix, date, byDate, projectsByDate, repeatPreviewsByDate, '', false);
       items.push(...section.items);
     }
     if (items.length === 0) continue;
@@ -474,6 +551,7 @@ function upcomingSection(
   db: Database, ix: Indexes, date: DateOnly,
   byDate: Map<DateOnly, Map<string, UpcomingEntry>>,
   projectsByDate: Map<DateOnly, Project[]>,
+  repeatPreviewsByDate: Map<DateOnly, RepeatPreview[]>,
   title: string, keepEmpty: boolean,
 ): ListSection {
   const items: ListItem[] = [];
@@ -485,6 +563,13 @@ function upcomingSection(
       kind: 'project', id: `${project.id}@${date}`, project,
       progress: projectProgress(ix.tasksByProject.get(project.id) ?? []),
       meta: projectMeta(db, ix, project),
+    });
+  }
+  for (const preview of repeatPreviewsByDate.get(date) ?? []) {
+    items.push({
+      kind: 'repeatPreview',
+      id: `${preview.templateId}@preview:${preview.occurrenceDate}`,
+      preview,
     });
   }
   const entries = [...(byDate.get(date)?.values() ?? [])].sort((a, b) => byRank(a.task, b.task));

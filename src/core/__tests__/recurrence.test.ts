@@ -6,6 +6,7 @@ import {
   pauseTemplate, previewNext, resumeTemplate, skipOccurrence, updateTemplate,
 } from '../recurrence';
 import { setTaskStatus } from '../commands';
+import { buildIndexes, runView } from '../selectors';
 import type { RepeatRule, RepeatSnapshot } from '../types';
 
 const snapshot = (title: string, checklist: string[] = []): RepeatSnapshot => ({
@@ -222,5 +223,52 @@ describe('templates and copies (R18)', () => {
     const before = Object.keys(h.db.tasks).length;
     expect(previewNext(h.db.repeatTemplates[id]!, '2026-09-08')).toEqual(['2026-09-09', '2026-09-23', '2026-10-07']);
     expect(Object.keys(h.db.tasks)).toHaveLength(before);
+  });
+});
+
+describe('Upcoming recurrence previews', () => {
+  it('shows future fixed occurrences without creating task records', () => {
+    const h = new Harness('2026-09-08T09:00:00Z');
+    makeTemplate(h, { type: 'everyNDays', interval: 7 }, '2026-09-08');
+    h.apply(generateDueOccurrences(h.db, h.ctx()));
+    const taskCount = Object.keys(h.db.tasks).length;
+
+    const doc = runView(h.db, buildIndexes(h.db, h.today), 'upcoming');
+    const previews = doc.sections.flatMap((section) => section.items)
+      .filter((item) => item.kind === 'repeatPreview');
+
+    expect(previews[0]?.preview.startDate).toBe('2026-09-15');
+    expect(previews[0]?.preview.title).toBe('Recurring');
+    expect(Object.keys(h.db.tasks)).toHaveLength(taskCount);
+  });
+
+  it('does not duplicate an occurrence that was created early', () => {
+    const h = new Harness('2026-09-08T09:00:00Z');
+    const id = makeTemplate(h, { type: 'everyNDays', interval: 7 }, '2026-09-08');
+    h.apply(generateDueOccurrences(h.db, h.ctx()));
+    h.apply(createNextEarly(h.db, h.ctx(), id));
+
+    const doc = runView(h.db, buildIndexes(h.db, h.today), 'upcoming');
+    const september15 = doc.sections.find((section) => section.date === '2026-09-15');
+
+    expect(september15?.items.filter((item) => item.kind === 'task')).toHaveLength(1);
+    expect(september15?.items.filter((item) => item.kind === 'repeatPreview')).toHaveLength(0);
+  });
+
+  it('places deadline-based previews on their lead-time start date', () => {
+    const h = new Harness('2026-09-08T09:00:00Z');
+    makeTemplate(
+      h,
+      { type: 'dayOfMonth', interval: 1, dayOfMonth: 15 },
+      '2026-09-15',
+      { useDeadline: true, leadDays: 3 },
+    );
+
+    const doc = runView(h.db, buildIndexes(h.db, h.today), 'upcoming');
+    const preview = doc.sections.flatMap((section) => section.items)
+      .find((item) => item.kind === 'repeatPreview');
+
+    expect(preview?.kind === 'repeatPreview' ? preview.preview.startDate : null).toBe('2026-09-12');
+    expect(preview?.kind === 'repeatPreview' ? preview.preview.deadline : null).toBe('2026-09-15');
   });
 });

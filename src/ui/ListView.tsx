@@ -170,7 +170,7 @@ function TaskRow({
       role="option"
       aria-selected={selected}
       aria-label={`${task.title || 'Untitled'}${meta.contextLabel ? `, in ${meta.contextLabel}` : ''}`}
-      draggable
+      draggable={!isPhone}
       onDragStart={(event) => {
         dragSource = { id: task.id, sectionId };
         event.dataTransfer.effectAllowed = 'move';
@@ -203,6 +203,7 @@ function TaskRow({
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey) toggleSelected(task.id);
         else if (event.shiftKey) extendSelection(task.id, orderedIds);
+        else if (selection.length > 0 && isPhone) toggleSelected(task.id);
         else if (selection.length > 0) setSelection([]);
         else openItem(task.id);
       }}
@@ -244,6 +245,72 @@ function TaskRow({
           {meta.tagIds.slice(0, 3).map((tagId) => (
             <Chip key={tagId}>{tagPath(db, tagId)}</Chip>
           ))}
+        </div>
+      </div>
+      {isPhone ? (
+        <button
+          type="button"
+          aria-label={`${selected ? 'Remove' : 'Add'} ${task.title || 'untitled task'} ${selected ? 'from' : 'to'} selection`}
+          aria-pressed={selected}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleSelected(task.id);
+          }}
+          style={{ width: 44, minWidth: 44 }}
+          className="-my-2 -mr-2 flex h-11 shrink-0 items-center justify-center rounded-lg"
+        >
+          <span
+            aria-hidden="true"
+            className={`flex h-6 w-6 items-center justify-center rounded-full border text-[14px] font-bold ${
+              selected ? 'border-accent bg-accent text-accent-contrast' : 'border-line-strong bg-surface'
+            }`}
+          >
+            {selected ? '✓' : ''}
+          </span>
+        </button>
+      ) : null}
+    </li>
+  );
+}
+
+function RepeatPreviewRow({ item }: { item: Extract<ListItem, { kind: 'repeatPreview' }> }) {
+  const db = useApp((s) => s.db);
+  const today = useApp((s) => s.today);
+  const { preview } = item;
+  return (
+    <li
+      role="option"
+      aria-selected={false}
+      aria-label={`${preview.title || 'Untitled'}, repeating ${preview.entityKind} preview for ${preview.startDate}`}
+      className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-muted"
+    >
+      <span
+        aria-hidden="true"
+        className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border border-dashed border-line-strong text-faint"
+      >
+        <RepeatIcon size={11} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-[14.5px] leading-snug text-muted">
+            {preview.title || <span className="text-faint">Untitled</span>}
+          </span>
+          <Pill tone="cool" icon={<RepeatIcon size={11} />}>Repeats</Pill>
+          {preview.entityKind === 'project' ? <Pill tone="neutral">Project</Pill> : null}
+          {preview.checklistTotal > 0 ? (
+            <span className="inline-flex items-center gap-0.5 text-[12px] text-faint">
+              <ChecklistIcon size={12} />{preview.checklistTotal}
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <Pill tone="neutral" icon={<CalendarIcon size={11} />}>{formatDateLabel(preview.startDate, today)}</Pill>
+          {preview.deadline ? (
+            <Pill tone="warm" icon={<FlagIcon size={11} />}>Due {formatDateLabel(preview.deadline, today)}</Pill>
+          ) : null}
+          {preview.contextLabel ? <span className="text-[12px] text-faint">{preview.contextLabel}</span> : null}
+          {preview.tagIds.slice(0, 3).map((tagId) => <Chip key={tagId}>{tagPath(db, tagId)}</Chip>)}
+          <span className="text-[11.5px] text-faint">Preview</span>
         </div>
       </div>
     </li>
@@ -494,7 +561,7 @@ function SelectionBar({ ids }: { ids: string[] }) {
     <div
       role="toolbar"
       aria-label={`${ids.length} selected`}
-      className="sticky bottom-3 z-20 mx-auto flex w-fit max-w-full flex-wrap items-center gap-1 rounded-xl border border-line bg-surface p-1.5 shadow-[var(--shadow)]"
+      className="sticky bottom-[max(12px,env(safe-area-inset-bottom))] z-20 mx-auto flex w-fit max-w-full flex-wrap items-center gap-1 rounded-xl border border-line bg-surface p-1.5 shadow-[var(--shadow)]"
     >
       <span className="px-2 text-[13px] font-medium" aria-live="polite">{ids.length} selected</span>
       <Button size="sm" variant="ghost" onClick={open('when')}><CalendarIcon size={14} />When</Button>
@@ -585,6 +652,7 @@ export function ListView({ doc }: { doc: ListDocument }) {
                 {section.items.map((item) => {
                   if (item.kind === 'event') return <EventRow key={item.id} event={item.event} />;
                   if (item.kind === 'project') return <ProjectRow key={item.id} item={item} />;
+                  if (item.kind === 'repeatPreview') return <RepeatPreviewRow key={item.id} item={item} />;
                   if (item.kind === 'heading') return null;
                   return (
                     <TaskRow
@@ -615,7 +683,7 @@ export function ListView({ doc }: { doc: ListDocument }) {
         })}
       </div>
 
-      {selection.length > 1 ? <SelectionBar ids={selection} /> : null}
+      {selection.length > 0 ? <SelectionBar ids={selection} /> : null}
 
       {isPhone && openTask ? (
         <Modal label="Edit task" onClose={() => openItem(null)}>
