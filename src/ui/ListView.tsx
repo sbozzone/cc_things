@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateLabel } from '@/core/dates';
 import { tagPath } from '@/core/tags';
 import type { AddTarget, ListDocument, ListItem, ListSection } from '@/core/selectors';
@@ -78,13 +78,14 @@ function DateChip({ task, today, hideStart }: { task: Task; today: string; hideS
 }
 
 function TaskRow({
-  item, sectionId, orderedIds, scope, isPhone,
+  item, sectionId, orderedIds, scope, isPhone, nested = false,
 }: {
   item: Extract<ListItem, { kind: 'task' }>;
   sectionId: string;
   orderedIds: string[];
   scope: 'structural' | 'today';
   isPhone: boolean;
+  nested?: boolean;
 }) {
   const { task, meta } = item;
   const db = useApp((s) => s.db);
@@ -102,6 +103,7 @@ function TaskRow({
   const isEditing = openItemId === task.id;
 
   const move = (direction: -1 | 1) => {
+    if (nested) return;
     const index = orderedIds.indexOf(task.id);
     const target = index + direction;
     if (index < 0 || target < 0 || target >= orderedIds.length) return;
@@ -170,7 +172,7 @@ function TaskRow({
       role="option"
       aria-selected={selected}
       aria-label={`${task.title || 'Untitled'}${meta.contextLabel ? `, in ${meta.contextLabel}` : ''}`}
-      draggable={!isPhone}
+      draggable={!isPhone && !nested}
       onDragStart={(event) => {
         dragSource = { id: task.id, sectionId };
         event.dataTransfer.effectAllowed = 'move';
@@ -209,7 +211,9 @@ function TaskRow({
       }}
       className={`group relative flex cursor-default items-start gap-2.5 rounded-lg px-2.5 py-2 transition-colors ${
         selected ? 'bg-selected' : 'hover:bg-surface-2'
-      } ${dropSide === 'above' ? 'shadow-[inset_0_2px_0_0_var(--accent)]' : dropSide === 'below' ? 'shadow-[inset_0_-2px_0_0_var(--accent)]' : ''}`}
+      } ${nested ? 'ml-5 border-l border-line pl-3' : ''} ${
+        dropSide === 'above' ? 'shadow-[inset_0_2px_0_0_var(--accent)]' : dropSide === 'below' ? 'shadow-[inset_0_-2px_0_0_var(--accent)]' : ''
+      }`}
     >
       {selected ? (
         <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-accent" />
@@ -317,7 +321,14 @@ function RepeatPreviewRow({ item }: { item: Extract<ListItem, { kind: 'repeatPre
   );
 }
 
-function ProjectRow({ item }: { item: Extract<ListItem, { kind: 'project' }> }) {
+function ProjectRow({
+  item, expandable = false, expanded = false, onToggle,
+}: {
+  item: Extract<ListItem, { kind: 'project' }>;
+  expandable?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
+}) {
   const setView = useApp((s) => s.setView);
   const today = useApp((s) => s.today);
   const { project, progress, meta } = item;
@@ -325,9 +336,18 @@ function ProjectRow({ item }: { item: Extract<ListItem, { kind: 'project' }> }) 
     <li data-row tabIndex={0}
       role="option"
       aria-selected={false}
-      onKeyDown={(event) => { if (event.key === 'Enter') setView(`project:${project.id}`); }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') setView(`project:${project.id}`);
+        else if (expandable && event.key === 'ArrowRight' && !expanded) {
+          event.preventDefault();
+          onToggle?.();
+        } else if (expandable && event.key === 'ArrowLeft' && expanded) {
+          event.preventDefault();
+          onToggle?.();
+        }
+      }}
       onClick={() => setView(`project:${project.id}`)}
-      className="flex cursor-default items-center gap-2.5 rounded-md px-2 py-[7px] hover:bg-surface-2"
+      className="flex min-h-[44px] cursor-default items-center gap-2.5 rounded-md px-2 hover:bg-surface-2"
     >
       <ProgressRing percent={progress.percent} size={17} />
       <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium">{project.title}</span>
@@ -339,7 +359,23 @@ function ProjectRow({ item }: { item: Extract<ListItem, { kind: 'project' }> }) 
       <span className="text-[12px] text-faint">
         {progress.percent === null ? 'No tasks' : `${progress.completed} of ${progress.total}`}
       </span>
-      <ChevronIcon size={14} className="text-faint" />
+      {expandable ? (
+        <button
+          type="button"
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${project.title}`}
+          aria-expanded={expanded}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggle?.();
+          }}
+          style={{ width: 44, minWidth: 44 }}
+          className="-my-1.5 -mr-2 flex h-11 shrink-0 items-center justify-center rounded-lg text-faint hover:text-muted"
+        >
+          <ChevronIcon size={16} className={`transition-transform ${expanded ? 'rotate-90' : ''}`} />
+        </button>
+      ) : (
+        <ChevronIcon size={14} className="text-faint" />
+      )}
     </li>
   );
 }
@@ -606,6 +642,7 @@ export function ListView({ doc }: { doc: ListDocument }) {
   const db = useApp((s) => s.db);
   const isPhone = usePhone();
   const [composerSection, setComposerSection] = useState<string | null>(null);
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => new Set());
 
   const scope: 'structural' | 'today' = doc.view === 'today' ? 'today' : 'structural';
   const orderedIdsBySection = useMemo(() => {
@@ -624,6 +661,15 @@ export function ListView({ doc }: { doc: ListDocument }) {
     setComposerSection(section.id);
     openItem(null);
   }, [openItem]);
+
+  const toggleProject = useCallback((projectId: string) => {
+    setExpandedProjects((current) => {
+      const next = new Set(current);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
+  }, []);
 
   return (
     <>
@@ -651,7 +697,35 @@ export function ListView({ doc }: { doc: ListDocument }) {
               >
                 {section.items.map((item) => {
                   if (item.kind === 'event') return <EventRow key={item.id} event={item.event} />;
-                  if (item.kind === 'project') return <ProjectRow key={item.id} item={item} />;
+                  if (item.kind === 'project') {
+                    const expandable = doc.view === 'allProjects';
+                    const expanded = expandable && expandedProjects.has(item.project.id);
+                    const childIds = (item.children ?? []).map((child) => child.task.id);
+                    return (
+                      <Fragment key={item.id}>
+                        <ProjectRow
+                          item={item}
+                          expandable={expandable}
+                          expanded={expanded}
+                          onToggle={expandable ? () => toggleProject(item.project.id) : undefined}
+                        />
+                        {expanded && childIds.length === 0 ? (
+                          <li role="note" className="ml-8 border-l border-line px-4 py-2 text-[13px] text-faint">No open tasks</li>
+                        ) : null}
+                        {expanded ? (item.children ?? []).map((child) => (
+                          <TaskRow
+                            key={`${item.id}:${child.id}`}
+                            item={child}
+                            sectionId={`expanded-project:${item.project.id}`}
+                            orderedIds={childIds}
+                            scope="structural"
+                            isPhone={isPhone}
+                            nested
+                          />
+                        )) : null}
+                      </Fragment>
+                    );
+                  }
                   if (item.kind === 'repeatPreview') return <RepeatPreviewRow key={item.id} item={item} />;
                   if (item.kind === 'heading') return null;
                   return (

@@ -43,6 +43,28 @@ describe('Inbox and processing (R11)', () => {
   });
 });
 
+describe('All Projects disclosure data', () => {
+  it('provides each project with its open tasks for inline expansion', () => {
+    const h = new Harness();
+    const { id: projectId } = h.run(createProject(h.db, h.ctx(), { title: 'Workshop' }));
+    h.run(createTask(h.db, h.ctx(), {
+      title: 'Open task',
+      target: { parentType: 'project', parentId: projectId, headingId: null },
+    }));
+    const completed = h.run(createTask(h.db, h.ctx(), {
+      title: 'Finished task',
+      target: { parentType: 'project', parentId: projectId, headingId: null },
+    })).id;
+    h.apply(setTaskStatus(h.db, h.ctx(), completed, 'completed'));
+
+    const project = view(h, 'allProjects').sections
+      .flatMap((section) => section.items)
+      .find((item) => item.kind === 'project' && item.project.id === projectId);
+
+    expect(project?.kind === 'project' ? project.children?.map((child) => child.task.title) : []).toEqual(['Open task']);
+  });
+});
+
 describe('One record, many views (R11)', () => {
   it('completes a task everywhere at once', () => {
     const h = new Harness();

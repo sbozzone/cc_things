@@ -178,9 +178,20 @@ export interface RowMeta {
   tagIds: string[];
 }
 
+export type TaskListItem = { kind: 'task'; id: string; task: Task; meta: RowMeta };
+export type ProjectListItem = {
+  kind: 'project';
+  id: string;
+  project: Project;
+  progress: Progress;
+  meta: RowMeta;
+  /** Open child tasks shown when a project summary is expanded in All Projects. */
+  children?: TaskListItem[];
+};
+
 export type ListItem =
-  | { kind: 'task'; id: string; task: Task; meta: RowMeta }
-  | { kind: 'project'; id: string; project: Project; progress: Progress; meta: RowMeta }
+  | TaskListItem
+  | ProjectListItem
   | { kind: 'heading'; id: string; heading: Heading; addTarget: AddTarget }
   | { kind: 'event'; id: string; event: CalendarEvent }
   | { kind: 'repeatPreview'; id: string; preview: RepeatPreview };
@@ -921,6 +932,9 @@ function allProjectsView(db: Database, ix: Indexes, opts: QueryOptions): ListDoc
     kind: 'project', id: project.id, project,
     progress: projectProgress(ix.tasksByProject.get(project.id) ?? []),
     meta: projectMeta(db, ix, project),
+    children: (ix.tasksByProject.get(project.id) ?? [])
+      .filter((task) => task.status === 'open' && passesFilter(db, ix, opts, task))
+      .map((task) => ({ kind: 'task' as const, id: task.id, task, meta: taskMeta(db, ix, task) })),
   });
   for (const area of ix.areas) {
     const projects = (ix.projectsByArea.get(area.id) ?? []).filter((p) => p.status === 'open' && projectPassesFilter(db, ix, opts, p));
