@@ -15,6 +15,7 @@ const TABS = ['General', 'Account & sync', 'Calendar', 'Data', 'Keyboard'] as co
 type Tab = (typeof TABS)[number];
 
 const APPEARANCE_KEY = 'clearing.appearance';
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? 'development';
 const BUILD_TIMESTAMP = process.env.NEXT_PUBLIC_BUILD_TIMESTAMP ?? 'development build';
 
 function buildStampLabel(): string {
@@ -313,6 +314,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
       <div className="flex items-center gap-2 border-t border-line px-4 py-2 text-[12px] text-muted">
         <CloudIcon size={14} />
         <span className="flex-1">Everything works offline. When an account is connected, changes sync as soon as you are back online.</span>
+        <span className="shrink-0 text-right text-[10px]" title="Application version">v{APP_VERSION}</span>
         <time className="shrink-0 text-right text-[10px]" dateTime={BUILD_TIMESTAMP} title="Build timestamp">Build {buildStampLabel()}</time>
       </div>
     </Modal>
