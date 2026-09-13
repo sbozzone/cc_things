@@ -34,6 +34,7 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
   const [notesFocused, setNotesFocused] = useState(false);
   const [newChecklistText, setNewChecklistText] = useState('');
   const [duplicating, setDuplicating] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(task.title);
   const titleRef = useRef<HTMLDivElement | null>(null);
 
   const checklist = Object.values(db.checklistItems)
@@ -57,6 +58,14 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
   useEffect(() => {
     titleRef.current?.querySelector('textarea')?.focus();
   }, [task.id]);
+
+  useEffect(() => {
+    setTitleDraft(task.title);
+  }, [task.id, task.title]);
+
+  const commitTitle = () => {
+    if (titleDraft !== task.title) actions.updateTask(task.id, { title: titleDraft }, 'edit title');
+  };
 
   const openPopover = (kind: typeof popover) => (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchor(event.currentTarget);
@@ -87,14 +96,16 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
         />
         <div ref={titleRef} className="min-w-0 flex-1">
           <AutoTextarea
-            value={task.title}
+            value={titleDraft}
             ariaLabel="Task title"
             placeholder="New task"
             className="text-[15px] font-medium"
-            onChange={(value) => actions.updateTask(task.id, { title: value }, 'edit title')}
+            onChange={setTitleDraft}
+            onBlur={commitTitle}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
+                commitTitle();
                 onClose();
               }
             }}
