@@ -653,6 +653,15 @@ export function ListView({ doc }: { doc: ListDocument }) {
     return map;
   }, [doc]);
 
+  const allProjectIds = useMemo(
+    () => doc.sections.flatMap((section) => section.items)
+      .filter((item) => item.kind === 'project')
+      .map((item) => item.project.id),
+    [doc],
+  );
+  const everyProjectExpanded = allProjectIds.length > 0 && allProjectIds.every((id) => expandedProjects.has(id));
+  const anyProjectExpanded = allProjectIds.some((id) => expandedProjects.has(id));
+
   const openTask: Task | undefined = openItemId ? db.tasks[openItemId] : undefined;
 
   const isEmpty = doc.sections.every((s) => s.items.length === 0);
@@ -674,6 +683,27 @@ export function ListView({ doc }: { doc: ListDocument }) {
   return (
     <>
       <div data-list-root className="pt-1 pb-24">
+        {doc.view === 'allProjects' && allProjectIds.length > 0 ? (
+          <div role="group" aria-label="Project display" className="mb-1 flex justify-end gap-1 px-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={everyProjectExpanded}
+              onClick={() => setExpandedProjects(new Set(allProjectIds))}
+            >
+              Show all
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={!anyProjectExpanded}
+              onClick={() => setExpandedProjects(new Set())}
+            >
+              Hide all
+            </Button>
+          </div>
+        ) : null}
+
         {isEmpty && !composerSection ? (
           <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
             <span aria-hidden="true" className="badge-wash flex h-14 w-14 items-center justify-center rounded-2xl [&>svg]:h-6 [&>svg]:w-6">
