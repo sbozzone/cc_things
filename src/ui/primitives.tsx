@@ -8,6 +8,11 @@ import { CloseIcon } from './icons';
 /** Traps focus inside an overlay and restores it on close, so keyboard flow never escapes. */
 function useFocusTrap(active: boolean, onClose: () => void) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!active) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -25,7 +30,7 @@ function useFocusTrap(active: boolean, onClose: () => void) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -46,7 +51,7 @@ function useFocusTrap(active: boolean, onClose: () => void) {
       node?.removeEventListener('keydown', onKeyDown);
       previous?.focus?.();
     };
-  }, [active, onClose]);
+  }, [active]);
   return ref;
 }
 
