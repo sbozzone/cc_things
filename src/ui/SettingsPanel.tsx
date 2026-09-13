@@ -21,7 +21,7 @@ function buildStampLabel(): string {
   if (BUILD_TIMESTAMP === 'development build') return BUILD_TIMESTAMP;
   const date = new Date(BUILD_TIMESTAMP);
   if (Number.isNaN(date.valueOf())) return BUILD_TIMESTAMP;
-  return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
