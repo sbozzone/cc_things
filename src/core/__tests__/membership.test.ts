@@ -280,6 +280,51 @@ describe('Deletion and restore (R06, scenario A09)', () => {
 });
 
 describe('Counts and ordering (R12, R25)', () => {
+  it('starts Upcoming with tasks due today without including tasks that only start today', () => {
+    const h = new Harness();
+    const dueToday = h.run(createTask(h.db, h.ctx(), {
+      title: 'due today',
+      target: { parentType: 'inbox', parentId: null, headingId: null },
+    })).id;
+    const startsToday = h.run(createTask(h.db, h.ctx(), {
+      title: 'starts today',
+      target: { parentType: 'inbox', parentId: null, headingId: null, planning: 'scheduled', startDate: h.today },
+    })).id;
+    h.apply(setDeadline(h.db, h.ctx(), dueToday, h.today));
+
+    const upcoming = runView(h.db, buildIndexes(h.db, h.today), 'upcoming');
+    const todaySection = upcoming.sections.find((section) => section.id === `day:${h.today}`);
+    expect(todaySection?.title).toBe('Today');
+    expect(todaySection?.items.flatMap((item) => item.kind === 'task' ? [item.task.id] : []))
+      .toEqual([dueToday]);
+    expect(todaySection?.items.some((item) => item.kind === 'task' && item.task.id === startsToday)).toBe(false);
+    expect(sidebarCounts(h.db, buildIndexes(h.db, h.today)).upcoming).toBe(1);
+  });
+
+  it('filters My Day by tags without adding tasks that are not in My Day', () => {
+    const h = new Harness();
+    const tagId = h.run(createTag(h.db, h.ctx(), 'Home')).id;
+    const taggedToday = h.run(createTask(h.db, h.ctx(), {
+      title: 'tagged today',
+      target: { parentType: 'inbox', parentId: null, headingId: null, myDay: true },
+    })).id;
+    h.run(createTask(h.db, h.ctx(), {
+      title: 'untagged today',
+      target: { parentType: 'inbox', parentId: null, headingId: null, myDay: true },
+    }));
+    const taggedAnytime = h.run(createTask(h.db, h.ctx(), {
+      title: 'tagged anytime',
+      target: { parentType: 'inbox', parentId: null, headingId: null },
+    })).id;
+    h.apply(assignTag(h.db, h.ctx(), tagId, 'task', taggedToday));
+    h.apply(assignTag(h.db, h.ctx(), tagId, 'task', taggedAnytime));
+
+    const filtered = runView(h.db, buildIndexes(h.db, h.today), 'today', { tagFilter: [tagId] });
+    const taskIds = filtered.sections.flatMap((section) => section.items)
+      .flatMap((item) => item.kind === 'task' ? [item.task.id] : []);
+    expect(taskIds).toEqual([taggedToday]);
+  });
+
   it('shows every live open task once in All Tasks and supports tag filtering', () => {
     const h = new Harness();
     const tagId = h.run(createTag(h.db, h.ctx(), 'Work')).id;

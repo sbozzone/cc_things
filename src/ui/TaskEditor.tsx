@@ -15,7 +15,7 @@ import { MovePicker, TagPicker } from './Pickers';
 import {
   CalendarIcon, ChecklistIcon, CloseIcon, CopyIcon, FlagIcon, MoveIcon, NoteIcon,
   PromoteIcon, RepeatIcon, TagIcon, TrashIcon,
-  StarIcon,
+  SunIcon,
 } from './icons';
 import { RepeatEditor } from './RepeatEditor';
 import { DuplicateDialog } from './DuplicateDialog';
@@ -214,7 +214,7 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1 border-t border-line pt-2.5">
         <Button size="sm" variant={task.isInToday ? 'secondary' : 'ghost'} keepFocus onClick={() => actions.setInToday(task.id, !task.isInToday)}>
-          <StarIcon size={14} />{task.isInToday ? 'Remove from My Day' : 'Add to My Day'}
+          <SunIcon size={14} />{task.isInToday ? 'Remove from My Day' : 'Add to My Day'}
         </Button>
         <label className="flex min-h-11 items-center gap-1 px-2 text-sm">
           <FlagIcon size={14} />

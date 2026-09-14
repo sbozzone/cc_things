@@ -14,7 +14,7 @@ import { MovePicker } from './Pickers';
 import { DuplicateDialog } from './DuplicateDialog';
 import {
   AlertIcon, ArchiveBoxIcon, CalendarIcon, ChecklistIcon, CopyIcon, EveningIcon, FlagIcon,
-  MoreIcon, MoveIcon, NoteIcon, PlusIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon, StarIcon, TagIcon,
+  MoreIcon, MoveIcon, NoteIcon, PlusIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon, SunIcon, TagIcon,
 } from './icons';
 import { usePhone } from './useMediaQuery';
 import { viewStyle } from './view-style';
@@ -340,7 +340,7 @@ function SuggestionSection({ suggestions }: { suggestions: TaskSuggestion[] }) {
   return (
     <section aria-label="Suggested for today" className="mb-4 rounded-xl border border-line bg-surface p-2">
       <div className="flex items-center gap-2 px-1.5 pb-1.5 text-[13px] font-semibold text-muted">
-        <StarIcon size={15} className="text-[var(--today)]" /> Suggested for today
+        <SunIcon size={15} className="text-[var(--today)]" /> Suggested for My Day
       </div>
       <ul className="space-y-0.5">
         {suggestions.map(({ task, reason }) => (
@@ -355,7 +355,7 @@ function SuggestionSection({ suggestions }: { suggestions: TaskSuggestion[] }) {
             <span className="min-w-0 flex-1 truncate text-[14px]">{task.title || 'Untitled'}</span>
             <span className="hidden text-[12px] text-faint sm:inline">{suggestionLabel[reason]}</span>
             <Button size="sm" variant="secondary" onClick={() => actions.setInToday(task.id, true)}>
-              <StarIcon size={13} />Add
+              <SunIcon size={13} />Add
             </Button>
           </li>
         ))}
@@ -483,11 +483,12 @@ function InlineComposer({ target, onDone }: { target: AddTarget; onDone: () => v
   );
 }
 
-function AllTasksTagFilter() {
+function TaskTagFilter({ view }: { view: 'today' | 'allTasks' }) {
   const db = useApp((s) => s.db);
   const tagFilter = useApp((s) => s.tagFilter);
   const setTagFilter = useApp((s) => s.setTagFilter);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const viewLabel = view === 'today' ? 'My Day' : 'All Tasks';
   const tags = useMemo(
     () => Object.values(db.tags)
       .filter((tag) => tag.deletedAt === null)
@@ -508,7 +509,7 @@ function AllTasksTagFilter() {
       </Button>
       {tagFilter.length > 0 ? <Button size="sm" variant="ghost" onClick={() => setTagFilter([])}>Clear</Button> : null}
       {anchor ? (
-        <Popover anchor={anchor} onClose={() => setAnchor(null)} label="Filter All Tasks by tags" width={280}>
+        <Popover anchor={anchor} onClose={() => setAnchor(null)} label={`Filter ${viewLabel} by tags`} width={280}>
           {tags.length > 0 ? (
             <>
               <p className="px-2 pb-1 text-[12px] text-faint">Tasks must match every selected tag.</p>
@@ -790,7 +791,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
     <>
       <div data-list-root className="pt-1 pb-24">
         {doc.view === 'today' ? <SuggestionSection suggestions={suggestions} /> : null}
-        {doc.view === 'allTasks' ? <AllTasksTagFilter /> : null}
+        {doc.view === 'today' || doc.view === 'allTasks' ? <TaskTagFilter view={doc.view} /> : null}
         {!['logbook', 'trash'].includes(doc.view) ? <label className="mb-2 flex flex-wrap items-center justify-end gap-2 px-2 text-sm text-muted">
           Sort
           <select aria-label="Sort items" className="min-h-11 rounded-md border border-line bg-surface px-2" value={sort}

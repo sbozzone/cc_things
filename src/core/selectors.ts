@@ -469,15 +469,15 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
   for (const task of liveTasks(db)) {
     if (task.status !== 'open' || !passesFilter(db, ix, opts, task)) continue;
     if (task.startDate !== null && task.startDate > ix.today) put(task.startDate, task, 'start');
-    if (task.deadline !== null && task.deadline > ix.today) put(task.deadline, task, 'deadline');
+    if (task.deadline !== null && task.deadline >= ix.today) put(task.deadline, task, 'deadline');
   }
 
   const projectsByDate = new Map<DateOnly, Project[]>();
   for (const project of Object.values(db.projects)) {
     if (project.deletedAt !== null || project.status !== 'open') continue;
     if (!projectPassesFilter(db, ix, opts, project)) continue;
-    for (const date of [project.startDate, project.deadline]) {
-      if (date && date > ix.today) {
+    for (const [date, includeToday] of [[project.startDate, false], [project.deadline, true]] as const) {
+      if (date && (date > ix.today || (includeToday && date === ix.today))) {
         const list = projectsByDate.get(date) ?? [];
         if (!list.some((p) => p.id === project.id)) list.push(project);
         projectsByDate.set(date, list);
@@ -526,6 +526,14 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
   ]);
   const sections: ListSection[] = [];
 
+  // Upcoming begins with work due today, but a start date alone does not place an
+  // item here once that date has arrived. Today's calendar events remain in My Day.
+  if (byDate.has(ix.today) || projectsByDate.has(ix.today)) {
+    sections.push(upcomingSection(
+      db, ix, ix.today, byDate, projectsByDate, repeatPreviewsByDate, 'Today', true, false,
+    ));
+  }
+
   // The next seven days appear individually from tomorrow, then later date groups.
   const dayWindow: DateOnly[] = [];
   for (let i = 1; i <= 7; i++) dayWindow.push(addDays(ix.today, i));
@@ -562,7 +570,7 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
   }
 
   return doc('upcoming', 'Upcoming', null, sections, opts,
-    'Nothing scheduled ahead. Give a task a start date to see it here.',
+    'Nothing due today or scheduled ahead. Give a task a start date to see it here.',
     { parentType: 'inbox', parentId: null, headingId: null, planning: 'anytime', deadline: addDays(ix.today, 1) });
 }
 
@@ -571,11 +579,13 @@ function upcomingSection(
   byDate: Map<DateOnly, Map<string, UpcomingEntry>>,
   projectsByDate: Map<DateOnly, Project[]>,
   repeatPreviewsByDate: Map<DateOnly, RepeatPreview[]>,
-  title: string, keepEmpty: boolean,
+  title: string, keepEmpty: boolean, includeEvents = true,
 ): ListSection {
   const items: ListItem[] = [];
-  for (const event of ix.eventsByDate.get(date) ?? []) {
-    items.push({ kind: 'event', id: `${event.id}@${date}`, event });
+  if (includeEvents) {
+    for (const event of ix.eventsByDate.get(date) ?? []) {
+      items.push({ kind: 'event', id: `${event.id}@${date}`, event });
+    }
   }
   for (const project of projectsByDate.get(date) ?? []) {
     items.push({
@@ -1041,8 +1051,8 @@ export function sidebarCounts(db: Database, ix: Indexes, opts: QueryOptions = {}
     if (task.processed && hold.hold === null) counts.anytime = (counts.anytime ?? 0) + 1;
     if (hold.hold === 'someday') counts.someday = (counts.someday ?? 0) + 1;
     const futureStart = task.startDate !== null && task.startDate > ix.today;
-    const futureDeadline = task.deadline !== null && task.deadline > ix.today;
-    if ((futureStart || futureDeadline) && !seenUpcoming.has(task.id)) {
+    const upcomingDeadline = task.deadline !== null && task.deadline >= ix.today;
+    if ((futureStart || upcomingDeadline) && !seenUpcoming.has(task.id)) {
       seenUpcoming.add(task.id);
       counts.upcoming = (counts.upcoming ?? 0) + 1;
     }
