@@ -80,6 +80,7 @@ function copyTask(
     ...source,
     ...datesFor(source, options),
     ...lifecycleFor(source, options),
+    isInToday: false,
     ...overrides,
     id,
     ownerId: ctx.ownerId,

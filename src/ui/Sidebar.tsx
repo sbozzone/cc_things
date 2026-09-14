@@ -13,7 +13,7 @@ import { sidebarIcon, viewStyle } from './view-style';
 import { tagColors } from './TagColor';
 
 /** Views that live behind "More lists" rather than in the main navigation. */
-const OVERFLOW_VIEWS: ViewKey[] = ['tomorrow', 'deadlines', 'repeating', 'allProjects', 'loggedProjects', 'trash'];
+const OVERFLOW_VIEWS: ViewKey[] = ['smart:overdue', 'smart:priority', 'tomorrow', 'deadlines', 'repeating', 'allProjects', 'loggedProjects', 'trash'];
 
 const SYNC_LABELS: Record<string, string> = {
   local: 'Saved on this device',

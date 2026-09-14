@@ -9,6 +9,7 @@ import { today as todayOf, todayIn } from '@/core/dates';
 import { newDeviceId, newId } from '@/core/ids';
 import { applyPatches, inverseOf, type EntityPatch, type WriteContext } from '@/core/patches';
 import { generateDueOccurrences } from '@/core/recurrence';
+import { dailyResetPatches } from '@/core/my-day';
 import { buildIndexes, runView, sidebarCounts, type Indexes, type ListDocument, type ViewKey } from '@/core/selectors';
 import { purgeExpiredTrash } from '@/core/commands';
 import type { Database, DateOnly, SyncOperation } from '@/core/types';
@@ -185,14 +186,10 @@ export const useApp = create<AppState>((set, get) => ({
     await get().refreshSession();
 
     if (clockTimer === null && typeof window !== 'undefined') {
-      // Rollover has to happen while the app is open, not only on restart (R13).
+      // The planning date is recomputed rather than incremented, so DST and a sleeping
+      // device cannot make a naive 24-hour timer skip or repeat a My Day reset.
       clockTimer = setInterval(() => {
-        const zone = get().db.settings.planningTimeZone || timeZone;
-        const current = todayIn(zone, Date.now());
-        if (current !== get().today) {
-          set({ today: current });
-          get().runMaintenance();
-        }
+        get().runMaintenance();
       }, 30_000);
     }
   },
@@ -333,13 +330,20 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   /**
-   * Housekeeping that must run on load, on rollover, and after resuming: generate any
-   * missed recurring occurrences and purge Trash past its retention window.
+   * Housekeeping that must run on load, on rollover and after foregrounding. Its first
+   * step is the idempotent My Day reset, before list consumers observe the new day.
    */
   runMaintenance() {
+    const initial = get();
+    const zone = initial.db.settings.planningTimeZone || systemClock.timeZone();
+    const currentToday = todayIn(zone, Date.now());
+    if (currentToday !== initial.today) set({ today: currentToday });
     const state = get();
     const ctx = contextFor({ now: () => Date.now(), timeZone: () => state.db.settings.planningTimeZone }, state.ownerId);
-    const occurrences = generateDueOccurrences(state.db, ctx);
+    const dailyReset = dailyResetPatches(state.db, ctx);
+    if (dailyReset.length > 0) get().dispatch(dailyReset);
+
+    const occurrences = generateDueOccurrences(get().db, ctx);
     if (occurrences.length > 0) get().dispatch(occurrences);
 
     const purge = purgeExpiredTrash(get().db, ctx);

@@ -82,15 +82,14 @@ export function isAvailable(task: Task, project: Project | null, today: DateOnly
 }
 
 /**
- * Today membership: a reached start date, a reached deadline, or an explicit selection
- * for today. Rollover falls out of `startDate <= today` — an unfinished task from
- * yesterday keeps its original start date and stays visible (R13).
+ * My Day membership is an explicit daily selection. Scheduling and deadlines remain
+ * independent: they surface through Upcoming, Anytime and Smart Lists instead.
  */
 export function inToday(task: Task, project: Project | null, today: DateOnly): boolean {
   if (!isOpen(task)) return false;
-  if (task.startDate !== null && task.startDate <= today) return true;
-  if (deadlineReached(task, today)) return true;
+  if (task.isInToday === true) return true;
   void project;
+  void today;
   return false;
 }
 

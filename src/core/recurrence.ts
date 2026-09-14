@@ -200,6 +200,7 @@ export function materialize(
       priority: snapshot.priority ?? null,
       status: 'open', processed: true,
       parentType: snapshot.parentType, parentId: snapshot.parentId, headingId: snapshot.headingId,
+      isInToday: false,
       planning: 'scheduled', startDate, eveningDate: null, deadline,
       rank: last ? keyBetween(last.rank, null) : FIRST_RANK,
       todayRank: last ? keyBetween(last.todayRank, null) : FIRST_RANK,

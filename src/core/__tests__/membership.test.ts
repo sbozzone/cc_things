@@ -3,10 +3,11 @@ import { Harness } from '../testing';
 import {
   createArea, createHeading, createProject, createTask, deleteProject, moveHeading,
   moveTasks, reorderTask, restoreProject, setDeadline, setProjectStatus, setProjectWhen,
-  setTaskStatus, setWhen, assignTag, createTag, restoreTask, orderItems, updateTask, updateTag,
+  setTaskStatus, setWhen, assignTag, createTag, restoreTask, orderItems, updateTask, updateTag, setTaskInToday,
 } from '../commands';
 import { buildIndexes, runView, sidebarCounts } from '../selectors';
 import { sortDocument } from '../list-order';
+import { dailyResetPatches } from '../my-day';
 import { holdOf, projectProgress } from '../membership';
 import { projectOf } from '../selectors';
 
@@ -72,6 +73,7 @@ describe('One record, many views (R11)', () => {
     const { id: projectId } = h.run(createProject(h.db, h.ctx(), { title: 'Kitchen' }));
     const { id } = h.run(createTask(h.db, h.ctx(), { title: 'Measure', target: { parentType: 'project', parentId: projectId, headingId: null } }));
     h.apply(setWhen(h.db, h.ctx(), id, { planning: 'scheduled', startDate: h.today }));
+    h.apply(setTaskInToday(h.db, h.ctx(), id, true));
 
     expect(titlesIn(h, 'today')).toContain('Measure');
     expect(titlesIn(h, 'anytime')).toContain('Measure');
@@ -84,17 +86,21 @@ describe('One record, many views (R11)', () => {
   });
 });
 
-describe('Today rollover (R13, scenario A04)', () => {
-  it('keeps an unfinished evening task in Today and moves it out of the evening group', () => {
+describe('My Day reset', () => {
+  it('clears incomplete selections after a missed midnight without changing their schedule', () => {
     const h = new Harness('2026-09-08T20:00:00Z');
     const { id } = h.run(createTask(h.db, h.ctx(), { title: 'Water plants', target: { parentType: 'inbox', parentId: null, headingId: null } }));
     h.apply(setWhen(h.db, h.ctx(), id, { planning: 'scheduled', startDate: h.today, evening: true }));
+    h.apply(setTaskInToday(h.db, h.ctx(), id, true));
     expect(titlesIn(h, 'today', 'evening')).toEqual(['Water plants']);
 
-    h.advanceDays(1); // crosses midnight, as after an overnight restart
-    expect(titlesIn(h, 'today')).toContain('Water plants');
+    h.advanceDays(1); // simulates opening after a missed overnight trigger
+    h.apply(dailyResetPatches(h.db, h.ctx()));
+    expect(titlesIn(h, 'today')).not.toContain('Water plants');
     expect(titlesIn(h, 'today', 'evening')).toEqual([]);
     expect(h.db.tasks[id]?.startDate).toBe('2026-09-08'); // original start date retained
+    expect(h.db.settings.lastTodayResetDate).toBe(h.today);
+    expect(dailyResetPatches(h.db, h.ctx())).toEqual([]);
   });
 });
 
@@ -131,7 +137,7 @@ describe('Start dates and deadlines are independent (R15, scenario A03)', () => 
 
     h.setInstant('2026-09-20T09:00:00Z');
     expect(titlesIn(h, 'anytime')).toContain('Book flights');
-    expect(titlesIn(h, 'today')).toContain('Book flights');
+    expect(titlesIn(h, 'today')).not.toContain('Book flights');
   });
 });
 
@@ -159,7 +165,7 @@ describe('Project scheduling policy (spec §4, scenario A05)', () => {
     expect(titlesIn(h, 'anytime')).not.toContain('Book time off');
     h.setInstant('2026-09-12T09:00:00Z');
     expect(titlesIn(h, 'anytime')).toContain('Book time off');
-    expect(titlesIn(h, 'today')).toContain('Book time off');
+    expect(titlesIn(h, 'today')).not.toContain('Book time off');
     // The undated sibling stays held.
     expect(titlesIn(h, 'anytime')).not.toContain('Undated sibling');
   });
@@ -173,7 +179,7 @@ describe('Project scheduling policy (spec §4, scenario A05)', () => {
     expect(hold.hold).toBeNull();
     expect(hold.releasedByDeadline).toBe(true);
     expect(hold.inheritedFrom).toBe('project');
-    expect(titlesIn(h, 'today')).toContain('Passport expires');
+    expect(titlesIn(h, 'today')).not.toContain('Passport expires');
   });
 
   it('does not let a future deadline alone release a Someday hold', () => {
@@ -318,7 +324,7 @@ describe('Counts and ordering (R12, R25)', () => {
     const projectId = h.run(createProject(h.db, h.ctx(), { title: 'Errands' })).id;
     const a = h.run(createTask(h.db, h.ctx(), { title: 'A', target: { parentType: 'project', parentId: projectId, headingId: null } })).id;
     const b = h.run(createTask(h.db, h.ctx(), { title: 'B', target: { parentType: 'project', parentId: projectId, headingId: null } })).id;
-    for (const id of [a, b]) h.apply(setWhen(h.db, h.ctx(), id, { planning: 'scheduled', startDate: h.today }));
+    for (const id of [a, b]) h.apply(setTaskInToday(h.db, h.ctx(), id, true));
 
     const structuralBefore = titlesIn(h, `project:${projectId}`);
     h.apply(reorderTask(h.db, h.ctx(), a, { beforeId: b, afterId: null }, 'today'));

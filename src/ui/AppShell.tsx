@@ -90,6 +90,7 @@ export function AppShell() {
   // Resuming: catch up on rollover, missed recurrences and stale calendar caches.
   useEffect(() => {
     const onFocus = () => {
+      if (document.visibilityState === 'hidden') return;
       runMaintenance();
       void refreshStaleCalendars();
     };

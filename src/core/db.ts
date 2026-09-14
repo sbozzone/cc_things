@@ -1,4 +1,5 @@
 import { SCHEMA_VERSION, type Database, type Settings } from './types';
+import { todayIn } from './dates';
 
 export function defaultSettings(ownerId: string, now: string, timeZone: string, locale = 'en-US'): Settings {
   return {
@@ -13,6 +14,7 @@ export function defaultSettings(ownerId: string, now: string, timeZone: string, 
     reducedMotion: false,
     sidebarCollapsed: false,
     listSorts: {},
+    lastTodayResetDate: todayIn(timeZone, Date.parse(now)),
     createdAt: now,
     updatedAt: now,
     deletedAt: null,

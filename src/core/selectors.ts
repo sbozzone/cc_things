@@ -7,6 +7,8 @@ import {
 import { buildTagIndex, effectiveProjectTags, effectiveTaskTags, matchesTagFilter, type TagIndex } from './tags';
 import { addDays, formatDateLabel, monthName, weekdayName } from './dates';
 import { datesInRange, hasOccurrence, occurrenceDates } from './recurrence';
+import { resolveSectionDate } from './quick-add';
+import { evaluateSmartList, SMART_LISTS } from './smart-lists';
 import type {
   Area, CalendarEvent, ChecklistItem, Database, DateOnly, Heading, Project,
   RepeatTemplate, Task,
@@ -21,6 +23,7 @@ import type {
 export type ViewKey =
   | 'inbox' | 'today' | 'upcoming' | 'anytime' | 'someday' | 'logbook' | 'trash'
   | 'tomorrow' | 'deadlines' | 'repeating' | 'allProjects' | 'loggedProjects'
+  | 'smart:overdue' | 'smart:priority'
   | `project:${string}` | `area:${string}` | `tag:${string}`;
 
 export const BUILT_IN_ORDER: ViewKey[] = ['inbox', 'today', 'upcoming', 'anytime', 'someday', 'logbook'];
@@ -38,6 +41,8 @@ export const VIEW_TITLES: Record<string, string> = {
   repeating: 'Repeating',
   allProjects: 'All Projects',
   loggedProjects: 'Logged Projects',
+  'smart:overdue': 'Overdue',
+  'smart:priority': 'High Priority',
 };
 
 export interface Indexes {
@@ -160,6 +165,8 @@ export interface AddTarget {
   headingId: string | null;
   planning?: 'anytime' | 'someday' | 'scheduled';
   startDate?: DateOnly | null;
+  deadline?: DateOnly | null;
+  myDay?: boolean;
   evening?: boolean;
 }
 
@@ -371,7 +378,7 @@ function todayView(db: Database, ix: Indexes, opts: QueryOptions): ListDocument 
   evening.sort(sortToday);
 
   const todayTarget: AddTarget = {
-    parentType: 'inbox', parentId: null, headingId: null, planning: 'scheduled', startDate: ix.today,
+    parentType: 'inbox', parentId: null, headingId: null, planning: 'anytime', myDay: true,
   };
 
   if (opts.todayGrouping === 'byProject') {
@@ -406,8 +413,8 @@ function groupByParent(db: Database, ix: Indexes, items: ListItem[]): ListSectio
       : 'projects';
     const title = task ? contextLabelFor(db, task) ?? 'No Project' : 'Projects';
     const target: AddTarget = task && task.parentType !== 'inbox' && task.parentId
-      ? { parentType: task.parentType, parentId: task.parentId, headingId: task.headingId, planning: 'scheduled', startDate: ix.today }
-      : { parentType: 'inbox', parentId: null, headingId: null, planning: 'scheduled', startDate: ix.today };
+      ? { parentType: task.parentType, parentId: task.parentId, headingId: task.headingId, planning: 'anytime', myDay: true }
+      : { parentType: 'inbox', parentId: null, headingId: null, planning: 'anytime', myDay: true };
     const group = groups.get(keyId) ?? { title, items: [], target };
     group.items.push(item);
     groups.set(keyId, group);
@@ -549,13 +556,13 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
       subtitle: null,
       date: first,
       items,
-      addTarget: { parentType: 'inbox', parentId: null, headingId: null, planning: 'scheduled', startDate: first },
+      addTarget: { parentType: 'inbox', parentId: null, headingId: null, planning: 'anytime', deadline: first },
     });
   }
 
   return doc('upcoming', 'Upcoming', null, sections, opts,
     'Nothing scheduled ahead. Give a task a start date to see it here.',
-    { parentType: 'inbox', parentId: null, headingId: null, planning: 'scheduled', startDate: addDays(ix.today, 1) });
+    { parentType: 'inbox', parentId: null, headingId: null, planning: 'anytime', deadline: addDays(ix.today, 1) });
 }
 
 function upcomingSection(
@@ -591,13 +598,14 @@ function upcomingSection(
     });
   }
   void keepEmpty;
+  const dueDate = resolveSectionDate(date, title, ix.today);
   return {
     id: `day:${date}`,
     title: title || formatDateLabel(date, ix.today),
     subtitle: title ? formatDateLabel(date, ix.today) === title ? null : null : null,
     date,
     items,
-    addTarget: { parentType: 'inbox', parentId: null, headingId: null, planning: 'scheduled', startDate: date },
+    addTarget: { parentType: 'inbox', parentId: null, headingId: null, planning: 'anytime', deadline: dueDate },
   };
 }
 
@@ -948,6 +956,17 @@ function allProjectsView(db: Database, ix: Indexes, opts: QueryOptions): ListDoc
   return doc('allProjects', 'All Projects', null, sections, opts, 'No projects yet.', inboxTarget());
 }
 
+/** Built-in Smart Lists are live views over the same task records, never copied lists. */
+function smartListView(db: Database, ix: Indexes, key: 'overdue' | 'priority', opts: QueryOptions): ListDocument {
+  const definition = SMART_LISTS[key];
+  const tasks = evaluateSmartList(db, ix.today, definition.rule).filter((task) => passesFilter(db, ix, opts, task));
+  return doc(`smart:${key}`, definition.title, null, [{
+    id: `smart:${key}`, title: null, subtitle: null, date: null,
+    items: tasks.map((task) => ({ kind: 'task' as const, id: task.id, task, meta: taskMeta(db, ix, task) })),
+    addTarget: null,
+  }], opts, `No tasks in ${definition.title.toLocaleLowerCase()}.`, inboxTarget());
+}
+
 /* ------------------------------------------------------------------ Entry */
 
 function doc(
@@ -979,6 +998,8 @@ export function runView(db: Database, ix: Indexes, view: ViewKey, opts: QueryOpt
     case 'deadlines': return deadlinesView(db, ix, opts);
     case 'repeating': return repeatingView(db, ix, opts);
     case 'allProjects': return allProjectsView(db, ix, opts);
+    case 'smart:overdue': return smartListView(db, ix, 'overdue', opts);
+    case 'smart:priority': return smartListView(db, ix, 'priority', opts);
     default: return inboxView(db, ix, opts);
   }
 }

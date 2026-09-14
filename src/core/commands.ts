@@ -26,6 +26,9 @@ export interface AddTarget {
   headingId: string | null;
   planning?: PlanningState;
   startDate?: DateOnly | null;
+  deadline?: DateOnly | null;
+  /** Adds the new task to the current My Day without scheduling it permanently. */
+  myDay?: boolean;
   evening?: boolean;
 }
 
@@ -55,7 +58,7 @@ function rankAtStart(items: { rank: string }[]): string {
 
 function todayRankAtStart(db: Database): string {
   const inToday = Object.values(db.tasks)
-    .filter((t) => t.deletedAt === null && t.status === 'open' && t.startDate !== null)
+    .filter((t) => t.deletedAt === null && t.status === 'open' && t.isInToday === true)
     .sort((a, b) => (a.todayRank < b.todayRank ? -1 : a.todayRank > b.todayRank ? 1 : 0));
   const first = inToday[0];
   return first ? keyBetween(null, first.todayRank) : FIRST_RANK;
@@ -87,14 +90,15 @@ export function createTask(db: Database, ctx: WriteContext, input: NewTaskInput)
     title: input.title.trim(),
     notes: input.notes ?? '',
     status: 'open',
-    processed: false,
+    processed: target.myDay === true,
     parentType: target.parentType,
     parentId: target.parentId,
     headingId: target.headingId,
     planning,
     startDate,
-    eveningDate: target.evening && startDate ? startDate : null,
-    deadline: input.deadline ?? null,
+    eveningDate: target.evening ? (startDate ?? (target.myDay ? ctx.today : null)) : null,
+    deadline: input.deadline ?? target.deadline ?? null,
+    isInToday: target.myDay ?? false,
     rank: input.atTop ? rankAtStart(siblings) : rankAtEnd(siblings),
     todayRank: todayRankAtStart(db),
     completedAt: null,
@@ -116,6 +120,18 @@ export function updateTask(db: Database, ctx: WriteContext, id: string, fields: 
   if (!task) return [];
   const merged = { ...task, ...fields };
   return [update('tasks', id, { ...fields, processed: computeProcessed(merged) }, ctx)];
+}
+
+/** Selects or removes a task from the current My Day without changing its dates. */
+export function setTaskInToday(db: Database, ctx: WriteContext, id: string, isInToday: boolean): EntityPatch[] {
+  const task = db.tasks[id];
+  if (!task || task.deletedAt !== null || task.status !== 'open') return [];
+  return [update('tasks', id, {
+    isInToday,
+    // Choosing an Inbox suggestion is a planning decision, so it should leave Inbox.
+    processed: isInToday ? true : task.processed,
+    todayRank: isInToday ? todayRankAtStart(db) : task.todayRank,
+  }, ctx)];
 }
 
 export function updateTag(db: Database, ctx: WriteContext, id: string, fields: Partial<Tag>): EntityPatch[] {

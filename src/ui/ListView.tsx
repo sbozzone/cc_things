@@ -14,13 +14,14 @@ import { MovePicker } from './Pickers';
 import { DuplicateDialog } from './DuplicateDialog';
 import {
   AlertIcon, ArchiveBoxIcon, CalendarIcon, ChecklistIcon, CopyIcon, EveningIcon, FlagIcon,
-  MoreIcon, MoveIcon, NoteIcon, PlusIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon,
+  MoreIcon, MoveIcon, NoteIcon, PlusIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon, StarIcon,
 } from './icons';
 import { usePhone } from './useMediaQuery';
 import { viewStyle } from './view-style';
 import { OrderHandle } from './OrderHandle';
 import { TagDot } from './TagColor';
 import { priorities, sortDocument, type ListSort } from '@/core/list-order';
+import { taskSuggestions, type TaskSuggestion } from '@/core/suggestions';
 
 /** Row currently being dragged. Drag is an accelerator; every move has a menu equivalent (R26). */
 let dragSource: { id: string; sectionId: string } | null = null;
@@ -326,6 +327,40 @@ function RepeatPreviewRow({ item }: { item: Extract<ListItem, { kind: 'repeatPre
         </div>
       </div>
     </li>
+  );
+}
+
+const suggestionLabel: Record<TaskSuggestion['reason'], string> = {
+  dueToday: 'Due today', overdue: 'Overdue', recentInbox: 'Recent Inbox', habitual: 'Usual for today',
+};
+
+/** Suggestions remain separate from My Day until the person explicitly adds one. */
+function SuggestionSection({ suggestions }: { suggestions: TaskSuggestion[] }) {
+  if (suggestions.length === 0) return null;
+  return (
+    <section aria-label="Suggested for today" className="mb-4 rounded-xl border border-line bg-surface p-2">
+      <div className="flex items-center gap-2 px-1.5 pb-1.5 text-[13px] font-semibold text-muted">
+        <StarIcon size={15} className="text-[var(--today)]" /> Suggested for today
+      </div>
+      <ul className="space-y-0.5">
+        {suggestions.map(({ task, reason }) => (
+          <li key={task.id} className="flex min-h-11 items-center gap-2 rounded-lg px-1.5 hover:bg-surface-2">
+            <StatusControl
+              status={task.status}
+              label={task.title || 'Untitled task'}
+              onComplete={() => actions.setStatus([task.id], 'completed')}
+              onCancel={() => actions.setStatus([task.id], 'canceled')}
+              onReopen={() => actions.setStatus([task.id], 'open')}
+            />
+            <span className="min-w-0 flex-1 truncate text-[14px]">{task.title || 'Untitled'}</span>
+            <span className="hidden text-[12px] text-faint sm:inline">{suggestionLabel[reason]}</span>
+            <Button size="sm" variant="secondary" onClick={() => actions.setInToday(task.id, true)}>
+              <StarIcon size={13} />Add
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -650,9 +685,14 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const openItemId = useApp((s) => s.openItemId);
   const openItem = useApp((s) => s.openItem);
   const db = useApp((s) => s.db);
+  const today = useApp((s) => s.today);
   const sort = db.settings.listSorts?.[sourceDoc.view] ?? 'manual';
   const doc = useMemo(() => sortDocument(sourceDoc, sort), [sourceDoc, sort]);
   const canOrder = sort === 'manual' && !['upcoming', 'logbook', 'trash', 'review'].includes(doc.view);
+  const suggestions = useMemo(
+    () => doc.view === 'today' && selection.length === 0 ? taskSuggestions(db, today) : [],
+    [db, doc.view, selection.length, today],
+  );
   const isPhone = usePhone();
   const [composerSection, setComposerSection] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => new Set());
@@ -677,7 +717,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
 
   const openTask: Task | undefined = openItemId ? db.tasks[openItemId] : undefined;
 
-  const isEmpty = doc.sections.every((s) => s.items.length === 0);
+  const isEmpty = doc.sections.every((s) => s.items.length === 0) && suggestions.length === 0;
 
   const addTo = useCallback((section: ListSection) => {
     setComposerSection(section.id);
@@ -696,6 +736,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   return (
     <>
       <div data-list-root className="pt-1 pb-24">
+        {doc.view === 'today' ? <SuggestionSection suggestions={suggestions} /> : null}
         {!['logbook', 'trash'].includes(doc.view) ? <label className="mb-2 flex flex-wrap items-center justify-end gap-2 px-2 text-sm text-muted">
           Sort
           <select aria-label="Sort items" className="min-h-11 rounded-md border border-line bg-surface px-2" value={sort}

@@ -80,6 +80,8 @@ export interface Heading extends BaseEntity {
 }
 
 export interface Task extends BaseEntity {
+  /** An explicit My Day selection. It is cleared during the next planning-day reset. */
+  isInToday?: boolean;
   priority?: 'urgent' | 'timeSensitive' | 'high' | 'low' | null;
   title: string;
   notes: string;
@@ -94,7 +96,7 @@ export interface Task extends BaseEntity {
   headingId: string | null;
   planning: PlanningState;
   startDate: DateOnly | null;
-  /** Set only when the scheduled day carries an evening designation (R13, §6 carryover). */
+  /** Set when a scheduled or My Day selection carries an evening designation. */
   eveningDate: DateOnly | null;
   deadline: DateOnly | null;
   /** Structural order within the parent. */
@@ -225,6 +227,8 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 export type TodayGrouping = 'flat' | 'byProject';
 
 export interface Settings extends BaseEntity {
+  /** Planning day whose My Day selections have already been cleared. */
+  lastTodayResetDate?: DateOnly;
   listSorts?: Record<string, 'manual' | 'alphabetical' | 'due' | 'created' | 'priority'>;
   locale: string;
   /** One account-wide IANA planning zone; changing devices must not move the planning day. */
