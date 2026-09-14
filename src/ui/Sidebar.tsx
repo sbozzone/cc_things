@@ -10,6 +10,7 @@ import * as actions from '@/state/actions';
 import { IconButton, Popover, ProgressRing } from './primitives';
 import { ChevronIcon, CloudIcon, FolderIcon, MoreIcon, PlusIcon, SearchIcon, SettingsIcon, TagIcon, UserIcon } from './icons';
 import { sidebarIcon, viewStyle } from './view-style';
+import { tagColors } from './TagColor';
 
 /** Views that live behind "More lists" rather than in the main navigation. */
 const OVERFLOW_VIEWS: ViewKey[] = ['tomorrow', 'deadlines', 'repeating', 'allProjects', 'loggedProjects', 'trash'];
@@ -268,7 +269,7 @@ export function Sidebar({
                   key={tag.id}
                   label={tagPath(db, tag.id)}
                   icon={<TagIcon size={16} />}
-                  color={active ? 'var(--accent)' : 'var(--text-faint)'}
+                  color={tag.color && tag.color in tagColors ? tagColors[tag.color as keyof typeof tagColors] : active ? 'var(--accent)' : 'var(--text-faint)'}
                   active={active}
                   onSelect={() => setTagFilter(active ? tagFilter.filter((t) => t !== tag.id) : [...tagFilter, tag.id])}
                 />

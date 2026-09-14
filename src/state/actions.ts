@@ -42,6 +42,17 @@ export function updateTask(id: string, fields: Partial<Task>, undoLabel?: string
   state.dispatch(commands.updateTask(state.db, state.ctx(), id, fields), { undoLabel });
 }
 
+export function setTagColor(id: string, color: string | null): void {
+  const state = app();
+  state.dispatch(commands.updateTag(state.db, state.ctx(), id, { color }), { undoLabel: 'tag color' });
+}
+
+/** Explicit ordering changes preserve parent/heading membership. */
+export function orderItems(ids: string[], scope: 'structural' | 'today'): void {
+  const state = app();
+  state.dispatch(commands.orderItems(state.db, state.ctx(), ids, scope), { undoLabel: 'reorder' });
+}
+
 export function applyWhen(ids: string[], value: WhenValue): void {
   const state = app();
   const ctx = state.ctx();

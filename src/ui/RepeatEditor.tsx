@@ -75,6 +75,7 @@ export function RepeatEditor({ anchor, onClose, task }: { anchor: HTMLElement | 
     const created = createTemplate(ctx(), {
       entityKind: 'task',
       snapshot: {
+        priority: task.priority ?? null,
         title: task.title, notes: task.notes, parentType: task.parentType, parentId: task.parentId,
         headingId: task.headingId, areaId: null, tagIds, checklist,
       },

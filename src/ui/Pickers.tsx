@@ -7,6 +7,7 @@ import type { Database } from '@/core/types';
 import type { AddTarget } from '@/core/commands';
 import { Popover } from './primitives';
 import { FolderIcon, InboxIcon, LayersIcon, TagIcon } from './icons';
+import { TagColorSelect, TagDot } from './TagColor';
 
 /**
  * The searchable destination picker (R24). Every area, project and heading is reachable
@@ -222,14 +223,14 @@ export function TagPicker({
           const isDirect = directTagIds.includes(tag.id);
           const inheritedFrom = inherited.find((i) => i.tagId === tag.id);
           return (
-            <li key={tag.id}>
+            <li key={tag.id} className="flex items-center gap-1">
               <button
                 type="button"
                 role="checkbox"
                 aria-checked={isDirect}
                 disabled={Boolean(inheritedFrom) && !isDirect}
                 onClick={() => onToggle(tag.id, !isDirect)}
-                className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2 disabled:opacity-60 disabled:hover:bg-transparent"
+                className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2 disabled:opacity-60 disabled:hover:bg-transparent"
               >
                 <span
                   aria-hidden="true"
@@ -239,11 +240,12 @@ export function TagPicker({
                 >
                   {isDirect ? '✓' : ''}
                 </span>
-                <span className="flex-1 truncate">{tagPath(db, tag.id)}</span>
+                <TagDot color={tag.color} /><span className="flex-1 truncate">{tagPath(db, tag.id)}</span>
                 {inheritedFrom && !isDirect ? (
                   <span className="shrink-0 text-[11px] text-faint">from {inheritedFrom.from}</span>
                 ) : null}
               </button>
+              <TagColorSelect tag={tag} />
             </li>
           );
         })}

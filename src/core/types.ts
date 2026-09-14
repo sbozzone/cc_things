@@ -80,6 +80,7 @@ export interface Heading extends BaseEntity {
 }
 
 export interface Task extends BaseEntity {
+  priority?: 'urgent' | 'timeSensitive' | 'high' | 'low' | null;
   title: string;
   notes: string;
   status: LifecycleStatus;
@@ -112,6 +113,7 @@ export interface ChecklistItem extends BaseEntity {
 }
 
 export interface Tag extends BaseEntity {
+  color?: string | null;
   name: string;
   parentTagId: string | null;
   rank: string;
@@ -174,6 +176,7 @@ export interface RepeatTemplate extends BaseEntity {
 }
 
 export interface RepeatSnapshot {
+  priority?: Task['priority'];
   title: string;
   notes: string;
   parentType: TaskParentType;
@@ -222,6 +225,7 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 export type TodayGrouping = 'flat' | 'byProject';
 
 export interface Settings extends BaseEntity {
+  listSorts?: Record<string, 'manual' | 'alphabetical' | 'due' | 'created' | 'priority'>;
   locale: string;
   /** One account-wide IANA planning zone; changing devices must not move the planning day. */
   planningTimeZone: string;

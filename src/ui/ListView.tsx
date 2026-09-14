@@ -18,6 +18,9 @@ import {
 } from './icons';
 import { usePhone } from './useMediaQuery';
 import { viewStyle } from './view-style';
+import { OrderHandle } from './OrderHandle';
+import { TagDot } from './TagColor';
+import { priorities, sortDocument, type ListSort } from '@/core/list-order';
 
 /** Row currently being dragged. Drag is an accelerator; every move has a menu equivalent (R26). */
 let dragSource: { id: string; sectionId: string } | null = null;
@@ -78,7 +81,7 @@ function DateChip({ task, today, hideStart }: { task: Task; today: string; hideS
 }
 
 function TaskRow({
-  item, sectionId, orderedIds, scope, isPhone, nested = false,
+  item, sectionId, orderedIds, scope, isPhone, nested = false, canOrder = true,
 }: {
   item: Extract<ListItem, { kind: 'task' }>;
   sectionId: string;
@@ -86,6 +89,7 @@ function TaskRow({
   scope: 'structural' | 'today';
   isPhone: boolean;
   nested?: boolean;
+  canOrder?: boolean;
 }) {
   const { task, meta } = item;
   const db = useApp((s) => s.db);
@@ -103,7 +107,7 @@ function TaskRow({
   const isEditing = openItemId === task.id;
 
   const move = (direction: -1 | 1) => {
-    if (nested) return;
+    if (!canOrder) return;
     const index = orderedIds.indexOf(task.id);
     const target = index + direction;
     if (index < 0 || target < 0 || target >= orderedIds.length) return;
@@ -168,11 +172,13 @@ function TaskRow({
       ref={rowRef}
       data-row
       data-id={task.id}
+      data-order-group={canOrder ? sectionId : undefined}
+      data-order-title={task.title}
       tabIndex={0}
       role="option"
       aria-selected={selected}
-      aria-label={`${task.title || 'Untitled'}${meta.contextLabel ? `, in ${meta.contextLabel}` : ''}`}
-      draggable={!isPhone && !nested}
+      aria-label={`${task.title || 'Untitled'}${task.priority ? `, ${priorities[task.priority]} priority` : ''}${meta.contextLabel ? `, in ${meta.contextLabel}` : ''}`}
+      draggable={!isPhone && !nested && canOrder}
       onDragStart={(event) => {
         dragSource = { id: task.id, sectionId };
         event.dataTransfer.effectAllowed = 'move';
@@ -183,7 +189,7 @@ function TaskRow({
         setDropSide(null);
       }}
       onDragOver={(event) => {
-        if (!dragSource || dragSource.id === task.id) return;
+        if (!canOrder || !dragSource || dragSource.sectionId !== sectionId || dragSource.id === task.id) return;
         event.preventDefault();
         const rect = event.currentTarget.getBoundingClientRect();
         setDropSide(event.clientY - rect.top < rect.height / 2 ? 'above' : 'below');
@@ -194,7 +200,7 @@ function TaskRow({
         const source = dragSource;
         setDropSide(null);
         // A cancelled drag makes no change (R26).
-        if (!source || source.id === task.id) return;
+        if (!canOrder || !source || source.sectionId !== sectionId || source.id === task.id) return;
         const ids = orderedIds.filter((id) => id !== source.id);
         const at = ids.indexOf(task.id);
         const insertAt = dropSide === 'above' ? at : at + 1;
@@ -240,6 +246,7 @@ function TaskRow({
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
           <DateChip task={task} today={today} hideStart={scope === 'today'} />
+          {task.priority ? <Pill tone={task.priority === 'urgent' ? 'danger' : task.priority === 'low' ? 'neutral' : 'warm'} icon={<FlagIcon size={11} />}>{priorities[task.priority]}</Pill> : null}
           {meta.contextLabel ? <span className="text-[12px] text-faint">{meta.contextLabel}</span> : null}
           {meta.heldContextLabel ? (
             <span className="inline-flex items-center gap-1 text-[12px] text-[var(--someday)]">
@@ -247,10 +254,11 @@ function TaskRow({
             </span>
           ) : null}
           {meta.tagIds.slice(0, 3).map((tagId) => (
-            <Chip key={tagId}>{tagPath(db, tagId)}</Chip>
+            <Chip key={tagId}><TagDot color={db.tags[tagId]?.color} />{tagPath(db, tagId)}</Chip>
           ))}
         </div>
       </div>
+      {canOrder && orderedIds.length > 1 ? <OrderHandle id={task.id} ids={orderedIds} group={sectionId} scope={scope} /> : null}
       {isPhone ? (
         <button
           type="button"
@@ -322,18 +330,19 @@ function RepeatPreviewRow({ item }: { item: Extract<ListItem, { kind: 'repeatPre
 }
 
 function ProjectRow({
-  item, expandable = false, expanded = false, onToggle,
+  item, expandable = false, expanded = false, onToggle, order,
 }: {
   item: Extract<ListItem, { kind: 'project' }>;
   expandable?: boolean;
   expanded?: boolean;
   onToggle?: () => void;
+  order?: { ids: string[]; group: string };
 }) {
   const setView = useApp((s) => s.setView);
   const today = useApp((s) => s.today);
   const { project, progress, meta } = item;
   return (
-    <li data-row tabIndex={0}
+    <li data-row tabIndex={0} data-id={project.id} data-order-group={order?.group} data-order-title={project.title}
       role="option"
       aria-selected={false}
       onKeyDown={(event) => {
@@ -359,6 +368,7 @@ function ProjectRow({
       <span className="text-[12px] text-faint">
         {progress.percent === null ? 'No tasks' : `${progress.completed} of ${progress.total}`}
       </span>
+      {order && order.ids.length > 1 ? <OrderHandle id={project.id} ids={order.ids} group={order.group} scope="structural" /> : null}
       {expandable ? (
         <button
           type="button"
@@ -635,11 +645,14 @@ function SelectionBar({ ids }: { ids: string[] }) {
   );
 }
 
-export function ListView({ doc }: { doc: ListDocument }) {
+export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const selection = useApp((s) => s.selection);
   const openItemId = useApp((s) => s.openItemId);
   const openItem = useApp((s) => s.openItem);
   const db = useApp((s) => s.db);
+  const sort = db.settings.listSorts?.[sourceDoc.view] ?? 'manual';
+  const doc = useMemo(() => sortDocument(sourceDoc, sort), [sourceDoc, sort]);
+  const canOrder = sort === 'manual' && !['upcoming', 'logbook', 'trash', 'review'].includes(doc.view);
   const isPhone = usePhone();
   const [composerSection, setComposerSection] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => new Set());
@@ -683,6 +696,15 @@ export function ListView({ doc }: { doc: ListDocument }) {
   return (
     <>
       <div data-list-root className="pt-1 pb-24">
+        {!['logbook', 'trash'].includes(doc.view) ? <label className="mb-2 flex flex-wrap items-center justify-end gap-2 px-2 text-sm text-muted">
+          Sort
+          <select aria-label="Sort items" className="min-h-11 rounded-md border border-line bg-surface px-2" value={sort}
+            onChange={(e) => actions.updateSettings({ listSorts: { ...db.settings.listSorts, [doc.view]: e.target.value as ListSort } })}>
+            <option value="manual">Manual order</option><option value="alphabetical">Alphabetical (A–Z)</option>
+            <option value="due">Due date (earliest first)</option><option value="created">Created date (newest first)</option>
+            <option value="priority">Priority</option>
+          </select>
+        </label> : null}
         {doc.view === 'allProjects' && allProjectIds.length > 0 ? (
           <div role="group" aria-label="Project display" className="mb-1 flex justify-end gap-1 px-1">
             <Button
@@ -735,6 +757,7 @@ export function ListView({ doc }: { doc: ListDocument }) {
                       <Fragment key={item.id}>
                         <ProjectRow
                           item={item}
+                          order={canOrder ? { ids: section.items.filter((i) => i.kind === 'project').map((i) => i.project.id), group: `${section.id}:projects` } : undefined}
                           expandable={expandable}
                           expanded={expanded}
                           onToggle={expandable ? () => toggleProject(item.project.id) : undefined}
@@ -746,11 +769,12 @@ export function ListView({ doc }: { doc: ListDocument }) {
                           <TaskRow
                             key={`${item.id}:${child.id}`}
                             item={child}
-                            sectionId={`expanded-project:${item.project.id}`}
-                            orderedIds={childIds}
+                            sectionId={`expanded-project:${item.project.id}:${child.task.headingId ?? 'none'}`}
+                            orderedIds={(item.children ?? []).filter((c) => c.task.headingId === child.task.headingId).map((c) => c.task.id)}
                             scope="structural"
                             isPhone={isPhone}
                             nested
+                            canOrder={canOrder}
                           />
                         )) : null}
                       </Fragment>
@@ -766,6 +790,7 @@ export function ListView({ doc }: { doc: ListDocument }) {
                       orderedIds={orderedIds}
                       scope={scope}
                       isPhone={isPhone}
+                      canOrder={canOrder}
                     />
                   );
                 })}

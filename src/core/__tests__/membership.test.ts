@@ -3,9 +3,10 @@ import { Harness } from '../testing';
 import {
   createArea, createHeading, createProject, createTask, deleteProject, moveHeading,
   moveTasks, reorderTask, restoreProject, setDeadline, setProjectStatus, setProjectWhen,
-  setTaskStatus, setWhen, assignTag, createTag, restoreTask,
+  setTaskStatus, setWhen, assignTag, createTag, restoreTask, orderItems, updateTask, updateTag,
 } from '../commands';
 import { buildIndexes, runView, sidebarCounts } from '../selectors';
+import { sortDocument } from '../list-order';
 import { holdOf, projectProgress } from '../membership';
 import { projectOf } from '../selectors';
 
@@ -273,6 +274,35 @@ describe('Deletion and restore (R06, scenario A09)', () => {
 });
 
 describe('Counts and ordering (R12, R25)', () => {
+  it('supports saved manual order and non-destructive presentation sorts', () => {
+    const h = new Harness();
+    const projectId = h.run(createProject(h.db, h.ctx(), { title: 'Sort test' })).id;
+    const zebra = h.run(createTask(h.db, h.ctx(), { title: 'Zebra', target: { parentType: 'project', parentId: projectId, headingId: null } })).id;
+    h.advanceDays(1);
+    const apple = h.run(createTask(h.db, h.ctx(), { title: 'Apple', target: { parentType: 'project', parentId: projectId, headingId: null } })).id;
+    h.apply(setDeadline(h.db, h.ctx(), zebra, '2026-09-20'));
+    h.apply(setDeadline(h.db, h.ctx(), apple, '2026-09-15'));
+    h.apply(updateTask(h.db, h.ctx(), zebra, { priority: 'urgent' }));
+
+    const titles = (sort: Parameters<typeof sortDocument>[1]) => sortDocument(view(h, `project:${projectId}`), sort)
+      .sections.flatMap((section) => section.items.flatMap((item) => item.kind === 'task' ? [item.task.title] : []));
+    expect(titles('manual')).toEqual(['Zebra', 'Apple']);
+    expect(titles('alphabetical')).toEqual(['Apple', 'Zebra']);
+    expect(titles('due')).toEqual(['Apple', 'Zebra']);
+    expect(titles('created')).toEqual(['Apple', 'Zebra']);
+    expect(titles('priority')).toEqual(['Zebra', 'Apple']);
+
+    h.apply(orderItems(h.db, h.ctx(), [apple, zebra]));
+    expect(titlesIn(h, `project:${projectId}`)).toEqual(['Apple', 'Zebra']);
+  });
+
+  it('stores a tag color as editable tag metadata', () => {
+    const h = new Harness();
+    const tagId = h.run(createTag(h.db, h.ctx(), 'Calls')).id;
+    h.apply(updateTag(h.db, h.ctx(), tagId, { color: 'purple' }));
+    expect(h.db.tags[tagId]?.color).toBe('purple');
+  });
+
   it('counts a task with both markers once', () => {
     const h = new Harness();
     const { id } = h.run(createTask(h.db, h.ctx(), { title: 'Both', target: { parentType: 'inbox', parentId: null, headingId: null } }));

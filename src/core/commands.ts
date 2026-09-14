@@ -118,6 +118,29 @@ export function updateTask(db: Database, ctx: WriteContext, id: string, fields: 
   return [update('tasks', id, { ...fields, processed: computeProcessed(merged) }, ctx)];
 }
 
+export function updateTag(db: Database, ctx: WriteContext, id: string, fields: Partial<Tag>): EntityPatch[] {
+  if (!db.tags[id]) return [];
+  return [update('tags', id, fields, ctx)];
+}
+
+/** Persists an explicit order while leaving every item's parent and heading unchanged. */
+export function orderItems(
+  db: Database, ctx: WriteContext, ids: string[], scope: 'structural' | 'today' = 'structural',
+): EntityPatch[] {
+  let rank: string | null = null;
+  const patches: EntityPatch[] = [];
+  for (const id of ids) {
+    const task = db.tasks[id];
+    const project = db.projects[id];
+    if (!task && !project) continue;
+    rank = keyBetween(rank, null);
+    patches.push(update(task ? 'tasks' : 'projects', id, {
+      [task && scope === 'today' ? 'todayRank' : 'rank']: rank,
+    }, ctx));
+  }
+  return patches;
+}
+
 export interface WhenInput {
   planning: PlanningState;
   startDate?: DateOnly | null;

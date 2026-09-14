@@ -18,6 +18,8 @@ import {
 } from './icons';
 import { RepeatEditor } from './RepeatEditor';
 import { DuplicateDialog } from './DuplicateDialog';
+import { priorities } from '@/core/list-order';
+import { TagDot } from './TagColor';
 
 /**
  * The expanded task editor. Optional fields are revealed on demand rather than always
@@ -210,6 +212,15 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
       ) : null}
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1 border-t border-line pt-2.5">
+        <label className="flex min-h-11 items-center gap-1 px-2 text-sm">
+          <FlagIcon size={14} />
+          <select aria-label="Task priority" value={task.priority ?? ''}
+            className="min-h-11 max-w-40 rounded-md bg-surface text-sm"
+            onChange={(e) => actions.updateTask(task.id, { priority: (e.target.value || null) as Task['priority'] }, 'priority')}>
+            <option value="">No priority</option>
+            {Object.entries(priorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
         <Button size="sm" variant="ghost" keepFocus onClick={openPopover('when')}>
           <CalendarIcon size={14} />
           {task.planning === 'someday'
@@ -267,11 +278,13 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
         <div className="mt-2 flex flex-wrap gap-1 pl-[34px]">
           {directTags.map((tagId) => (
             <Chip key={tagId} tone="accent" removable label={tagPath(db, tagId)} onRemove={() => actions.toggleTag('task', task.id, tagId, false)}>
+              <TagDot color={db.tags[tagId]?.color} />
               {tagPath(db, tagId)}
             </Chip>
           ))}
           {inherited.map((item) => (
             <Chip key={item.tagId} tone="default">
+              <TagDot color={db.tags[item.tagId]?.color} />
               <span className="opacity-80">{tagPath(db, item.tagId)}</span>
               <span className="text-faint">· from {item.from}</span>
             </Chip>

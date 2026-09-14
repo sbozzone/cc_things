@@ -197,6 +197,7 @@ export function materialize(
     const last = siblings[siblings.length - 1];
     const task: Task = {
       id: materializedId, ownerId: ctx.ownerId, title: snapshot.title, notes: snapshot.notes,
+      priority: snapshot.priority ?? null,
       status: 'open', processed: true,
       parentType: snapshot.parentType, parentId: snapshot.parentId, headingId: snapshot.headingId,
       planning: 'scheduled', startDate, eveningDate: null, deadline,
