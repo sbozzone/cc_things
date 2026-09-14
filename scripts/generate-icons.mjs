@@ -7,7 +7,7 @@
 import { deflateSync } from 'node:zlib';
 import { writeFileSync } from 'node:fs';
 
-const ACCENT = [0x2f, 0x6b, 0xd8];
+const ACCENT = [0xfa, 0x46, 0x16];
 const INK = [0xff, 0xff, 0xff];
 
 function crc32(buf) {

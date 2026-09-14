@@ -29,13 +29,15 @@
   --text-muted: #575e6f;
   --text-faint: #6a6860;
   --accent: #9b3f00;
+  --accent-fill: #fa4616;
+  --accent-fill-contrast: #241006;
   --accent-soft: #fff0e5;
-  --accent-contrast: #ffffff;
+  --accent-contrast: #241006;
   --selected: #f4dfd1;
 
   /* Each list carries its own hue, used for its icon and its page badge. */
   --inbox: #4a6fb5;
-  --today: #9b3f00;
+  --today: #fa4616;
   --upcoming: #bd431d;
   --anytime: #0c877a;
   --someday: #97790f;
@@ -70,11 +72,13 @@
   --d-text-muted: #a2a8b6;
   --d-text-faint: #7a808b;
   --d-accent: #ff9c62;
+  --d-accent-fill: #fa4616;
+  --d-accent-fill-contrast: #241006;
   --d-accent-soft: #3b2217;
   --d-accent-contrast: #241006;
   --d-selected: #4a2b1c;
   --d-inbox: #86a9e6;
-  --d-today: #ffad70;
+  --d-today: #fa4616;
   --d-upcoming: #f5906a;
   --d-anytime: #4ec9b8;
   --d-someday: #d6b455;
@@ -106,6 +110,8 @@
   --text-muted: #525d52;
   --text-faint: #666b61;
   --accent: #47664a;
+  --accent-fill: #47664a;
+  --accent-fill-contrast: #ffffff;
   --accent-soft: #e4ecdf;
   --accent-contrast: #ffffff;
   --selected: #dce8d8;
@@ -129,6 +135,8 @@
   --d-text-muted: #adb5a5;
   --d-text-faint: #899083;
   --d-accent: #a7caa6;
+  --d-accent-fill: #a7caa6;
+  --d-accent-fill-contrast: #142016;
   --d-accent-soft: #263525;
   --d-accent-contrast: #142016;
   --d-selected: #30422e;
@@ -145,6 +153,8 @@
 /* Clear, lively accents using the original calm neutral surfaces. */
 :root[data-palette='bright'] {
   --accent: #2159d6;
+  --accent-fill: #2159d6;
+  --accent-fill-contrast: #ffffff;
   --accent-soft: #e6eefd;
   --accent-contrast: #ffffff;
   --selected: #dbe7fd;
@@ -156,6 +166,8 @@
   --logbook: #1d874a;
 
   --d-accent: #7aa2ff;
+  --d-accent-fill: #7aa2ff;
+  --d-accent-fill-contrast: #0b0f1c;
   --d-accent-soft: #1b2540;
   --d-accent-contrast: #0b0f1c;
   --d-selected: #23304d;
@@ -181,6 +193,8 @@
     --text-muted: var(--d-text-muted);
     --text-faint: var(--d-text-faint);
     --accent: var(--d-accent);
+    --accent-fill: var(--d-accent-fill);
+    --accent-fill-contrast: var(--d-accent-fill-contrast);
     --accent-soft: var(--d-accent-soft);
     --accent-contrast: var(--d-accent-contrast);
     --selected: var(--d-selected);
@@ -218,6 +232,8 @@
   --text-muted: var(--d-text-muted);
   --text-faint: var(--d-text-faint);
   --accent: var(--d-accent);
+  --accent-fill: var(--d-accent-fill);
+  --accent-fill-contrast: var(--d-accent-fill-contrast);
   --accent-soft: var(--d-accent-soft);
   --accent-contrast: var(--d-accent-contrast);
   --selected: var(--d-selected);
@@ -254,6 +270,8 @@
   --color-muted: var(--text-muted);
   --color-faint: var(--text-faint);
   --color-accent: var(--accent);
+  --color-accent-fill: var(--accent-fill);
+  --color-accent-fill-contrast: var(--accent-fill-contrast);
   --color-accent-soft: var(--accent-soft);
   --color-accent-contrast: var(--accent-contrast);
   --color-inbox: var(--inbox);

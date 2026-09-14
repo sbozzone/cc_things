@@ -242,7 +242,7 @@ export function AppShell() {
               aria-label={`Add a task to ${doc.title}`}
               title={`Add a task to ${doc.title}`}
               onClick={addHere}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-contrast shadow-[var(--shadow-sm)] transition-transform hover:scale-105 active:scale-95"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-fill text-accent-fill-contrast shadow-[var(--shadow-sm)] transition-transform hover:scale-105 active:scale-95"
             >
               <PlusIcon size={17} />
             </button>
@@ -298,7 +298,7 @@ export function AppShell() {
           type="button"
           aria-label="Quick capture"
           onClick={() => setOverlay('capture')}
-          className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-contrast shadow-[var(--shadow)]"
+          className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent-fill text-accent-fill-contrast shadow-[var(--shadow)]"
         >
           <PlusIcon size={22} />
         </button>

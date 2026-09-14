@@ -216,7 +216,7 @@ export function Button({
     'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:opacity-45 disabled:pointer-events-none';
   const sizes = size === 'sm' ? 'h-8 px-2.5 text-[13px]' : 'h-10 px-3.5 text-[14px]';
   const variants = {
-    primary: 'bg-accent text-accent-contrast hover:opacity-90',
+    primary: 'bg-accent-fill text-accent-fill-contrast hover:opacity-90',
     secondary: 'border border-line bg-surface hover:bg-surface-2',
     ghost: 'text-muted hover:bg-surface-2 hover:text-ink',
     danger: 'border border-line text-danger hover:bg-danger-soft',
@@ -273,12 +273,12 @@ export function StatusControl({
         className="flex h-6 w-6 items-center justify-center rounded-[5px] border transition-colors"
         style={{
           borderColor: status === 'open' ? 'var(--control-border)' : 'transparent',
-          background: status === 'completed' ? 'var(--accent)' : status === 'canceled' ? 'var(--control-border)' : 'transparent',
+          background: status === 'completed' ? 'var(--accent-fill)' : status === 'canceled' ? 'var(--control-border)' : 'transparent',
           borderRadius: tone === 'project' ? '50%' : undefined,
         }}
       >
         {status === 'completed' ? (
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent-contrast)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent-fill-contrast)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="m4 12.5 5.2 5.2L20 6.6" />
           </svg>
         ) : status === 'canceled' ? (

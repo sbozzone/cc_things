@@ -84,7 +84,7 @@ function MiniCalendar({
               aria-pressed={date === selected}
               className={`flex h-8 items-center justify-center rounded-md text-[13px] transition-colors ${
                 date === selected
-                  ? 'bg-accent font-semibold text-accent-contrast'
+                  ? 'bg-accent-fill font-semibold text-accent-fill-contrast'
                   : date === today
                     ? 'font-semibold text-accent hover:bg-accent-soft'
                     : 'hover:bg-surface-2'

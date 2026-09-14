@@ -223,7 +223,7 @@ function TaskRow({
       }`}
     >
       {selected ? (
-        <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-accent" />
+        <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-accent-fill" />
       ) : null}
       <StatusControl
         status={task.status}
@@ -278,7 +278,7 @@ function TaskRow({
           <span
             aria-hidden="true"
             className={`flex h-6 w-6 items-center justify-center rounded-full border text-[14px] font-bold ${
-              selected ? 'border-accent bg-accent text-accent-contrast' : 'border-line-strong bg-surface'
+              selected ? 'border-accent bg-accent-fill text-accent-fill-contrast' : 'border-line-strong bg-surface'
             }`}
           >
             {selected ? '✓' : ''}

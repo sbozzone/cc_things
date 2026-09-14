@@ -157,7 +157,7 @@ export function Sidebar({
       <div className="flex items-center gap-3 px-4 pb-4 pt-5">
         <span
           aria-hidden="true"
-          className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-accent text-accent-contrast shadow-[var(--shadow-sm)]"
+          className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-accent-fill text-accent-fill-contrast shadow-[var(--shadow-sm)]"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m4 12.5 5.2 5.2L20 6.6" />

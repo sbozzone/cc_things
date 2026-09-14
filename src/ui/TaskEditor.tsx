@@ -158,7 +158,7 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
                 aria-label={item.text || 'Checklist row'}
                 onClick={() => actions.updateChecklistItem(item.id, { checked: !item.checked })}
                 className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px] border text-[10px] ${
-                  item.checked ? 'border-accent bg-accent text-accent-contrast' : 'border-control'
+                  item.checked ? 'border-accent bg-accent-fill text-accent-fill-contrast' : 'border-control'
                 }`}
               >
                 {item.checked ? '✓' : ''}

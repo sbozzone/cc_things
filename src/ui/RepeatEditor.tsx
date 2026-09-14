@@ -151,7 +151,7 @@ export function RepeatEditor({ anchor, onClose, task }: { anchor: HTMLElement | 
                       setRule({ ...rule, weekdays: [...current].sort((a, b) => a - b) });
                     }}
                     className={`h-9 w-9 rounded-md border text-[13px] ${
-                      active ? 'border-accent bg-accent text-accent-contrast' : 'border-line hover:bg-surface-2'
+                      active ? 'border-accent bg-accent-fill text-accent-fill-contrast' : 'border-line hover:bg-surface-2'
                     }`}
                   >
                     {name}
