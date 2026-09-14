@@ -22,7 +22,7 @@ import type {
 
 export type ViewKey =
   | 'inbox' | 'today' | 'upcoming' | 'anytime' | 'someday' | 'logbook' | 'trash'
-  | 'tomorrow' | 'deadlines' | 'repeating' | 'allProjects' | 'loggedProjects'
+  | 'tomorrow' | 'deadlines' | 'repeating' | 'allTasks' | 'allProjects' | 'loggedProjects'
   | 'smart:overdue' | 'smart:priority'
   | `project:${string}` | `area:${string}` | `tag:${string}`;
 
@@ -30,7 +30,7 @@ export const BUILT_IN_ORDER: ViewKey[] = ['inbox', 'today', 'upcoming', 'anytime
 
 export const VIEW_TITLES: Record<string, string> = {
   inbox: 'Inbox',
-  today: 'Today',
+  today: 'My Day',
   upcoming: 'Upcoming',
   anytime: 'Anytime',
   someday: 'Someday',
@@ -39,6 +39,7 @@ export const VIEW_TITLES: Record<string, string> = {
   tomorrow: 'Tomorrow',
   deadlines: 'Deadlines',
   repeating: 'Repeating',
+  allTasks: 'All Tasks',
   allProjects: 'All Projects',
   loggedProjects: 'Logged Projects',
   'smart:overdue': 'Overdue',
@@ -399,7 +400,7 @@ function todayView(db: Database, ix: Indexes, opts: QueryOptions): ListDocument 
     addTarget: { ...todayTarget, evening: true },
   });
 
-  return doc('today', 'Today', `${weekdayName(ix.today)}, ${monthName(ix.today)} ${Number(ix.today.slice(8, 10))}`, sections, opts,
+  return doc('today', 'My Day', `${weekdayName(ix.today)}, ${monthName(ix.today)} ${Number(ix.today.slice(8, 10))}`, sections, opts,
     'Nothing planned. Pull something in from Anytime, or capture a new task.', todayTarget);
 }
 
@@ -956,6 +957,23 @@ function allProjectsView(db: Database, ix: Indexes, opts: QueryOptions): ListDoc
   return doc('allProjects', 'All Projects', null, sections, opts, 'No projects yet.', inboxTarget());
 }
 
+/** Every live open task exactly once, regardless of its planning state or parent. */
+function allTasksView(db: Database, ix: Indexes, opts: QueryOptions): ListDocument {
+  const tasks = liveTasks(db)
+    .filter((task) => task.status === 'open' && passesFilter(db, ix, opts, task))
+    .sort(byRank);
+  return doc('allTasks', 'All Tasks', 'Every open task', [{
+    id: 'allTasks', title: null, subtitle: null, date: null,
+    items: tasks.map((task) => ({
+      kind: 'task' as const,
+      id: task.id,
+      task,
+      meta: taskMeta(db, ix, task),
+    })),
+    addTarget: inboxTarget(),
+  }], opts, 'No open tasks.', inboxTarget());
+}
+
 /** Built-in Smart Lists are live views over the same task records, never copied lists. */
 function smartListView(db: Database, ix: Indexes, key: 'overdue' | 'priority', opts: QueryOptions): ListDocument {
   const definition = SMART_LISTS[key];
@@ -997,6 +1015,7 @@ export function runView(db: Database, ix: Indexes, view: ViewKey, opts: QueryOpt
     case 'tomorrow': return tomorrowView(db, ix, opts);
     case 'deadlines': return deadlinesView(db, ix, opts);
     case 'repeating': return repeatingView(db, ix, opts);
+    case 'allTasks': return allTasksView(db, ix, opts);
     case 'allProjects': return allProjectsView(db, ix, opts);
     case 'smart:overdue': return smartListView(db, ix, 'overdue', opts);
     case 'smart:priority': return smartListView(db, ix, 'priority', opts);

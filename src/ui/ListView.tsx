@@ -14,7 +14,7 @@ import { MovePicker } from './Pickers';
 import { DuplicateDialog } from './DuplicateDialog';
 import {
   AlertIcon, ArchiveBoxIcon, CalendarIcon, ChecklistIcon, CopyIcon, EveningIcon, FlagIcon,
-  MoreIcon, MoveIcon, NoteIcon, PlusIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon, StarIcon,
+  MoreIcon, MoveIcon, NoteIcon, PlusIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon, StarIcon, TagIcon,
 } from './icons';
 import { usePhone } from './useMediaQuery';
 import { viewStyle } from './view-style';
@@ -483,6 +483,59 @@ function InlineComposer({ target, onDone }: { target: AddTarget; onDone: () => v
   );
 }
 
+function AllTasksTagFilter() {
+  const db = useApp((s) => s.db);
+  const tagFilter = useApp((s) => s.tagFilter);
+  const setTagFilter = useApp((s) => s.setTagFilter);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const tags = useMemo(
+    () => Object.values(db.tags)
+      .filter((tag) => tag.deletedAt === null)
+      .sort((a, b) => tagPath(db, a.id).localeCompare(tagPath(db, b.id))),
+    [db],
+  );
+
+  const toggle = (tagId: string) => {
+    setTagFilter(tagFilter.includes(tagId)
+      ? tagFilter.filter((id) => id !== tagId)
+      : [...tagFilter, tagId]);
+  };
+
+  return (
+    <div className="mb-2 flex flex-wrap items-center justify-end gap-1 px-2">
+      <Button size="sm" variant={tagFilter.length > 0 ? 'secondary' : 'ghost'} onClick={(event) => setAnchor(event.currentTarget)}>
+        <TagIcon size={14} /> Tags{tagFilter.length > 0 ? ` (${tagFilter.length})` : ''}
+      </Button>
+      {tagFilter.length > 0 ? <Button size="sm" variant="ghost" onClick={() => setTagFilter([])}>Clear</Button> : null}
+      {anchor ? (
+        <Popover anchor={anchor} onClose={() => setAnchor(null)} label="Filter All Tasks by tags" width={280}>
+          {tags.length > 0 ? (
+            <>
+              <p className="px-2 pb-1 text-[12px] text-faint">Tasks must match every selected tag.</p>
+              <ul>
+                {tags.map((tag) => (
+                  <li key={tag.id}>
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-[14px] hover:bg-surface-2">
+                      <input
+                        type="checkbox"
+                        checked={tagFilter.includes(tag.id)}
+                        onChange={() => toggle(tag.id)}
+                        className="h-5 w-5"
+                      />
+                      <TagDot color={tag.color} />
+                      <span className="min-w-0 flex-1 truncate">{tagPath(db, tag.id)}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : <p className="px-2 py-3 text-[13px] text-muted">Create a tag to filter this list.</p>}
+        </Popover>
+      ) : null}
+    </div>
+  );
+}
+
 /** Heading actions: rename, archive, duplicate, promote and delete (R08, R10). */
 function HeadingMenu({ headingId, title }: { headingId: string; title: string }) {
   const db = useApp((s) => s.db);
@@ -688,7 +741,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const today = useApp((s) => s.today);
   const sort = db.settings.listSorts?.[sourceDoc.view] ?? 'manual';
   const doc = useMemo(() => sortDocument(sourceDoc, sort), [sourceDoc, sort]);
-  const canOrder = sort === 'manual' && !['upcoming', 'logbook', 'trash', 'review'].includes(doc.view);
+  const canOrder = sort === 'manual' && !['upcoming', 'logbook', 'trash', 'review', 'allTasks'].includes(doc.view);
   const suggestions = useMemo(
     () => doc.view === 'today' && selection.length === 0 ? taskSuggestions(db, today) : [],
     [db, doc.view, selection.length, today],
@@ -737,6 +790,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
     <>
       <div data-list-root className="pt-1 pb-24">
         {doc.view === 'today' ? <SuggestionSection suggestions={suggestions} /> : null}
+        {doc.view === 'allTasks' ? <AllTasksTagFilter /> : null}
         {!['logbook', 'trash'].includes(doc.view) ? <label className="mb-2 flex flex-wrap items-center justify-end gap-2 px-2 text-sm text-muted">
           Sort
           <select aria-label="Sort items" className="min-h-11 rounded-md border border-line bg-surface px-2" value={sort}

@@ -215,7 +215,7 @@ describe('Headings (R08, scenario A02)', () => {
     h.apply(moveHeading(h.db, h.ctx(), headingId, to));
 
     const moved = titlesIn(h, `project:${to}`, `heading:${headingId}`);
-    expect(moved).toEqual(names);
+    expect(moved).toEqual(['One', 'Two', 'Three', 'Four', 'Five']);
     expect(titlesIn(h, `project:${from}`)).toEqual([]);
   });
 });
@@ -280,6 +280,26 @@ describe('Deletion and restore (R06, scenario A09)', () => {
 });
 
 describe('Counts and ordering (R12, R25)', () => {
+  it('shows every live open task once in All Tasks and supports tag filtering', () => {
+    const h = new Harness();
+    const tagId = h.run(createTag(h.db, h.ctx(), 'Work')).id;
+    const projectId = h.run(createProject(h.db, h.ctx(), { title: 'Project' })).id;
+    const inbox = h.run(createTask(h.db, h.ctx(), { title: 'inbox item', target: { parentType: 'inbox', parentId: null, headingId: null } })).id;
+    const project = h.run(createTask(h.db, h.ctx(), { title: 'project item', target: { parentType: 'project', parentId: projectId, headingId: null } })).id;
+    const someday = h.run(createTask(h.db, h.ctx(), { title: 'someday item', target: { parentType: 'inbox', parentId: null, headingId: null, planning: 'someday' } })).id;
+    const done = h.run(createTask(h.db, h.ctx(), { title: 'done item', target: { parentType: 'inbox', parentId: null, headingId: null } })).id;
+    h.apply(assignTag(h.db, h.ctx(), tagId, 'task', project));
+    h.apply(setTaskStatus(h.db, h.ctx(), done, 'completed'));
+
+    expect(titlesIn(h, 'allTasks')).toEqual(expect.arrayContaining(['Inbox item', 'Project item', 'Someday item']));
+    expect(titlesIn(h, 'allTasks')).toHaveLength(3);
+
+    const filtered = runView(h.db, buildIndexes(h.db, h.today), 'allTasks', { tagFilter: [tagId] });
+    expect(filtered.sections.flatMap((section) => section.items)
+      .flatMap((item) => item.kind === 'task' ? [item.task.id] : [])).toEqual([project]);
+    expect([inbox, someday]).not.toContain(project);
+  });
+
   it('supports saved manual order and non-destructive presentation sorts', () => {
     const h = new Harness();
     const projectId = h.run(createProject(h.db, h.ctx(), { title: 'Sort test' })).id;

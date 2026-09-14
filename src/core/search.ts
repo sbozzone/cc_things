@@ -31,7 +31,7 @@ export interface SearchOptions {
 
 const SPECIAL_VIEWS: ViewKey[] = [
   'inbox', 'today', 'upcoming', 'anytime', 'someday', 'logbook', 'trash',
-  'tomorrow', 'deadlines', 'repeating', 'allProjects', 'loggedProjects',
+  'tomorrow', 'deadlines', 'repeating', 'allTasks', 'allProjects', 'loggedProjects',
 ];
 
 function scoreOf(haystack: string, needle: string): number {

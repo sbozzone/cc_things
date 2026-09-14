@@ -45,7 +45,7 @@ export function updateTask(id: string, fields: Partial<Task>, undoLabel?: string
 export function setInToday(id: string, isInToday: boolean): void {
   const state = app();
   state.dispatch(commands.setTaskInToday(state.db, state.ctx(), id, isInToday), {
-    undoLabel: isInToday ? 'add to today' : 'remove from today',
+    undoLabel: isInToday ? 'add to My Day' : 'remove from My Day',
   });
 }
 

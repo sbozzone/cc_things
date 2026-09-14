@@ -3,6 +3,7 @@ import { newId } from './ids';
 import { byRank, FIRST_RANK, keyBetween } from './rank';
 import { canArchiveHeading, computeProcessed } from './membership';
 import { wouldCycle } from './tags';
+import { capitalizeNewTitle } from './text';
 import { create, update, type EntityPatch, type WriteContext } from './patches';
 import type {
   Area, ChecklistItem, Database, DateOnly, Heading, LifecycleStatus, PlanningState,
@@ -87,7 +88,7 @@ export function createTask(db: Database, ctx: WriteContext, input: NewTaskInput)
   const task: Task = {
     id,
     ownerId: ctx.ownerId,
-    title: input.title.trim(),
+    title: capitalizeNewTitle(input.title),
     notes: input.notes ?? '',
     status: 'open',
     processed: target.myDay === true,

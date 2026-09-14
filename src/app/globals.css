@@ -24,19 +24,19 @@
    * Chosen to clear 3:1 against every background a control sits on — including the
    * selected-row tint, which is the tightest case.
    */
-  --control-border: #84827a;
+  --control-border: #817a70;
   --text: #1a1d29;
   --text-muted: #575e6f;
   --text-faint: #6a6860;
-  --accent: #2159d6;
-  --accent-soft: #e6eefd;
+  --accent: #9b3f00;
+  --accent-soft: #fff0e5;
   --accent-contrast: #ffffff;
-  --selected: #dbe7fd;
+  --selected: #f4dfd1;
 
   /* Each list carries its own hue, used for its icon and its page badge. */
   --inbox: #4a6fb5;
-  --today: #b57500;
-  --upcoming: #cf4f2a;
+  --today: #9b3f00;
+  --upcoming: #bd431d;
   --anytime: #0c877a;
   --someday: #97790f;
   --logbook: #1d874a;
@@ -65,16 +65,16 @@
   --d-sidebar: #0b0d11;
   --d-border: #272b34;
   --d-border-strong: #3e434f;
-  --d-control-border: #787b83;
+  --d-control-border: #7d8088;
   --d-text: #eceef3;
   --d-text-muted: #a2a8b6;
   --d-text-faint: #7a808b;
-  --d-accent: #7aa2ff;
-  --d-accent-soft: #1b2540;
-  --d-accent-contrast: #0b0f1c;
-  --d-selected: #23304d;
+  --d-accent: #ff9c62;
+  --d-accent-soft: #3b2217;
+  --d-accent-contrast: #241006;
+  --d-selected: #4a2b1c;
   --d-inbox: #86a9e6;
-  --d-today: #f0b64a;
+  --d-today: #ffad70;
   --d-upcoming: #f5906a;
   --d-anytime: #4ec9b8;
   --d-someday: #d6b455;
@@ -91,6 +91,80 @@
   --d-chip-neutral-fg: #a2a8b6;
   --d-shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
   --d-shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 6px 16px rgb(0 0 0 / 40%), 0 18px 40px rgb(0 0 0 / 45%);
+}
+
+/* Warm paper and botanical greens. Structural surfaces change as well as accents. */
+:root[data-palette='sage'] {
+  --bg: #f7f3e8;
+  --surface: #fffdf7;
+  --surface-2: #ece9dc;
+  --sidebar: #f2efe4;
+  --border: #ded9c8;
+  --border-strong: #b9b3a2;
+  --control-border: #77796f;
+  --text: #20241f;
+  --text-muted: #525d52;
+  --text-faint: #666b61;
+  --accent: #47664a;
+  --accent-soft: #e4ecdf;
+  --accent-contrast: #ffffff;
+  --selected: #dce8d8;
+  --inbox: #526b8c;
+  --today: #8c630c;
+  --upcoming: #a7462e;
+  --anytime: #3d7061;
+  --someday: #7b6a19;
+  --logbook: #4b7047;
+  --chip-neutral-bg: #ece9dc;
+  --chip-neutral-fg: #525d52;
+
+  --d-bg: #131510;
+  --d-surface: #1b1e18;
+  --d-surface-2: #24281f;
+  --d-sidebar: #10120e;
+  --d-border: #30352a;
+  --d-border-strong: #4b5144;
+  --d-control-border: #858a7e;
+  --d-text: #f0f1e9;
+  --d-text-muted: #adb5a5;
+  --d-text-faint: #899083;
+  --d-accent: #a7caa6;
+  --d-accent-soft: #263525;
+  --d-accent-contrast: #142016;
+  --d-selected: #30422e;
+  --d-inbox: #96afd0;
+  --d-today: #e1bd68;
+  --d-upcoming: #ee987c;
+  --d-anytime: #80c1ad;
+  --d-someday: #d2bd67;
+  --d-logbook: #8cc78b;
+  --d-chip-neutral-bg: #24281f;
+  --d-chip-neutral-fg: #adb5a5;
+}
+
+/* Clear, lively accents using the original calm neutral surfaces. */
+:root[data-palette='bright'] {
+  --accent: #2159d6;
+  --accent-soft: #e6eefd;
+  --accent-contrast: #ffffff;
+  --selected: #dbe7fd;
+  --inbox: #4a6fb5;
+  --today: #b57500;
+  --upcoming: #cf4f2a;
+  --anytime: #0c877a;
+  --someday: #97790f;
+  --logbook: #1d874a;
+
+  --d-accent: #7aa2ff;
+  --d-accent-soft: #1b2540;
+  --d-accent-contrast: #0b0f1c;
+  --d-selected: #23304d;
+  --d-inbox: #86a9e6;
+  --d-today: #f0b64a;
+  --d-upcoming: #f5906a;
+  --d-anytime: #4ec9b8;
+  --d-someday: #d6b455;
+  --d-logbook: #5fc783;
 }
 
 /* The dark assignment list, shared by both ways of arriving at dark. */
@@ -147,6 +221,7 @@
   --accent-soft: var(--d-accent-soft);
   --accent-contrast: var(--d-accent-contrast);
   --selected: var(--d-selected);
+  --inbox: var(--d-inbox);
   --today: var(--d-today);
   --upcoming: var(--d-upcoming);
   --anytime: var(--d-anytime);

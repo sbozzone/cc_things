@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { TRASH_RETENTION_DAYS } from '@/core/commands';
 import { databaseFromPackage, exportDatabase, exportText, importPackage, validatePackage, type ExportPackage } from '@/core/portability';
+import type { ColorTheme } from '@/core/types';
 import { useApp } from '@/state/store';
 import * as actions from '@/state/actions';
 import { Button, Modal } from './primitives';
@@ -44,8 +45,12 @@ function GeneralTab() {
   const zones = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [settings.planningTimeZone];
 
   /** Theme and motion are device preferences, mirrored to localStorage for first paint. */
-  const persistAppearance = (patch: { theme?: string; reducedMotion?: boolean }) => {
-    const next = { theme: patch.theme ?? settings.theme, reducedMotion: patch.reducedMotion ?? settings.reducedMotion };
+  const persistAppearance = (patch: { theme?: string; colorTheme?: ColorTheme; reducedMotion?: boolean }) => {
+    const next = {
+      theme: patch.theme ?? settings.theme,
+      colorTheme: patch.colorTheme ?? settings.colorTheme ?? 'orange',
+      reducedMotion: patch.reducedMotion ?? settings.reducedMotion,
+    };
     try {
       localStorage.setItem(APPEARANCE_KEY, JSON.stringify(next));
     } catch {
@@ -54,6 +59,7 @@ function GeneralTab() {
     const root = document.documentElement;
     if (next.theme === 'system') delete root.dataset.theme;
     else root.dataset.theme = next.theme;
+    root.dataset.palette = next.colorTheme;
     if (next.reducedMotion) root.dataset.motion = 'reduced';
     else delete root.dataset.motion;
   };
@@ -76,6 +82,22 @@ function GeneralTab() {
           <option value="dark">Dark</option>
         </select>
       </Row>
+      <Row label="Color palette" hint="Changes the app colors without changing Light or Dark mode.">
+        <select
+          value={settings.colorTheme ?? 'orange'}
+          aria-label="Color palette"
+          className={selectClass}
+          onChange={(event) => {
+            const colorTheme = event.target.value as ColorTheme;
+            actions.updateSettings({ colorTheme });
+            persistAppearance({ colorTheme });
+          }}
+        >
+          <option value="orange">Orange</option>
+          <option value="sage">Cream &amp; Sage</option>
+          <option value="bright">Bright</option>
+        </select>
+      </Row>
       <Row label="Reduce motion" hint="Also honoured automatically when the device asks for it.">
         <label className="flex h-11 w-11 items-center justify-center min-[620px]:h-auto min-[620px]:w-auto">
           <input
@@ -90,10 +112,10 @@ function GeneralTab() {
           />
         </label>
       </Row>
-      <Row label="Today grouping" hint="A flat manual list, or grouped by area and project.">
+      <Row label="My Day grouping" hint="A flat manual list, or grouped by area and project.">
         <select
           value={settings.todayGrouping}
-          aria-label="Today grouping"
+          aria-label="My Day grouping"
           className={selectClass}
           onChange={(event) => actions.updateSettings({ todayGrouping: event.target.value as 'flat' | 'byProject' })}
         >
@@ -103,7 +125,7 @@ function GeneralTab() {
       </Row>
       <Row
         label="Planning time zone"
-        hint="One zone decides what Today means. Changing devices never moves your planning day."
+        hint="One zone decides when My Day resets. Changing devices never moves your planning day."
       >
         <select
           value={settings.planningTimeZone}

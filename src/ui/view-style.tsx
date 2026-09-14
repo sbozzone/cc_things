@@ -25,6 +25,7 @@ const BUILT_IN: Record<string, ViewStyle> = {
   tomorrow: { icon: <CalendarIcon size={17} />, accent: 'var(--upcoming)' },
   deadlines: { icon: <FlagIcon size={17} />, accent: 'var(--danger)' },
   repeating: { icon: <RepeatIcon size={17} />, accent: 'var(--anytime)' },
+  allTasks: { icon: <LayersIcon size={17} />, accent: 'var(--accent)' },
   allProjects: { icon: <FolderIcon size={17} />, accent: 'var(--accent)' },
   loggedProjects: { icon: <BookIcon size={17} />, accent: 'var(--logbook)' },
   'smart:overdue': { icon: <AlertIcon size={17} />, accent: 'var(--danger)' },

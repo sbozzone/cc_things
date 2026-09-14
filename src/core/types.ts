@@ -224,6 +224,7 @@ export interface Reminder extends BaseEntity {
 }
 
 export type ThemePreference = 'light' | 'dark' | 'system';
+export type ColorTheme = 'orange' | 'sage' | 'bright';
 export type TodayGrouping = 'flat' | 'byProject';
 
 export interface Settings extends BaseEntity {
@@ -234,6 +235,8 @@ export interface Settings extends BaseEntity {
   /** One account-wide IANA planning zone; changing devices must not move the planning day. */
   planningTimeZone: string;
   theme: ThemePreference;
+  /** Colour palette, independent of the light/dark brightness preference. */
+  colorTheme?: ColorTheme;
   todayGrouping: TodayGrouping;
   notificationsEnabled: boolean;
   typeToSearch: boolean;

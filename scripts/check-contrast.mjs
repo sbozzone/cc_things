@@ -20,28 +20,59 @@ const ratio = (a, b) => {
 const light = {
   bg: '#f7f8fb', surface: '#ffffff', surface2: '#eef1f7', sidebar: '#f5f7fa',
   text: '#1a1d29', muted: '#575e6f', faint: '#6a6860',
-  accent: '#2159d6', accentSoft: '#e6eefd', accentContrast: '#ffffff', selected: '#dbe7fd',
+  accent: '#9b3f00', accentSoft: '#fff0e5', accentContrast: '#ffffff', selected: '#f4dfd1',
   inbox: '#4a6fb5',
-  today: '#b57500', upcoming: '#cf4f2a', anytime: '#0c877a', someday: '#97790f',
+  today: '#9b3f00', upcoming: '#bd431d', anytime: '#0c877a', someday: '#97790f',
   logbook: '#1d874a', danger: '#b3261e', dangerSoft: '#fdeae7',
   chipWarmBg: '#fbf0da', chipWarmFg: '#7f5307',
   chipDangerBg: '#fdeae7', chipDangerFg: '#9d2a1d',
   chipCoolBg: '#e4f3f1', chipCoolFg: '#09655b',
   chipNeutralBg: '#eef1f7', chipNeutralFg: '#575e6f',
-  borderStrong: '#c6ccdb', control: '#84827a',
+  borderStrong: '#c6ccdb', control: '#817a70',
 };
 const dark = {
   bg: '#0f1115', surface: '#171a20', surface2: '#1f232b', sidebar: '#0b0d11',
   text: '#eceef3', muted: '#a2a8b6', faint: '#7a808b',
-  accent: '#7aa2ff', accentSoft: '#1b2540', accentContrast: '#0b0f1c', selected: '#23304d',
+  accent: '#ff9c62', accentSoft: '#3b2217', accentContrast: '#241006', selected: '#4a2b1c',
   inbox: '#86a9e6',
-  today: '#f0b64a', upcoming: '#f5906a', anytime: '#4ec9b8', someday: '#d6b455',
+  today: '#ffad70', upcoming: '#f5906a', anytime: '#4ec9b8', someday: '#d6b455',
   logbook: '#5fc783', danger: '#f58a80', dangerSoft: '#3a211e',
   chipWarmBg: '#382d16', chipWarmFg: '#f0c471',
   chipDangerBg: '#3d211d', chipDangerFg: '#f8a79c',
   chipCoolBg: '#11322f', chipCoolFg: '#6fd8c7',
   chipNeutralBg: '#22262f', chipNeutralFg: '#a2a8b6',
-  borderStrong: '#3e434f', control: '#787b83',
+  borderStrong: '#3e434f', control: '#7d8088',
+};
+
+const sageLight = {
+  ...light,
+  bg: '#f7f3e8', surface: '#fffdf7', surface2: '#ece9dc', sidebar: '#f2efe4',
+  text: '#20241f', muted: '#525d52', faint: '#666b61',
+  accent: '#47664a', accentSoft: '#e4ecdf', selected: '#dce8d8',
+  inbox: '#526b8c', today: '#8c630c', upcoming: '#a7462e', anytime: '#3d7061',
+  someday: '#7b6a19', logbook: '#4b7047', chipNeutralBg: '#ece9dc', chipNeutralFg: '#525d52',
+  borderStrong: '#b9b3a2', control: '#77796f',
+};
+const sageDark = {
+  ...dark,
+  bg: '#131510', surface: '#1b1e18', surface2: '#24281f', sidebar: '#10120e',
+  text: '#f0f1e9', muted: '#adb5a5', faint: '#899083',
+  accent: '#a7caa6', accentSoft: '#263525', accentContrast: '#142016', selected: '#30422e',
+  inbox: '#96afd0', today: '#e1bd68', upcoming: '#ee987c', anytime: '#80c1ad',
+  someday: '#d2bd67', logbook: '#8cc78b', chipNeutralBg: '#24281f', chipNeutralFg: '#adb5a5',
+  borderStrong: '#4b5144', control: '#858a7e',
+};
+const brightLight = {
+  ...light,
+  accent: '#2159d6', accentSoft: '#e6eefd', selected: '#dbe7fd',
+  inbox: '#4a6fb5', today: '#b57500', upcoming: '#cf4f2a', anytime: '#0c877a',
+  someday: '#97790f', logbook: '#1d874a',
+};
+const brightDark = {
+  ...dark,
+  accent: '#7aa2ff', accentSoft: '#1b2540', accentContrast: '#0b0f1c', selected: '#23304d',
+  inbox: '#86a9e6', today: '#f0b64a', upcoming: '#f5906a', anytime: '#4ec9b8',
+  someday: '#d6b455', logbook: '#5fc783',
 };
 
 // [label, fg, bg, minimum]  — 4.5 for normal text, 3.0 for large text / UI components.
@@ -77,7 +108,11 @@ const pairs = (t) => [
 ];
 
 let failures = 0;
-for (const [name, theme] of [['LIGHT', light], ['DARK', dark]]) {
+for (const [name, theme] of [
+  ['ORANGE LIGHT', light], ['ORANGE DARK', dark],
+  ['SAGE LIGHT', sageLight], ['SAGE DARK', sageDark],
+  ['BRIGHT LIGHT', brightLight], ['BRIGHT DARK', brightDark],
+]) {
   console.log(`\n${name}`);
   for (const [label, fg, bg, min] of pairs(theme)) {
     const r = ratio(fg, bg);

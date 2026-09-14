@@ -33,6 +33,7 @@ const themeBootstrap = `
     if (!raw) return;
     var v = JSON.parse(raw);
     if (v.theme === 'light' || v.theme === 'dark') document.documentElement.dataset.theme = v.theme;
+    if (v.colorTheme === 'orange' || v.colorTheme === 'sage' || v.colorTheme === 'bright') document.documentElement.dataset.palette = v.colorTheme;
     if (v.reducedMotion) document.documentElement.dataset.motion = 'reduced';
   } catch (e) {}
 })();

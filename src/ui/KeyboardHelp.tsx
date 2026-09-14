@@ -13,7 +13,7 @@ const GROUPS: { title: string; rows: [string, string][] }[] = [
       ['Shift + N', 'Quick capture to Inbox'],
       ['⌘/Ctrl + Z', 'Undo'],
       ['⌘/Ctrl + Shift + Z', 'Redo'],
-      ['1 – 6', 'Jump to Inbox, Today, Upcoming, Anytime, Someday, Logbook'],
+      ['1 – 6', 'Jump to Inbox, My Day, Upcoming, Anytime, Someday, Logbook'],
       ['?', 'Open this reference'],
       ['Escape', 'Close the editor, popover or selection'],
     ],

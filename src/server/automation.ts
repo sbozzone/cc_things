@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { query, withTransaction } from './db';
 import { FIRST_RANK, keyBetween } from '@/core/rank';
+import { capitalizeNewTitle } from '@/core/text';
 
 /**
  * Shared machinery for the automation API (R30).
@@ -129,7 +130,7 @@ export function validateTaskInput(value: unknown): { input: TaskInput } | { erro
   }
   return {
     input: {
-      title: body.title.trim(),
+      title: capitalizeNewTitle(body.title),
       notes: typeof body.notes === 'string' ? body.notes : '',
       projectId: typeof body.projectId === 'string' ? body.projectId : null,
       areaId: typeof body.areaId === 'string' ? body.areaId : null,
