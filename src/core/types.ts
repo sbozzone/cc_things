@@ -273,6 +273,8 @@ export interface CalendarSubscription {
   enabled: boolean;
   lastRefreshedAt: Instant | null;
   lastError: string | null;
+  /** Parser revision used for the current local event cache. */
+  parserVersion?: number;
 }
 
 /** The full owner-scoped record set the client holds in memory and persists locally. */

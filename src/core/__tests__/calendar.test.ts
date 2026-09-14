@@ -94,6 +94,40 @@ describe('calendar adapter (R20, R21, scenario A10)', () => {
     expect(parseIcs(text, '2026-09-01', '2026-09-30')[0]?.canceled).toBe(true);
   });
 
+  it('honors IANA TZIDs instead of interpreting their wall time as UTC', () => {
+    const text = feed([
+      'BEGIN:VEVENT', 'UID:tzid@example.com',
+      'DTSTART;TZID=America/New_York:20260913T100000',
+      'SUMMARY:Ten AM meeting', 'END:VEVENT',
+    ].join('\r\n'));
+
+    const event = parseIcs(text, '2026-09-01', '2026-09-30')[0];
+    expect(event?.startInstant).toBe('2026-09-13T14:00:00.000Z');
+    expect(event?.timeZone).toBe('America/New_York');
+  });
+
+  it('normalizes Outlook Windows TZIDs before resolving event times', () => {
+    const text = feed([
+      'BEGIN:VEVENT', 'UID:outlook@example.com',
+      'DTSTART;TZID=Eastern Standard Time:20260913T100000',
+      'SUMMARY:Outlook meeting', 'END:VEVENT',
+    ].join('\r\n'));
+
+    const event = parseIcs(text, '2026-09-01', '2026-09-30')[0];
+    expect(event?.startInstant).toBe('2026-09-13T14:00:00.000Z');
+    expect(event?.timeZone).toBe('America/New_York');
+  });
+
+  it('treats a floating feed time as local to the planning timezone', () => {
+    const text = feed([
+      'BEGIN:VEVENT', 'UID:floating@example.com', 'DTSTART:20260913T100000',
+      'SUMMARY:Local meeting', 'END:VEVENT',
+    ].join('\r\n'));
+
+    const event = parseIcs(text, '2026-09-01', '2026-09-30', 'America/New_York')[0];
+    expect(event?.startInstant).toBe('2026-09-13T14:00:00.000Z');
+  });
+
   it('builds cache ids from provider identity so a reconnect refreshes in place', () => {
     const text = feed([
       'BEGIN:VEVENT', 'UID:a@example.com', 'DTSTART:20260910T140000Z', 'SUMMARY:One', 'END:VEVENT',

@@ -1,7 +1,7 @@
 'use client';
 
 import { addDays } from '@/core/dates';
-import { CACHE_STALE_MS, parseIcs, toCacheRecords } from '@/core/calendar';
+import { CACHE_STALE_MS, CALENDAR_PARSER_VERSION, parseIcs, toCacheRecords } from '@/core/calendar';
 import { newId } from '@/core/ids';
 import type { EntityPatch } from '@/core/patches';
 import type { CalendarSubscription } from '@/core/types';
@@ -90,7 +90,7 @@ export async function refreshSubscription(id: string, force = false): Promise<vo
     const windowEnd = addDays(today, WINDOW_AFTER_DAYS);
     const refreshedAt = body.fetchedAt ?? new Date().toISOString();
     const records = toCacheRecords(
-      parseIcs(body.text, windowStart, windowEnd),
+      parseIcs(body.text, windowStart, windowEnd, useApp.getState().db.settings.planningTimeZone),
       useApp.getState().ownerId,
       subscription.providerId,
       subscription.calendarId,
@@ -109,7 +109,11 @@ export async function refreshSubscription(id: string, force = false): Promise<vo
     for (const record of records) {
       patches.push({ table: 'calendarEvents', id: record.id, patch: record as unknown as Record<string, unknown>, create: true });
     }
-    patches.push({ table: 'calendarSubscriptions', id, patch: { lastRefreshedAt: refreshedAt, lastError: null } });
+    patches.push({
+      table: 'calendarSubscriptions',
+      id,
+      patch: { lastRefreshedAt: refreshedAt, lastError: null, parserVersion: CALENDAR_PARSER_VERSION },
+    });
     useApp.getState().dispatch(patches, { local: true });
   } catch {
     useApp.getState().dispatch(
@@ -123,6 +127,10 @@ export async function refreshSubscription(id: string, force = false): Promise<vo
 export async function refreshStaleCalendars(): Promise<void> {
   const { db } = useApp.getState();
   for (const subscription of Object.values(db.calendarSubscriptions)) {
-    if (subscription.enabled) await refreshSubscription(subscription.id);
+    if (subscription.enabled && subscription.parserVersion !== CALENDAR_PARSER_VERSION) {
+      await refreshSubscription(subscription.id, true);
+    } else if (subscription.enabled) {
+      await refreshSubscription(subscription.id);
+    }
   }
 }

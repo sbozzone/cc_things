@@ -1,4 +1,4 @@
-import { addDays, addMonths, addYears, makeDate, weekdayOf } from './dates';
+import { addDays, addMonths, addYears, makeDate, resolveInstant, weekdayOf } from './dates';
 import type { CalendarEvent, DateOnly } from './types';
 
 /**
@@ -11,6 +11,8 @@ import type { CalendarEvent, DateOnly } from './types';
  */
 
 export const CACHE_STALE_MS = 5 * 60 * 1000;
+/** Increment when parsing semantics change so local calendar caches refresh safely. */
+export const CALENDAR_PARSER_VERSION = 2;
 
 export interface ParsedEvent {
   eventId: string;
@@ -73,7 +75,55 @@ interface IcsDate {
   timeZone: string | null;
 }
 
-function parseIcsDate(property: RawProperty): IcsDate | null {
+// Outlook's published ICS feeds commonly use Windows timezone IDs rather than IANA
+// IDs. Intl only accepts IANA IDs, so normalize the common values before resolving
+// the event's wall clock into an instant.
+const WINDOWS_TIME_ZONES: Record<string, string> = {
+  'dateline standard time': 'Pacific/Pago_Pago',
+  'hawaiian standard time': 'Pacific/Honolulu',
+  'alaskan standard time': 'America/Anchorage',
+  'pacific standard time': 'America/Los_Angeles',
+  'mountain standard time': 'America/Denver',
+  'us mountain standard time': 'America/Phoenix',
+  'central standard time': 'America/Chicago',
+  'canada central standard time': 'America/Regina',
+  'eastern standard time': 'America/New_York',
+  'us eastern standard time': 'America/Indianapolis',
+  'atlantic standard time': 'America/Halifax',
+  'sa eastern standard time': 'America/Cayenne',
+  'newfoundland standard time': 'America/St_Johns',
+  'greenwich standard time': 'Atlantic/Reykjavik',
+  'gmt standard time': 'Europe/London',
+  'w. europe standard time': 'Europe/Berlin',
+  'central europe standard time': 'Europe/Budapest',
+  'romance standard time': 'Europe/Paris',
+  'e. europe standard time': 'Europe/Chisinau',
+  'south africa standard time': 'Africa/Johannesburg',
+  'russian standard time': 'Europe/Moscow',
+  'arabian standard time': 'Asia/Dubai',
+  'india standard time': 'Asia/Kolkata',
+  'china standard time': 'Asia/Shanghai',
+  'tokyo standard time': 'Asia/Tokyo',
+  'aus eastern standard time': 'Australia/Sydney',
+  'new zealand standard time': 'Pacific/Auckland',
+  utc: 'UTC',
+};
+
+function supportedTimeZone(value: string): string | null {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function resolveCalendarTimeZone(tzid: string | undefined, fallback: string): string {
+  const candidate = tzid ? WINDOWS_TIME_ZONES[tzid.toLowerCase()] ?? tzid : fallback;
+  return supportedTimeZone(candidate) ?? supportedTimeZone(fallback) ?? 'UTC';
+}
+
+function parseIcsDate(property: RawProperty, fallbackTimeZone: string): IcsDate | null {
   const value = property.value.trim();
   const dateOnly = /^(\d{4})(\d{2})(\d{2})$/.exec(value);
   if (dateOnly || property.params.VALUE === 'DATE') {
@@ -89,13 +139,13 @@ function parseIcsDate(property: RawProperty): IcsDate | null {
   const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/.exec(value);
   if (!m) return null;
   const [, y, mo, d, h, mi, s, zulu] = m;
-  const timeZone = property.params.TZID ?? (zulu ? 'UTC' : null);
+  const date = makeDate(Number(y), Number(mo), Number(d));
+  const wallTime = `${h}:${mi}`;
+  const timeZone = zulu ? 'UTC' : resolveCalendarTimeZone(property.params.TZID, fallbackTimeZone);
   const instant = zulu
     ? new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s))).toISOString()
-    : // A floating or TZID time is treated as local to that zone; the calendar day is
-      // what the planning lists need, and the exact instant only labels the row.
-      new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s))).toISOString();
-  return { date: makeDate(Number(y), Number(mo), Number(d)), instant, allDay: false, timeZone };
+    : resolveInstant(date, wallTime, timeZone).instant;
+  return { date, instant, allDay: false, timeZone };
 }
 
 const BYDAY_MAP: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
@@ -171,7 +221,12 @@ function expand(rule: RRule, start: DateOnly, windowStart: DateOnly, windowEnd: 
  * Parses an iCalendar feed into events within a bounded window. Overrides carried by
  * `RECURRENCE-ID` replace the generated instance rather than adding a second row.
  */
-export function parseIcs(text: string, windowStart: DateOnly, windowEnd: DateOnly): ParsedEvent[] {
+export function parseIcs(
+  text: string,
+  windowStart: DateOnly,
+  windowEnd: DateOnly,
+  fallbackTimeZone = 'UTC',
+): ParsedEvent[] {
   const lines = unfold(text);
   const events: ParsedEvent[] = [];
   const overrides = new Map<string, ParsedEvent>();
@@ -200,10 +255,10 @@ export function parseIcs(text: string, windowStart: DateOnly, windowEnd: DateOnl
     const dtStart = find('DTSTART');
     if (!uid || !dtStart) return;
 
-    const start = parseIcsDate(dtStart);
+    const start = parseIcsDate(dtStart, fallbackTimeZone);
     if (!start) return;
     const dtEnd = find('DTEND');
-    const end = dtEnd ? parseIcsDate(dtEnd) : null;
+    const end = dtEnd ? parseIcsDate(dtEnd, fallbackTimeZone) : null;
     const summary = unescapeText(find('SUMMARY')?.value ?? '(No title)');
     const canceled = (find('STATUS')?.value ?? '').toUpperCase() === 'CANCELLED';
     const revision = `${find('SEQUENCE')?.value ?? '0'}:${find('LAST-MODIFIED')?.value ?? find('DTSTAMP')?.value ?? ''}`;
@@ -232,7 +287,7 @@ export function parseIcs(text: string, windowStart: DateOnly, windowEnd: DateOnl
     const spanDays = Math.max(0, dayDiff(start.date, endDate));
 
     if (recurrenceId) {
-      const instance = parseIcsDate(recurrenceId);
+      const instance = parseIcsDate(recurrenceId, fallbackTimeZone);
       if (!instance) return;
       overrides.set(`${uid}#${instance.date}`, { ...base(instance.date, spanDays), instanceId: `${uid}#${instance.date}` });
       return;
@@ -253,7 +308,7 @@ export function parseIcs(text: string, windowStart: DateOnly, windowEnd: DateOnl
     const excluded = new Set(
       properties
         .filter((p) => p.name === 'EXDATE')
-        .flatMap((p) => p.value.split(',').map((v) => parseIcsDate({ ...p, value: v })?.date))
+        .flatMap((p) => p.value.split(',').map((v) => parseIcsDate({ ...p, value: v }, fallbackTimeZone)?.date))
         .filter((d): d is DateOnly => Boolean(d)),
     );
     for (const date of expand(rule, start.date, windowStart, windowEnd)) {
