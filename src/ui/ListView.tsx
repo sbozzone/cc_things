@@ -232,6 +232,9 @@ function TaskRow({
         onCancel={() => actions.setStatus(selected ? selection : [task.id], 'canceled')}
         onReopen={() => actions.setStatus(selected ? selection : [task.id], 'open')}
       />
+      {scope === 'today' ? (
+        <SunIcon size={16} className="mt-0.5 shrink-0 text-[var(--today)]" />
+      ) : null}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className={`text-[14.5px] leading-snug ${task.status !== 'open' ? 'text-muted line-through' : ''}`}>
