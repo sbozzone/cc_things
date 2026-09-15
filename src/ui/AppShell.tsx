@@ -250,7 +250,7 @@ export function AppShell() {
 
           {tagFilter.length > 0 ? (
             <div className="mb-2 flex items-center gap-2 rounded-md bg-accent-soft px-2.5 py-1.5 text-[12.5px] text-accent">
-              <span>Showing items with {tagFilter.length === 1 ? 'this tag' : 'all of these tags'}.</span>
+              <span>Showing items with {tagFilter.length === 1 ? 'this tag' : 'any of these tags'}.</span>
               <button type="button" onClick={() => setTagFilter([])} className="font-medium underline">Clear</button>
             </div>
           ) : null}

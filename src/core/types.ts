@@ -80,7 +80,7 @@ export interface Heading extends BaseEntity {
 }
 
 export interface Task extends BaseEntity {
-  /** An explicit My Day selection. It is cleared during the next planning-day reset. */
+  /** An explicit My Day selection. Open tasks roll forward until removed or completed. */
   isInToday?: boolean;
   priority?: 'urgent' | 'timeSensitive' | 'high' | 'low' | null;
   title: string;
@@ -226,11 +226,18 @@ export interface Reminder extends BaseEntity {
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type ColorTheme = 'orange' | 'sage' | 'bright';
 export type TodayGrouping = 'flat' | 'byProject';
+export type ListSort =
+  | 'manual'
+  | 'alphabetical' | 'alphabeticalDesc'
+  | 'due' | 'dueDesc'
+  | 'created' | 'createdAsc'
+  | 'priority' | 'priorityDesc'
+  | 'tags' | 'tagsDesc';
 
 export interface Settings extends BaseEntity {
-  /** Planning day whose My Day selections have already been cleared. */
+  /** Planning day whose My Day rollover has already been processed. */
   lastTodayResetDate?: DateOnly;
-  listSorts?: Record<string, 'manual' | 'alphabetical' | 'due' | 'created' | 'priority'>;
+  listSorts?: Record<string, ListSort>;
   locale: string;
   /** One account-wide IANA planning zone; changing devices must not move the planning day. */
   planningTimeZone: string;

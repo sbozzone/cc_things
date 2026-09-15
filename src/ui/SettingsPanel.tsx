@@ -125,7 +125,7 @@ function GeneralTab() {
       </Row>
       <Row
         label="Planning time zone"
-        hint="One zone decides when My Day resets. Changing devices never moves your planning day."
+        hint="One zone decides when My Day rolls into the next day. Changing devices never moves your planning day."
       >
         <select
           value={settings.planningTimeZone}

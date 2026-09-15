@@ -21,7 +21,6 @@ import { viewStyle } from './view-style';
 import { OrderHandle } from './OrderHandle';
 import { TagDot } from './TagColor';
 import { priorities, sortDocument, type ListSort } from '@/core/list-order';
-import { taskSuggestions, type TaskSuggestion } from '@/core/suggestions';
 
 /** Row currently being dragged. Drag is an accelerator; every move has a menu equivalent (R26). */
 let dragSource: { id: string; sectionId: string } | null = null;
@@ -289,84 +288,6 @@ function TaskRow({
   );
 }
 
-function RepeatPreviewRow({ item }: { item: Extract<ListItem, { kind: 'repeatPreview' }> }) {
-  const db = useApp((s) => s.db);
-  const today = useApp((s) => s.today);
-  const { preview } = item;
-  return (
-    <li
-      role="option"
-      aria-selected={false}
-      aria-label={`${preview.title || 'Untitled'}, repeating ${preview.entityKind} preview for ${preview.startDate}`}
-      className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-muted"
-    >
-      <span
-        aria-hidden="true"
-        className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border border-dashed border-line-strong text-faint"
-      >
-        <RepeatIcon size={11} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-[14.5px] leading-snug text-muted">
-            {preview.title || <span className="text-faint">Untitled</span>}
-          </span>
-          <Pill tone="cool" icon={<RepeatIcon size={11} />}>Repeats</Pill>
-          {preview.entityKind === 'project' ? <Pill tone="neutral">Project</Pill> : null}
-          {preview.checklistTotal > 0 ? (
-            <span className="inline-flex items-center gap-0.5 text-[12px] text-faint">
-              <ChecklistIcon size={12} />{preview.checklistTotal}
-            </span>
-          ) : null}
-        </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-          <Pill tone="neutral" icon={<CalendarIcon size={11} />}>{formatDateLabel(preview.startDate, today)}</Pill>
-          {preview.deadline ? (
-            <Pill tone="warm" icon={<FlagIcon size={11} />}>Due {formatDateLabel(preview.deadline, today)}</Pill>
-          ) : null}
-          {preview.contextLabel ? <span className="text-[12px] text-faint">{preview.contextLabel}</span> : null}
-          {preview.tagIds.slice(0, 3).map((tagId) => <Chip key={tagId}>{tagPath(db, tagId)}</Chip>)}
-          <span className="text-[11.5px] text-faint">Preview</span>
-        </div>
-      </div>
-    </li>
-  );
-}
-
-const suggestionLabel: Record<TaskSuggestion['reason'], string> = {
-  dueToday: 'Due today', overdue: 'Overdue', recentInbox: 'Recent Inbox', habitual: 'Usual for today',
-};
-
-/** Suggestions remain separate from My Day until the person explicitly adds one. */
-function SuggestionSection({ suggestions }: { suggestions: TaskSuggestion[] }) {
-  if (suggestions.length === 0) return null;
-  return (
-    <section aria-label="Suggested for today" className="mb-4 rounded-xl border border-line bg-surface p-2">
-      <div className="flex items-center gap-2 px-1.5 pb-1.5 text-[13px] font-semibold text-muted">
-        <SunIcon size={15} className="text-[var(--today)]" /> Suggested for My Day
-      </div>
-      <ul className="space-y-0.5">
-        {suggestions.map(({ task, reason }) => (
-          <li key={task.id} className="flex min-h-11 items-center gap-2 rounded-lg px-1.5 hover:bg-surface-2">
-            <StatusControl
-              status={task.status}
-              label={task.title || 'Untitled task'}
-              onComplete={() => actions.setStatus([task.id], 'completed')}
-              onCancel={() => actions.setStatus([task.id], 'canceled')}
-              onReopen={() => actions.setStatus([task.id], 'open')}
-            />
-            <span className="min-w-0 flex-1 truncate text-[14px]">{task.title || 'Untitled'}</span>
-            <span className="hidden text-[12px] text-faint sm:inline">{suggestionLabel[reason]}</span>
-            <Button size="sm" variant="secondary" onClick={() => actions.setInToday(task.id, true)}>
-              <SunIcon size={13} />Add
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 function ProjectRow({
   item, expandable = false, expanded = false, onToggle, order,
 }: {
@@ -515,7 +436,7 @@ function TaskTagFilter({ view }: { view: 'today' | 'allTasks' }) {
         <Popover anchor={anchor} onClose={() => setAnchor(null)} label={`Filter ${viewLabel} by tags`} width={280}>
           {tags.length > 0 ? (
             <>
-              <p className="px-2 pb-1 text-[12px] text-faint">Tasks must match every selected tag.</p>
+              <p className="px-2 pb-1 text-[12px] text-faint">Tasks match any selected tag.</p>
               <ul>
                 {tags.map((tag) => (
                   <li key={tag.id}>
@@ -742,14 +663,9 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const openItemId = useApp((s) => s.openItemId);
   const openItem = useApp((s) => s.openItem);
   const db = useApp((s) => s.db);
-  const today = useApp((s) => s.today);
   const sort = db.settings.listSorts?.[sourceDoc.view] ?? 'manual';
-  const doc = useMemo(() => sortDocument(sourceDoc, sort), [sourceDoc, sort]);
+  const doc = useMemo(() => sortDocument(sourceDoc, sort, (tagId) => tagPath(db, tagId)), [sourceDoc, sort, db]);
   const canOrder = sort === 'manual' && !['upcoming', 'logbook', 'trash', 'review', 'allTasks'].includes(doc.view);
-  const suggestions = useMemo(
-    () => doc.view === 'today' && selection.length === 0 ? taskSuggestions(db, today) : [],
-    [db, doc.view, selection.length, today],
-  );
   const isPhone = usePhone();
   const [composerSection, setComposerSection] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => new Set());
@@ -774,7 +690,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
 
   const openTask: Task | undefined = openItemId ? db.tasks[openItemId] : undefined;
 
-  const isEmpty = doc.sections.every((s) => s.items.length === 0) && suggestions.length === 0;
+  const isEmpty = doc.sections.every((s) => s.items.length === 0);
 
   const addTo = useCallback((section: ListSection) => {
     setComposerSection(section.id);
@@ -793,15 +709,22 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   return (
     <>
       <div data-list-root className="pt-1 pb-24">
-        {doc.view === 'today' ? <SuggestionSection suggestions={suggestions} /> : null}
         {doc.view === 'today' || doc.view === 'allTasks' ? <TaskTagFilter view={doc.view} /> : null}
         {!['logbook', 'trash'].includes(doc.view) ? <label className="mb-2 flex flex-wrap items-center justify-end gap-2 px-2 text-sm text-muted">
           Sort
           <select aria-label="Sort items" className="min-h-11 rounded-md border border-line bg-surface px-2" value={sort}
             onChange={(e) => actions.updateSettings({ listSorts: { ...db.settings.listSorts, [doc.view]: e.target.value as ListSort } })}>
-            <option value="manual">Manual order</option><option value="alphabetical">Alphabetical (A–Z)</option>
-            <option value="due">Due date (earliest first)</option><option value="created">Created date (newest first)</option>
-            <option value="priority">Priority</option>
+            <option value="manual">Manual order</option>
+            <option value="alphabetical">Alphabetical (A–Z)</option>
+            <option value="alphabeticalDesc">Alphabetical (Z–A)</option>
+            <option value="due">Due date (earliest first)</option>
+            <option value="dueDesc">Due date (latest first)</option>
+            <option value="created">Created date (newest first)</option>
+            <option value="createdAsc">Created date (oldest first)</option>
+            <option value="priority">Priority (highest first)</option>
+            <option value="priorityDesc">Priority (lowest first)</option>
+            <option value="tags">Tags (A–Z)</option>
+            <option value="tagsDesc">Tags (Z–A)</option>
           </select>
         </label> : null}
         {doc.view === 'allProjects' && allProjectIds.length > 0 ? (
@@ -879,7 +802,6 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
                       </Fragment>
                     );
                   }
-                  if (item.kind === 'repeatPreview') return <RepeatPreviewRow key={item.id} item={item} />;
                   if (item.kind === 'heading') return null;
                   return (
                     <TaskRow

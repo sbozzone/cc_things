@@ -187,7 +187,7 @@ export const useApp = create<AppState>((set, get) => ({
 
     if (clockTimer === null && typeof window !== 'undefined') {
       // The planning date is recomputed rather than incremented, so DST and a sleeping
-      // device cannot make a naive 24-hour timer skip or repeat a My Day reset.
+      // device cannot make a naive 24-hour timer skip or repeat a My Day rollover.
       clockTimer = setInterval(() => {
         get().runMaintenance();
       }, 30_000);
@@ -331,7 +331,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   /**
    * Housekeeping that must run on load, on rollover and after foregrounding. Its first
-   * step is the idempotent My Day reset, before list consumers observe the new day.
+   * step is the idempotent My Day rollover, before list consumers observe the new day.
    */
   runMaintenance() {
     const initial = get();

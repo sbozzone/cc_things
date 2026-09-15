@@ -86,8 +86,8 @@ describe('One record, many views (R11)', () => {
   });
 });
 
-describe('My Day reset', () => {
-  it('clears incomplete selections after a missed midnight without changing their schedule', () => {
+describe('My Day rollover', () => {
+  it('carries incomplete selections forward after a missed midnight without changing their schedule', () => {
     const h = new Harness('2026-09-08T20:00:00Z');
     const { id } = h.run(createTask(h.db, h.ctx(), { title: 'Water plants', target: { parentType: 'inbox', parentId: null, headingId: null } }));
     h.apply(setWhen(h.db, h.ctx(), id, { planning: 'scheduled', startDate: h.today, evening: true }));
@@ -96,9 +96,10 @@ describe('My Day reset', () => {
 
     h.advanceDays(1); // simulates opening after a missed overnight trigger
     h.apply(dailyResetPatches(h.db, h.ctx()));
-    expect(titlesIn(h, 'today')).not.toContain('Water plants');
+    expect(titlesIn(h, 'today')).toContain('Water plants');
     expect(titlesIn(h, 'today', 'evening')).toEqual([]);
     expect(h.db.tasks[id]?.startDate).toBe('2026-09-08'); // original start date retained
+    expect(h.db.tasks[id]?.isInToday).toBe(true);
     expect(h.db.settings.lastTodayResetDate).toBe(h.today);
     expect(dailyResetPatches(h.db, h.ctx())).toEqual([]);
   });
@@ -345,6 +346,27 @@ describe('Counts and ordering (R12, R25)', () => {
     expect([inbox, someday]).not.toContain(project);
   });
 
+  it('matches any selected global tag while keeping a dedicated Tag view constrained', () => {
+    const h = new Harness();
+    const home = h.run(createTag(h.db, h.ctx(), 'Home')).id;
+    const work = h.run(createTag(h.db, h.ctx(), 'Work')).id;
+    const homeOnly = h.run(createTask(h.db, h.ctx(), { title: 'Home only', target: { parentType: 'inbox', parentId: null, headingId: null } })).id;
+    const workOnly = h.run(createTask(h.db, h.ctx(), { title: 'Work only', target: { parentType: 'inbox', parentId: null, headingId: null } })).id;
+    const both = h.run(createTask(h.db, h.ctx(), { title: 'Both', target: { parentType: 'inbox', parentId: null, headingId: null } })).id;
+    h.apply(assignTag(h.db, h.ctx(), home, 'task', homeOnly));
+    h.apply(assignTag(h.db, h.ctx(), work, 'task', workOnly));
+    h.apply(assignTag(h.db, h.ctx(), home, 'task', both));
+    h.apply(assignTag(h.db, h.ctx(), work, 'task', both));
+
+    const all = runView(h.db, buildIndexes(h.db, h.today), 'allTasks', { tagFilter: [home, work] });
+    expect(all.sections.flatMap((section) => section.items)
+      .flatMap((item) => item.kind === 'task' ? [item.task.id] : [])).toEqual(expect.arrayContaining([homeOnly, workOnly, both]));
+
+    const homeFilteredByWork = runView(h.db, buildIndexes(h.db, h.today), `tag:${home}`, { tagFilter: [work] });
+    expect(homeFilteredByWork.sections.flatMap((section) => section.items)
+      .flatMap((item) => item.kind === 'task' ? [item.task.id] : [])).toEqual([both]);
+  });
+
   it('supports saved manual order and non-destructive presentation sorts', () => {
     const h = new Harness();
     const projectId = h.run(createProject(h.db, h.ctx(), { title: 'Sort test' })).id;
@@ -354,14 +376,27 @@ describe('Counts and ordering (R12, R25)', () => {
     h.apply(setDeadline(h.db, h.ctx(), zebra, '2026-09-20'));
     h.apply(setDeadline(h.db, h.ctx(), apple, '2026-09-15'));
     h.apply(updateTask(h.db, h.ctx(), zebra, { priority: 'urgent' }));
+    h.apply(updateTask(h.db, h.ctx(), apple, { priority: 'low' }));
+    const alpha = h.run(createTag(h.db, h.ctx(), 'Alpha')).id;
+    const zulu = h.run(createTag(h.db, h.ctx(), 'Zulu')).id;
+    h.apply(assignTag(h.db, h.ctx(), alpha, 'task', zebra));
+    h.apply(assignTag(h.db, h.ctx(), zulu, 'task', apple));
 
-    const titles = (sort: Parameters<typeof sortDocument>[1]) => sortDocument(view(h, `project:${projectId}`), sort)
+    const titles = (sort: Parameters<typeof sortDocument>[1]) => sortDocument(
+      view(h, `project:${projectId}`), sort, (tagId) => h.db.tags[tagId]?.name ?? tagId,
+    )
       .sections.flatMap((section) => section.items.flatMap((item) => item.kind === 'task' ? [item.task.title] : []));
     expect(titles('manual')).toEqual(['Zebra', 'Apple']);
     expect(titles('alphabetical')).toEqual(['Apple', 'Zebra']);
+    expect(titles('alphabeticalDesc')).toEqual(['Zebra', 'Apple']);
     expect(titles('due')).toEqual(['Apple', 'Zebra']);
+    expect(titles('dueDesc')).toEqual(['Zebra', 'Apple']);
     expect(titles('created')).toEqual(['Apple', 'Zebra']);
+    expect(titles('createdAsc')).toEqual(['Zebra', 'Apple']);
     expect(titles('priority')).toEqual(['Zebra', 'Apple']);
+    expect(titles('priorityDesc')).toEqual(['Apple', 'Zebra']);
+    expect(titles('tags')).toEqual(['Zebra', 'Apple']);
+    expect(titles('tagsDesc')).toEqual(['Apple', 'Zebra']);
 
     h.apply(orderItems(h.db, h.ctx(), [apple, zebra]));
     expect(titlesIn(h, `project:${projectId}`)).toEqual(['Apple', 'Zebra']);

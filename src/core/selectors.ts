@@ -6,7 +6,6 @@ import {
 } from './membership';
 import { buildTagIndex, effectiveProjectTags, effectiveTaskTags, matchesTagFilter, type TagIndex } from './tags';
 import { addDays, formatDateLabel, monthName, weekdayName } from './dates';
-import { datesInRange, hasOccurrence, occurrenceDates } from './recurrence';
 import { resolveSectionDate } from './quick-add';
 import { evaluateSmartList, SMART_LISTS } from './smart-lists';
 import type {
@@ -201,20 +200,7 @@ export type ListItem =
   | TaskListItem
   | ProjectListItem
   | { kind: 'heading'; id: string; heading: Heading; addTarget: AddTarget }
-  | { kind: 'event'; id: string; event: CalendarEvent }
-  | { kind: 'repeatPreview'; id: string; preview: RepeatPreview };
-
-export interface RepeatPreview {
-  templateId: string;
-  entityKind: RepeatTemplate['entityKind'];
-  title: string;
-  contextLabel: string | null;
-  occurrenceDate: DateOnly;
-  startDate: DateOnly;
-  deadline: DateOnly | null;
-  checklistTotal: number;
-  tagIds: string[];
-}
+  | { kind: 'event'; id: string; event: CalendarEvent };
 
 export interface ListSection {
   id: string;
@@ -429,31 +415,6 @@ function groupByParent(db: Database, ix: Indexes, items: ListItem[]): ListSectio
 
 interface UpcomingEntry { task: Task; start: boolean; deadline: boolean }
 
-const UPCOMING_REPEAT_PREVIEW_DAYS = 90;
-
-function templateContextLabel(db: Database, template: RepeatTemplate): string | null {
-  const snapshot = template.snapshot;
-  if (snapshot.parentType === 'project' && snapshot.parentId) {
-    const project = db.projects[snapshot.parentId];
-    if (!project) return null;
-    const area = project.areaId ? db.areas[project.areaId] : null;
-    const heading = snapshot.headingId ? db.headings[snapshot.headingId] : null;
-    return [area?.title, project.title, heading?.title].filter(Boolean).join(' › ') || null;
-  }
-  if (snapshot.parentType === 'area' && snapshot.parentId) {
-    return db.areas[snapshot.parentId]?.title ?? null;
-  }
-  return null;
-}
-
-function templatePassesFilter(db: Database, ix: Indexes, opts: QueryOptions, template: RepeatTemplate): boolean {
-  const filter = opts.tagFilter ?? [];
-  if (filter.length === 0) return true;
-  const effective = effectiveTaskTags(db, ix.tagIndex, template.id).all;
-  for (const tagId of template.snapshot.tagIds) effective.add(tagId);
-  return matchesTagFilter(effective, ix.tagIndex, filter);
-}
-
 function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocument {
   const byDate = new Map<DateOnly, Map<string, UpcomingEntry>>();
   const put = (date: DateOnly, task: Task, kind: 'start' | 'deadline') => {
@@ -468,6 +429,7 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
 
   for (const task of liveTasks(db)) {
     if (task.status !== 'open' || !passesFilter(db, ix, opts, task)) continue;
+    if (ix.templateOf.has(task.id)) continue;
     if (task.startDate !== null && task.startDate > ix.today) put(task.startDate, task, 'start');
     if (task.deadline !== null && task.deadline >= ix.today) put(task.deadline, task, 'deadline');
   }
@@ -475,6 +437,7 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
   const projectsByDate = new Map<DateOnly, Project[]>();
   for (const project of Object.values(db.projects)) {
     if (project.deletedAt !== null || project.status !== 'open') continue;
+    if (ix.templateOf.has(project.id)) continue;
     if (!projectPassesFilter(db, ix, opts, project)) continue;
     for (const [date, includeToday] of [[project.startDate, false], [project.deadline, true]] as const) {
       if (date && (date > ix.today || (includeToday && date === ix.today))) {
@@ -485,44 +448,8 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
     }
   }
 
-  // Future copies stay virtual. They make a repeating schedule visible in Upcoming
-  // without filling storage or creating records before their normal generation day.
-  const repeatPreviewsByDate = new Map<DateOnly, RepeatPreview[]>();
-  const previewThrough = addDays(ix.today, UPCOMING_REPEAT_PREVIEW_DAYS);
-  for (const template of Object.values(db.repeatTemplates)) {
-    if (
-      template.deletedAt !== null || template.pausedAt !== null || template.stoppedAt !== null ||
-      template.rule.type === 'afterCompletion' || !templatePassesFilter(db, ix, opts, template)
-    ) continue;
-
-    // A deadline-based rule can start before its occurrence date, so extend the rule
-    // scan by its lead time and then filter on the actual start date.
-    const scanThrough = addDays(previewThrough, template.useDeadline ? Math.max(0, template.leadDays) : 0);
-    for (const occurrenceDate of datesInRange(
-      template.rule, template.anchorDate, addDays(ix.today, 1), scanThrough, template.endDate,
-    )) {
-      if (hasOccurrence(db, template.id, occurrenceDate)) continue;
-      const { startDate, deadline } = occurrenceDates(template, occurrenceDate);
-      if (startDate <= ix.today || startDate > previewThrough) continue;
-      const preview: RepeatPreview = {
-        templateId: template.id,
-        entityKind: template.entityKind,
-        title: template.snapshot.title,
-        contextLabel: templateContextLabel(db, template),
-        occurrenceDate,
-        startDate,
-        deadline,
-        checklistTotal: template.snapshot.checklist.length,
-        tagIds: template.snapshot.tagIds,
-      };
-      const list = repeatPreviewsByDate.get(startDate) ?? [];
-      list.push(preview);
-      repeatPreviewsByDate.set(startDate, list);
-    }
-  }
-
   const dates = new Set<DateOnly>([
-    ...byDate.keys(), ...projectsByDate.keys(), ...repeatPreviewsByDate.keys(), ...ix.eventsByDate.keys(),
+    ...byDate.keys(), ...projectsByDate.keys(), ...ix.eventsByDate.keys(),
   ]);
   const sections: ListSection[] = [];
 
@@ -530,7 +457,7 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
   // item here once that date has arrived. Today's calendar events remain in My Day.
   if (byDate.has(ix.today) || projectsByDate.has(ix.today)) {
     sections.push(upcomingSection(
-      db, ix, ix.today, byDate, projectsByDate, repeatPreviewsByDate, 'Today', true, false,
+      db, ix, ix.today, byDate, projectsByDate, 'Today', true, false,
     ));
   }
 
@@ -540,7 +467,7 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
   const windowSet = new Set(dayWindow);
 
   for (const date of dayWindow) {
-    sections.push(upcomingSection(db, ix, date, byDate, projectsByDate, repeatPreviewsByDate, `${formatDateLabel(date, ix.today)}`, true));
+    sections.push(upcomingSection(db, ix, date, byDate, projectsByDate, `${formatDateLabel(date, ix.today)}`, true));
   }
 
   const later = [...dates].filter((d) => d > ix.today && !windowSet.has(d)).sort();
@@ -554,7 +481,7 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
   for (const [monthKey, groupDates] of monthBuckets) {
     const items: ListItem[] = [];
     for (const date of groupDates) {
-      const section = upcomingSection(db, ix, date, byDate, projectsByDate, repeatPreviewsByDate, '', false);
+      const section = upcomingSection(db, ix, date, byDate, projectsByDate, '', false);
       items.push(...section.items);
     }
     if (items.length === 0) continue;
@@ -578,7 +505,6 @@ function upcomingSection(
   db: Database, ix: Indexes, date: DateOnly,
   byDate: Map<DateOnly, Map<string, UpcomingEntry>>,
   projectsByDate: Map<DateOnly, Project[]>,
-  repeatPreviewsByDate: Map<DateOnly, RepeatPreview[]>,
   title: string, keepEmpty: boolean, includeEvents = true,
 ): ListSection {
   const items: ListItem[] = [];
@@ -592,13 +518,6 @@ function upcomingSection(
       kind: 'project', id: `${project.id}@${date}`, project,
       progress: projectProgress(ix.tasksByProject.get(project.id) ?? []),
       meta: projectMeta(db, ix, project),
-    });
-  }
-  for (const preview of repeatPreviewsByDate.get(date) ?? []) {
-    items.push({
-      kind: 'repeatPreview',
-      id: `${preview.templateId}@preview:${preview.occurrenceDate}`,
-      preview,
     });
   }
   const entries = [...(byDate.get(date)?.values() ?? [])].sort((a, b) => byRank(a.task, b.task));
@@ -860,9 +779,9 @@ export function areaView(db: Database, ix: Indexes, areaId: string, opts: QueryO
 /* ------------------------------------------------------------ Extra views */
 
 function tagView(db: Database, ix: Indexes, tagId: string, opts: QueryOptions): ListDocument {
-  const merged: QueryOptions = { ...opts, tagFilter: [...(opts.tagFilter ?? []), tagId] };
+  const ownTag: QueryOptions = { tagFilter: [tagId] };
   const items: ListItem[] = liveTasks(db)
-    .filter((t) => t.status === 'open' && passesFilter(db, ix, merged, t))
+    .filter((t) => t.status === 'open' && passesFilter(db, ix, ownTag, t) && passesFilter(db, ix, opts, t))
     .sort(byRank)
     .map((task) => ({ kind: 'task' as const, id: task.id, task, meta: taskMeta(db, ix, task) }));
   const tag = db.tags[tagId];
@@ -1052,7 +971,7 @@ export function sidebarCounts(db: Database, ix: Indexes, opts: QueryOptions = {}
     if (hold.hold === 'someday') counts.someday = (counts.someday ?? 0) + 1;
     const futureStart = task.startDate !== null && task.startDate > ix.today;
     const upcomingDeadline = task.deadline !== null && task.deadline >= ix.today;
-    if ((futureStart || upcomingDeadline) && !seenUpcoming.has(task.id)) {
+    if (!ix.templateOf.has(task.id) && (futureStart || upcomingDeadline) && !seenUpcoming.has(task.id)) {
       seenUpcoming.add(task.id);
       counts.upcoming = (counts.upcoming ?? 0) + 1;
     }

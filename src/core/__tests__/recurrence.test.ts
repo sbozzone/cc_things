@@ -5,7 +5,7 @@ import {
   nextDateAfter, onOccurrenceCanceled, onOccurrenceCompleted, onOccurrenceReopened,
   pauseTemplate, previewNext, resumeTemplate, skipOccurrence, updateTemplate,
 } from '../recurrence';
-import { setTaskStatus } from '../commands';
+import { createTask, setTaskStatus, setWhen } from '../commands';
 import { buildIndexes, runView } from '../selectors';
 import type { RepeatRule, RepeatSnapshot } from '../types';
 
@@ -226,49 +226,22 @@ describe('templates and copies (R18)', () => {
   });
 });
 
-describe('Upcoming recurrence previews', () => {
-  it('shows future fixed occurrences without creating task records', () => {
+describe('Upcoming recurring-task exclusion', () => {
+  it('hides virtual previews and generated occurrences while retaining ordinary dated tasks', () => {
     const h = new Harness('2026-09-08T09:00:00Z');
-    makeTemplate(h, { type: 'everyNDays', interval: 7 }, '2026-09-08');
+    const templateId = makeTemplate(h, { type: 'everyNDays', interval: 7 }, '2026-09-08');
     h.apply(generateDueOccurrences(h.db, h.ctx()));
-    const taskCount = Object.keys(h.db.tasks).length;
+    h.apply(createNextEarly(h.db, h.ctx(), templateId));
+    const ordinary = h.run(createTask(h.db, h.ctx(), {
+      title: 'Ordinary appointment',
+      target: { parentType: 'inbox', parentId: null, headingId: null },
+    })).id;
+    h.apply(setWhen(h.db, h.ctx(), ordinary, { planning: 'scheduled', startDate: '2026-09-15' }));
 
     const doc = runView(h.db, buildIndexes(h.db, h.today), 'upcoming');
-    const previews = doc.sections.flatMap((section) => section.items)
-      .filter((item) => item.kind === 'repeatPreview');
+    const items = doc.sections.flatMap((section) => section.items);
 
-    expect(previews[0]?.preview.startDate).toBe('2026-09-15');
-    expect(previews[0]?.preview.title).toBe('Recurring');
-    expect(Object.keys(h.db.tasks)).toHaveLength(taskCount);
-  });
-
-  it('does not duplicate an occurrence that was created early', () => {
-    const h = new Harness('2026-09-08T09:00:00Z');
-    const id = makeTemplate(h, { type: 'everyNDays', interval: 7 }, '2026-09-08');
-    h.apply(generateDueOccurrences(h.db, h.ctx()));
-    h.apply(createNextEarly(h.db, h.ctx(), id));
-
-    const doc = runView(h.db, buildIndexes(h.db, h.today), 'upcoming');
-    const september15 = doc.sections.find((section) => section.date === '2026-09-15');
-
-    expect(september15?.items.filter((item) => item.kind === 'task')).toHaveLength(1);
-    expect(september15?.items.filter((item) => item.kind === 'repeatPreview')).toHaveLength(0);
-  });
-
-  it('places deadline-based previews on their lead-time start date', () => {
-    const h = new Harness('2026-09-08T09:00:00Z');
-    makeTemplate(
-      h,
-      { type: 'dayOfMonth', interval: 1, dayOfMonth: 15 },
-      '2026-09-15',
-      { useDeadline: true, leadDays: 3 },
-    );
-
-    const doc = runView(h.db, buildIndexes(h.db, h.today), 'upcoming');
-    const preview = doc.sections.flatMap((section) => section.items)
-      .find((item) => item.kind === 'repeatPreview');
-
-    expect(preview?.kind === 'repeatPreview' ? preview.preview.startDate : null).toBe('2026-09-12');
-    expect(preview?.kind === 'repeatPreview' ? preview.preview.deadline : null).toBe('2026-09-15');
+    expect(items.some((item) => item.kind === 'task' && item.meta.repeating)).toBe(false);
+    expect(items.some((item) => item.kind === 'task' && item.task.id === ordinary)).toBe(true);
   });
 });

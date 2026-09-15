@@ -125,12 +125,12 @@ export function effectiveProjectTags(db: Database, index: TagIndex, projectId: s
 }
 
 /**
- * Filtering by several tags requires all of them; selecting a parent tag accepts any
- * of its descendants.
+ * Filtering by several tags accepts any selected tag; selecting a parent tag also
+ * accepts any of its descendants.
  */
 export function matchesTagFilter(effective: Set<string>, index: TagIndex, filter: string[]): boolean {
   if (filter.length === 0) return true;
-  return filter.every((tagId) => {
+  return filter.some((tagId) => {
     const accepted = tagWithDescendants(index, tagId);
     for (const t of effective) if (accepted.has(t)) return true;
     return false;
