@@ -224,7 +224,7 @@ export interface Reminder extends BaseEntity {
 }
 
 export type ThemePreference = 'light' | 'dark' | 'system';
-export type ColorTheme = 'orange' | 'sage' | 'bright';
+export type ColorTheme = 'orange' | 'sage' | 'bright' | 'white';
 export type TodayGrouping = 'flat' | 'byProject';
 export type ListSort =
   | 'manual'

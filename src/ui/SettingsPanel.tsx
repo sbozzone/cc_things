@@ -96,6 +96,7 @@ function GeneralTab() {
           <option value="orange">Orange</option>
           <option value="sage">Cream &amp; Sage</option>
           <option value="bright">Bright</option>
+          <option value="white">White</option>
         </select>
       </Row>
       <Row label="Reduce motion" hint="Also honoured automatically when the device asks for it.">

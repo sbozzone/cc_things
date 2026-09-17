@@ -179,6 +179,20 @@
   --d-logbook: #5fc783;
 }
 
+/* Crisp neutral canvas with the signature orange accent. Dark mode intentionally
+ * inherits the accessible Orange dark tokens so the brightness preference wins. */
+:root[data-palette='white'] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --sidebar: #ffffff;
+  --border: #e2e4e8;
+  --border-strong: #b8bec8;
+  --control-border: #747b86;
+  --chip-neutral-bg: #f1f3f5;
+  --chip-neutral-fg: #575e6f;
+}
+
 /* The dark assignment list, shared by both ways of arriving at dark. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {

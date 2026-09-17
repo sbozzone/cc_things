@@ -80,6 +80,12 @@ const brightDark = {
   inbox: '#86a9e6', today: '#f0b64a', upcoming: '#f5906a', anytime: '#4ec9b8',
   someday: '#d6b455', logbook: '#5fc783',
 };
+const whiteLight = {
+  ...light,
+  bg: '#ffffff', surface: '#ffffff', surface2: '#f3f4f6', sidebar: '#ffffff',
+  chipNeutralBg: '#f1f3f5', chipNeutralFg: '#575e6f',
+  borderStrong: '#b8bec8', control: '#747b86',
+};
 
 // [label, fg, bg, minimum]  — 4.5 for normal text, 3.0 for large text / UI components.
 const pairs = (t) => [
@@ -120,6 +126,7 @@ for (const [name, theme] of [
   ['ORANGE LIGHT', light], ['ORANGE DARK', dark],
   ['SAGE LIGHT', sageLight], ['SAGE DARK', sageDark],
   ['BRIGHT LIGHT', brightLight], ['BRIGHT DARK', brightDark],
+  ['WHITE LIGHT', whiteLight], ['WHITE DARK', dark],
 ]) {
   console.log(`\n${name}`);
   for (const [label, fg, bg, min] of pairs(theme)) {

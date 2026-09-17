@@ -68,6 +68,25 @@ describe('All Projects disclosure data', () => {
 });
 
 describe('One record, many views (R11)', () => {
+  it('automatically shows open tasks due today in My Day, but not other deadlines', () => {
+    const h = new Harness();
+    const target = { parentType: 'inbox' as const, parentId: null, headingId: null };
+    const dueToday = h.run(createTask(h.db, h.ctx(), { title: 'Due today', target })).id;
+    const overdue = h.run(createTask(h.db, h.ctx(), { title: 'Overdue', target })).id;
+    const future = h.run(createTask(h.db, h.ctx(), { title: 'Future', target })).id;
+    const completedToday = h.run(createTask(h.db, h.ctx(), { title: 'Completed today', target })).id;
+    h.apply(setDeadline(h.db, h.ctx(), dueToday, h.today));
+    h.apply(setDeadline(h.db, h.ctx(), overdue, '2026-09-07'));
+    h.apply(setDeadline(h.db, h.ctx(), future, '2026-09-09'));
+    h.apply(setDeadline(h.db, h.ctx(), completedToday, h.today));
+    h.apply(setTaskStatus(h.db, h.ctx(), completedToday, 'completed'));
+
+    expect(titlesIn(h, 'today')).toContain('Due today');
+    expect(titlesIn(h, 'today')).not.toContain('Overdue');
+    expect(titlesIn(h, 'today')).not.toContain('Future');
+    expect(titlesIn(h, 'today')).not.toContain('Completed today');
+  });
+
   it('completes a task everywhere at once', () => {
     const h = new Harness();
     const { id: projectId } = h.run(createProject(h.db, h.ctx(), { title: 'Kitchen' }));
@@ -180,7 +199,7 @@ describe('Project scheduling policy (spec §4, scenario A05)', () => {
     expect(hold.hold).toBeNull();
     expect(hold.releasedByDeadline).toBe(true);
     expect(hold.inheritedFrom).toBe('project');
-    expect(titlesIn(h, 'today')).not.toContain('Passport expires');
+    expect(titlesIn(h, 'today')).toContain('Passport expires');
   });
 
   it('does not let a future deadline alone release a Someday hold', () => {

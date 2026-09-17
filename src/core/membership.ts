@@ -82,15 +82,14 @@ export function isAvailable(task: Task, project: Project | null, today: DateOnly
 }
 
 /**
- * My Day membership is an explicit daily selection. Scheduling and deadlines remain
- * independent: they surface through Upcoming, Anytime and Smart Lists instead.
+ * My Day contains explicit selections plus open work due on the planning day.
+ * Future deadlines and overdue work remain independent unless explicitly selected.
  */
 export function inToday(task: Task, project: Project | null, today: DateOnly): boolean {
   if (!isOpen(task)) return false;
   if (task.isInToday === true) return true;
   void project;
-  void today;
-  return false;
+  return task.deadline === today;
 }
 
 /**
