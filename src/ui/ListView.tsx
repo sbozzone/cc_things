@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateLabel } from '@/core/dates';
+import { inToday } from '@/core/membership';
 import { tagPath } from '@/core/tags';
 import type { AddTarget, ListDocument, ListItem, ListSection } from '@/core/selectors';
 import type { CalendarEvent, Project, Task } from '@/core/types';
@@ -105,6 +106,8 @@ function TaskRow({
 
   const selected = selection.includes(task.id);
   const isEditing = openItemId === task.id;
+  const project = task.parentType === 'project' && task.parentId ? db.projects[task.parentId] ?? null : null;
+  const isInMyDay = inToday(task, project, today);
 
   const move = (direction: -1 | 1) => {
     if (!canOrder) return;
@@ -177,7 +180,7 @@ function TaskRow({
       tabIndex={0}
       role="option"
       aria-selected={selected}
-      aria-label={`${task.title || 'Untitled'}${task.priority ? `, ${priorities[task.priority]} priority` : ''}${meta.contextLabel ? `, in ${meta.contextLabel}` : ''}`}
+      aria-label={`${task.title || 'Untitled'}${isInMyDay ? ', in My Day' : ''}${task.priority ? `, ${priorities[task.priority]} priority` : ''}${meta.contextLabel ? `, in ${meta.contextLabel}` : ''}`}
       draggable={!isPhone && !nested && canOrder}
       onDragStart={(event) => {
         dragSource = { id: task.id, sectionId };
@@ -231,8 +234,10 @@ function TaskRow({
         onCancel={() => actions.setStatus(selected ? selection : [task.id], 'canceled')}
         onReopen={() => actions.setStatus(selected ? selection : [task.id], 'open')}
       />
-      {scope === 'today' ? (
-        <SunIcon size={16} className="mt-0.5 shrink-0 text-[var(--today)]" />
+      {isInMyDay ? (
+        <span className="mt-0.5 shrink-0 text-[var(--today)]" title="In My Day">
+          <SunIcon size={16} />
+        </span>
       ) : null}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
