@@ -230,7 +230,7 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
           {task.planning === 'someday'
             ? 'Someday'
             : task.startDate
-              ? `${formatDateLabel(task.startDate, today)}${whenValue.evening ? ' evening' : ''}`
+              ? `Scheduled ${formatDateLabel(task.startDate, today)}${whenValue.evening ? ' evening' : ''}`
               : 'When'}
         </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={openPopover('deadline')}>

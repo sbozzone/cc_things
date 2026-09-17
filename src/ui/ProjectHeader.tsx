@@ -107,7 +107,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
       <div className="mt-2.5 flex flex-wrap items-center gap-1">
         <Button size="sm" variant="ghost" keepFocus onClick={open('when')}>
           <CalendarIcon size={14} />
-          {project.planning === 'someday' ? 'Someday' : project.startDate ? formatDateLabel(project.startDate, today) : 'When'}
+          {project.planning === 'someday' ? 'Someday' : project.startDate ? `Scheduled ${formatDateLabel(project.startDate, today)}` : 'When'}
         </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={open('deadline')}>
           <FlagIcon size={14} />{project.deadline ? `Due ${formatDateLabel(project.deadline, today)}` : 'Deadline'}

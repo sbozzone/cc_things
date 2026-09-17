@@ -59,7 +59,7 @@ function DateChip({ task, today, hideStart }: { task: Task; today: string; hideS
         tone={task.startDate <= today ? 'warm' : 'neutral'}
         icon={isEvening ? <EveningIcon size={11} /> : <CalendarIcon size={11} />}
       >
-        {formatDateLabel(task.startDate, today)}
+        Scheduled {formatDateLabel(task.startDate, today)}{isEvening ? ' evening' : ''}
       </Pill>,
     );
   }
@@ -73,7 +73,7 @@ function DateChip({ task, today, hideStart }: { task: Task; today: string; hideS
     const overdue = task.deadline < today;
     chips.push(
       <Pill key="due" tone={overdue ? 'danger' : 'warm'} icon={<FlagIcon size={11} />}>
-        {overdue ? 'Overdue · ' : ''}{formatDateLabel(task.deadline, today)}
+        Due {formatDateLabel(task.deadline, today)}{overdue ? ' · Overdue' : ''}
       </Pill>,
     );
   }
@@ -321,7 +321,7 @@ function ProjectRow({
       <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium">{project.title}</span>
       {project.deadline ? (
         <span className={`text-[12px] ${meta.overdue ? 'text-danger' : 'text-[var(--upcoming)]'}`}>
-          <FlagIcon size={12} className="mr-1 inline" />{formatDateLabel(project.deadline, today)}
+          <FlagIcon size={12} className="mr-1 inline" />Due {formatDateLabel(project.deadline, today)}
         </span>
       ) : null}
       <span className="text-[12px] text-faint">
