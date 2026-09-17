@@ -226,6 +226,11 @@ export interface Reminder extends BaseEntity {
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type ColorTheme = 'orange' | 'sage' | 'bright' | 'white';
 export type TodayGrouping = 'flat' | 'byProject';
+export type SidebarSection = 'favoriteViews' | 'areas' | 'tags';
+export type SidebarFavoriteView =
+  | 'smart:overdue' | 'smart:priority'
+  | 'tomorrow' | 'deadlines' | 'repeating'
+  | 'allTasks' | 'allProjects' | 'loggedProjects' | 'trash';
 export type ListSort =
   | 'manual'
   | 'alphabetical' | 'alphabeticalDesc'
@@ -249,6 +254,10 @@ export interface Settings extends BaseEntity {
   typeToSearch: boolean;
   reducedMotion: boolean;
   sidebarCollapsed: boolean;
+  /** Secondary views promoted into the always-nearby Favorite Views section. */
+  sidebarPinnedViews?: SidebarFavoriteView[];
+  /** Per-section disclosure state; omitted keys default to expanded. */
+  sidebarSections?: Partial<Record<SidebarSection, boolean>>;
 }
 
 /** Read-only provider events, cached separately from tasks and never synced as tasks (R20, R21). */

@@ -5,7 +5,7 @@
  * without a network. API routes are never cached — stale sync or auth responses would be
  * worse than an honest failure the app already knows how to handle.
  */
-const VERSION = 'gettodo-v0.6.1';
+const VERSION = 'gettodo-v0.6.2';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 

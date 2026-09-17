@@ -5,15 +5,16 @@ import { byRank } from '@/core/rank';
 import { projectProgress } from '@/core/membership';
 import { tagPath } from '@/core/tags';
 import { BUILT_IN_ORDER, VIEW_TITLES, type ViewKey } from '@/core/selectors';
+import type { SidebarFavoriteView, SidebarSection } from '@/core/types';
 import { useApp, useCounts, useIndexes } from '@/state/store';
 import * as actions from '@/state/actions';
 import { IconButton, Popover, ProgressRing } from './primitives';
-import { ChevronIcon, CloudIcon, FolderIcon, MoreIcon, PlusIcon, SearchIcon, SettingsIcon, TagIcon, UserIcon } from './icons';
+import { ChevronIcon, CloudIcon, FolderIcon, MoreIcon, PlusIcon, SearchIcon, SettingsIcon, StarIcon, TagIcon, UserIcon } from './icons';
 import { sidebarIcon, viewStyle } from './view-style';
 import { tagColors } from './TagColor';
 
 /** Views that live behind "More lists" rather than in the main navigation. */
-const OVERFLOW_VIEWS: ViewKey[] = ['smart:overdue', 'smart:priority', 'tomorrow', 'deadlines', 'repeating', 'allTasks', 'allProjects', 'loggedProjects', 'trash'];
+const OVERFLOW_VIEWS: SidebarFavoriteView[] = ['smart:overdue', 'smart:priority', 'tomorrow', 'deadlines', 'repeating', 'allTasks', 'allProjects', 'loggedProjects', 'trash'];
 
 const SYNC_LABELS: Record<string, string> = {
   local: 'Saved on this device',
@@ -73,11 +74,32 @@ function NavItem({
   );
 }
 
-function SectionHeading({ label, addLabel, onAdd }: { label: string; addLabel: string; onAdd: () => void }) {
+function SectionHeading({
+  label, sectionId, collapsed, onToggle, addLabel, onAdd,
+}: {
+  label: string;
+  sectionId: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  addLabel?: string;
+  onAdd?: (anchor: HTMLElement) => void;
+}) {
   return (
-    <div className="flex items-center gap-2 px-3 pb-1 pt-1">
-      <h2 className="flex-1 text-[12px] font-bold uppercase tracking-[0.1em] text-faint">{label}</h2>
-      <IconButton label={addLabel} onClick={onAdd}><PlusIcon size={15} /></IconButton>
+    <div className="flex min-h-11 items-center gap-1 px-1.5">
+      <button
+        type="button"
+        aria-expanded={!collapsed}
+        aria-controls={sectionId}
+        aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${label}`}
+        onClick={onToggle}
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1.5 text-left hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+      >
+        <ChevronIcon size={14} className={`shrink-0 transition-transform ${collapsed ? '' : 'rotate-90'}`} />
+        <span className="truncate text-[12px] font-bold uppercase tracking-[0.1em] text-faint">{label}</span>
+      </button>
+      {addLabel && onAdd ? (
+        <IconButton className="h-11 min-w-11" label={addLabel} onClick={(event) => onAdd(event.currentTarget)}><PlusIcon size={15} /></IconButton>
+      ) : null}
     </div>
   );
 }
@@ -108,6 +130,27 @@ export function Sidebar({
   const [draft, setDraft] = useState('');
   const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
   const shortcut = useShortcutPrefix();
+
+  const pinnedViews = (db.settings.sidebarPinnedViews ?? ['allTasks'])
+    .filter((key): key is SidebarFavoriteView => OVERFLOW_VIEWS.includes(key as SidebarFavoriteView));
+  const sectionCollapsed = (section: SidebarSection) => db.settings.sidebarSections?.[section] === true;
+
+  const toggleSection = (section: SidebarSection) => {
+    actions.updateSettings({
+      sidebarSections: {
+        ...db.settings.sidebarSections,
+        [section]: !sectionCollapsed(section),
+      },
+    });
+  };
+
+  const togglePinnedView = (key: SidebarFavoriteView) => {
+    actions.updateSettings({
+      sidebarPinnedViews: pinnedViews.includes(key)
+        ? pinnedViews.filter((item) => item !== key)
+        : [...pinnedViews, key],
+    });
+  };
 
   const select = (next: ViewKey) => {
     setView(next);
@@ -201,7 +244,46 @@ export function Sidebar({
 
         <Divider />
 
-        <SectionHeading label="Your areas" addLabel="New area" onAdd={() => { setDraft(''); setCreating('area'); }} />
+        <SectionHeading
+          label="Favorite views"
+          sectionId="sidebar-favorite-views"
+          collapsed={sectionCollapsed('favoriteViews')}
+          onToggle={() => toggleSection('favoriteViews')}
+          addLabel="Customize favorite views"
+          onAdd={setMoreAnchor}
+        />
+        {!sectionCollapsed('favoriteViews') ? (
+          <div id="sidebar-favorite-views">
+            {pinnedViews.length > 0 ? (
+              <ul className="space-y-0.5 px-3">
+                {pinnedViews.map((key) => (
+                  <NavItem
+                    key={key}
+                    label={VIEW_TITLES[key] as string}
+                    icon={viewStyle(key).icon}
+                    color={viewStyle(key).accent}
+                    active={view === key}
+                    onSelect={() => select(key)}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <p className="px-3 pb-1 text-[13px] text-faint">Use + to pin a frequently used view.</p>
+            )}
+          </div>
+        ) : null}
+
+        <Divider />
+
+        <SectionHeading
+          label="Your areas"
+          sectionId="sidebar-areas"
+          collapsed={sectionCollapsed('areas')}
+          onToggle={() => toggleSection('areas')}
+          addLabel="New area"
+          onAdd={() => { setDraft(''); setCreating('area'); }}
+        />
+        {!sectionCollapsed('areas') ? <div id="sidebar-areas">
         {creating === 'area' ? draftField('Area name') : null}
         <ul className="space-y-0.5 px-3">
           {indexes.areas.map((area) => (
@@ -249,16 +331,25 @@ export function Sidebar({
           <button
             type="button"
             onClick={() => { setDraft(''); setCreating('project'); }}
-            className="mt-0.5 flex min-h-[40px] w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] text-muted transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+            className="mt-0.5 flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] text-muted transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
             <PlusIcon size={17} />
             New project
           </button>
         )}
+        </div> : null}
 
         <Divider />
 
-        <SectionHeading label="Tags" addLabel="New tag" onAdd={() => { setDraft(''); setCreating('tag'); }} />
+        <SectionHeading
+          label="Tags"
+          sectionId="sidebar-tags"
+          collapsed={sectionCollapsed('tags')}
+          onToggle={() => toggleSection('tags')}
+          addLabel="New tag"
+          onAdd={() => { setDraft(''); setCreating('tag'); }}
+        />
+        {!sectionCollapsed('tags') ? <div id="sidebar-tags">
         {creating === 'tag' ? draftField('Tag name') : null}
         {tags.length > 0 ? (
           <ul className="space-y-0.5 px-3">
@@ -284,33 +375,43 @@ export function Sidebar({
             Clear tag filter
           </button>
         ) : null}
+        </div> : null}
 
         {/* The special views stay reachable without crowding the main navigation. */}
         <button
           type="button"
           onClick={(event) => setMoreAnchor(event.currentTarget)}
-          className="mt-3 flex min-h-[40px] w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] text-muted transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+          className="mt-3 flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] text-muted transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
         >
           <MoreIcon size={17} />
           More lists
         </button>
         {moreAnchor ? (
           <Popover anchor={moreAnchor} onClose={() => setMoreAnchor(null)} label="More lists" width={240}>
+            <p className="px-2 pb-1 text-[12px] text-faint">Select a view, or use the star to keep it in Favorite Views.</p>
             <ul className="space-y-0.5">
-              {OVERFLOW_VIEWS.map((key) => (
-                <li key={key}>
+              {OVERFLOW_VIEWS.map((key) => {
+                const pinned = pinnedViews.includes(key);
+                return <li key={key} className="flex min-h-11 items-center gap-1 rounded-md hover:bg-surface-2">
                   <button
                     type="button"
                     onClick={() => { select(key); setMoreAnchor(null); }}
-                    className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2"
+                    className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 text-left text-[14px]"
                   >
                     <span className="flex h-5 w-5 items-center justify-center" style={{ color: viewStyle(key).accent }} aria-hidden="true">
                       {viewStyle(key).icon}
                     </span>
                     {VIEW_TITLES[key]}
                   </button>
+                  <IconButton
+                    className="h-11 min-w-11"
+                    label={`${pinned ? 'Remove' : 'Add'} ${VIEW_TITLES[key]} ${pinned ? 'from' : 'to'} Favorite Views`}
+                    onClick={() => togglePinnedView(key)}
+                  >
+                    <StarIcon size={16} fill={pinned ? 'currentColor' : 'none'} />
+                  </IconButton>
                 </li>
-              ))}
+              })}
             </ul>
           </Popover>
         ) : null}

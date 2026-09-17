@@ -1,6 +1,6 @@
 {
   "name": "gettodo",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
   "description": "getToDo — a calm, local-first task manager. P0 web/PWA release.",
   "scripts": {
