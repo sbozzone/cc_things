@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { VIEW_TITLES, type ViewKey } from '@/core/selectors';
+import { emptyTagFilter, tagFilterActive } from '@/core/tags';
 import { useApp, useListDocument } from '@/state/store';
 import { refreshStaleCalendars } from '@/state/calendar';
 import * as actions from '@/state/actions';
@@ -248,10 +249,16 @@ export function AppShell() {
             </button>
           </header>
 
-          {tagFilter.length > 0 ? (
+          {tagFilterActive(tagFilter) ? (
             <div className="mb-2 flex items-center gap-2 rounded-md bg-accent-soft px-2.5 py-1.5 text-[12.5px] text-accent">
-              <span>Showing items with {tagFilter.length === 1 ? 'this tag' : 'any of these tags'}.</span>
-              <button type="button" onClick={() => setTagFilter([])} className="font-medium underline">Clear</button>
+              <span>{tagFilter.mode === 'exclude'
+                ? tagFilter.untagged && tagFilter.tagIds.length === 0
+                  ? 'Showing items that have a tag.'
+                  : `Excluding ${tagFilter.tagIds.length === 1 ? 'the selected tag' : 'selected tags'}${tagFilter.untagged ? ' and untagged items' : ''}.`
+                : tagFilter.untagged && tagFilter.tagIds.length === 0
+                  ? 'Showing untagged items.'
+                  : `Showing items with ${tagFilter.tagIds.length === 1 ? 'the selected tag' : 'any selected tag'}${tagFilter.untagged ? ' or no tag' : ''}.`}</span>
+              <button type="button" onClick={() => setTagFilter(emptyTagFilter())} className="font-medium underline">Clear</button>
             </div>
           ) : null}
 

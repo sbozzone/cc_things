@@ -2,8 +2,8 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateLabel } from '@/core/dates';
+import { emptyTagFilter, tagFilterActive, tagPath } from '@/core/tags';
 import { inToday } from '@/core/membership';
-import { tagPath } from '@/core/tags';
 import type { AddTarget, ListDocument, ListItem, ListSection } from '@/core/selectors';
 import type { CalendarEvent, Project, Task } from '@/core/types';
 import { useApp } from '@/state/store';
@@ -424,42 +424,64 @@ function TaskTagFilter({ view }: { view: 'today' | 'allTasks' }) {
       .sort((a, b) => tagPath(db, a.id).localeCompare(tagPath(db, b.id))),
     [db],
   );
+  const filterCount = tagFilter.tagIds.length + Number(tagFilter.untagged);
+  const active = tagFilterActive(tagFilter);
 
   const toggle = (tagId: string) => {
-    setTagFilter(tagFilter.includes(tagId)
-      ? tagFilter.filter((id) => id !== tagId)
-      : [...tagFilter, tagId]);
+    const selected = tagFilter.tagIds.includes(tagId);
+    setTagFilter({
+      ...tagFilter,
+      tagIds: selected
+        ? tagFilter.tagIds.filter((id) => id !== tagId)
+        : [...tagFilter.tagIds, tagId],
+    });
   };
 
   return (
     <div className="mb-2 flex flex-wrap items-center justify-end gap-1 px-2">
-      <Button size="sm" variant={tagFilter.length > 0 ? 'secondary' : 'ghost'} onClick={(event) => setAnchor(event.currentTarget)}>
-        <TagIcon size={14} /> Tags{tagFilter.length > 0 ? ` (${tagFilter.length})` : ''}
+      <Button size="sm" variant={active ? 'secondary' : 'ghost'} onClick={(event) => setAnchor(event.currentTarget)}>
+        <TagIcon size={14} /> Tags{active ? ` (${filterCount}${tagFilter.mode === 'exclude' ? ' excluded' : ''})` : ''}
       </Button>
-      {tagFilter.length > 0 ? <Button size="sm" variant="ghost" onClick={() => setTagFilter([])}>Clear</Button> : null}
+      {active ? <Button size="sm" variant="ghost" onClick={() => setTagFilter(emptyTagFilter())}>Clear</Button> : null}
       {anchor ? (
         <Popover anchor={anchor} onClose={() => setAnchor(null)} label={`Filter ${viewLabel} by tags`} width={280}>
-          {tags.length > 0 ? (
-            <>
-              <p className="px-2 pb-1 text-[12px] text-faint">Tasks match any selected tag.</p>
-              <ul>
-                {tags.map((tag) => (
-                  <li key={tag.id}>
-                    <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-[14px] hover:bg-surface-2">
-                      <input
-                        type="checkbox"
-                        checked={tagFilter.includes(tag.id)}
-                        onChange={() => toggle(tag.id)}
-                        className="h-5 w-5"
-                      />
-                      <TagDot color={tag.color} />
-                      <span className="min-w-0 flex-1 truncate">{tagPath(db, tag.id)}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : <p className="px-2 py-3 text-[13px] text-muted">Create a tag to filter this list.</p>}
+          <div className="flex items-center justify-between gap-2 px-2 pb-1">
+            <p className="text-[12px] text-faint">
+              {tagFilter.mode === 'exclude'
+                ? active ? 'Unchecked options are excluded.' : 'All selected. Uncheck an option to exclude it.'
+                : 'Select tags to narrow the list. With nothing selected, all tasks appear.'}
+            </p>
+          </div>
+          <div className="flex gap-2 px-2 pb-1">
+            <button type="button" onClick={() => setTagFilter({ mode: 'exclude', tagIds: [], untagged: false })}
+              className="min-h-11 text-[13px] font-medium text-accent hover:underline">Select all</button>
+            <button type="button" onClick={() => setTagFilter(emptyTagFilter())}
+              className="min-h-11 text-[13px] font-medium text-muted hover:underline">Reset</button>
+          </div>
+          <ul>
+            <li>
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-[14px] hover:bg-surface-2">
+                <input type="checkbox" checked={tagFilter.mode === 'exclude' ? !tagFilter.untagged : tagFilter.untagged}
+                  onChange={() => setTagFilter({ ...tagFilter, untagged: !tagFilter.untagged })} className="h-5 w-5" />
+                <TagIcon size={14} className="text-faint" />
+                <span>Untagged</span>
+              </label>
+            </li>
+            {tags.map((tag) => (
+              <li key={tag.id}>
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 text-[14px] hover:bg-surface-2">
+                  <input
+                    type="checkbox"
+                    checked={tagFilter.mode === 'exclude' ? !tagFilter.tagIds.includes(tag.id) : tagFilter.tagIds.includes(tag.id)}
+                    onChange={() => toggle(tag.id)}
+                    className="h-5 w-5"
+                  />
+                  <TagDot color={tag.color} />
+                  <span className="min-w-0 flex-1 truncate">{tagPath(db, tag.id)}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
         </Popover>
       ) : null}
     </div>

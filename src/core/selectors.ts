@@ -4,7 +4,7 @@ import {
   isAvailable, isOpen, isOverdue, projectHold, projectInToday, projectProgress,
   type Hold, type Progress,
 } from './membership';
-import { buildTagIndex, effectiveProjectTags, effectiveTaskTags, matchesTagFilter, type TagIndex } from './tags';
+import { buildTagIndex, effectiveProjectTags, effectiveTaskTags, emptyTagFilter, matchesTagFilter, tagFilterActive, type TagFilter, type TagIndex } from './tags';
 import { addDays, formatDateLabel, monthName, weekdayName } from './dates';
 import { resolveSectionDate } from './quick-add';
 import { evaluateSmartList, SMART_LISTS } from './smart-lists';
@@ -226,7 +226,7 @@ export interface ListDocument {
 }
 
 export interface QueryOptions {
-  tagFilter?: string[];
+  tagFilter?: TagFilter;
   todayGrouping?: 'flat' | 'byProject';
 }
 
@@ -280,14 +280,14 @@ function projectMeta(db: Database, ix: Indexes, project: Project): RowMeta {
 }
 
 function passesFilter(db: Database, ix: Indexes, opts: QueryOptions, task: Task): boolean {
-  const filter = opts.tagFilter ?? [];
-  if (filter.length === 0) return true;
+  const filter = opts.tagFilter ?? emptyTagFilter();
+  if (!tagFilterActive(filter)) return true;
   return matchesTagFilter(effectiveTaskTags(db, ix.tagIndex, task.id).all, ix.tagIndex, filter);
 }
 
 function projectPassesFilter(db: Database, ix: Indexes, opts: QueryOptions, project: Project): boolean {
-  const filter = opts.tagFilter ?? [];
-  if (filter.length === 0) return true;
+  const filter = opts.tagFilter ?? emptyTagFilter();
+  if (!tagFilterActive(filter)) return true;
   return matchesTagFilter(effectiveProjectTags(db, ix.tagIndex, project.id).all, ix.tagIndex, filter);
 }
 
@@ -779,7 +779,7 @@ export function areaView(db: Database, ix: Indexes, areaId: string, opts: QueryO
 /* ------------------------------------------------------------ Extra views */
 
 function tagView(db: Database, ix: Indexes, tagId: string, opts: QueryOptions): ListDocument {
-  const ownTag: QueryOptions = { tagFilter: [tagId] };
+  const ownTag: QueryOptions = { tagFilter: { mode: 'include', tagIds: [tagId], untagged: false } };
   const items: ListItem[] = liveTasks(db)
     .filter((t) => t.status === 'open' && passesFilter(db, ix, ownTag, t) && passesFilter(db, ix, opts, t))
     .sort(byRank)
@@ -923,7 +923,7 @@ function doc(
   return {
     view, title, subtitle, sections,
     openCount: countTasks(sections),
-    filtered: (opts.tagFilter ?? []).length > 0,
+    filtered: tagFilterActive(opts.tagFilter ?? emptyTagFilter()),
     emptyMessage, addTarget,
   };
 }

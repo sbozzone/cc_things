@@ -9,6 +9,7 @@ import { today as todayOf, todayIn } from '@/core/dates';
 import { newDeviceId, newId } from '@/core/ids';
 import { applyPatches, inverseOf, type EntityPatch, type WriteContext } from '@/core/patches';
 import { generateDueOccurrences } from '@/core/recurrence';
+import { emptyTagFilter, type TagFilter } from '@/core/tags';
 import { dailyResetPatches } from '@/core/my-day';
 import { buildIndexes, runView, sidebarCounts, type Indexes, type ListDocument, type ViewKey } from '@/core/selectors';
 import { purgeExpiredTrash } from '@/core/commands';
@@ -62,7 +63,7 @@ interface AppState {
   openItemId: string | null;
   selection: string[];
   lastAnchorId: string | null;
-  tagFilter: string[];
+  tagFilter: TagFilter;
   showLogged: boolean;
 
   syncStatus: SyncStatus;
@@ -91,7 +92,7 @@ interface AppState {
   toggleSelected: (id: string) => void;
   extendSelection: (id: string, orderedIds: string[]) => void;
   clearSelection: () => void;
-  setTagFilter: (tagIds: string[]) => void;
+  setTagFilter: (filter: TagFilter) => void;
   setShowLogged: (value: boolean) => void;
 
   undo: () => void;
@@ -137,7 +138,7 @@ export const useApp = create<AppState>((set, get) => ({
   openItemId: null,
   selection: [],
   lastAnchorId: null,
-  tagFilter: [],
+  tagFilter: emptyTagFilter(),
   showLogged: false,
 
   syncStatus: 'local',
@@ -290,8 +291,8 @@ export const useApp = create<AppState>((set, get) => ({
   clearSelection() {
     set({ selection: [], lastAnchorId: null });
   },
-  setTagFilter(tagIds) {
-    set({ tagFilter: tagIds });
+  setTagFilter(filter) {
+    set({ tagFilter: filter });
   },
   setShowLogged(value) {
     set({ showLogged: value });

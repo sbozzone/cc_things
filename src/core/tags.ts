@@ -124,17 +124,31 @@ export function effectiveProjectTags(db: Database, index: TagIndex, projectId: s
   return { direct, inherited, all: new Set([...direct, ...inherited.keys()]) };
 }
 
-/**
- * Filtering by several tags accepts any selected tag; selecting a parent tag also
- * accepts any of its descendants.
- */
-export function matchesTagFilter(effective: Set<string>, index: TagIndex, filter: string[]): boolean {
-  if (filter.length === 0) return true;
-  return filter.some((tagId) => {
+/** Include selected tags, or start with everything and exclude selected tags. */
+export interface TagFilter {
+  mode: 'include' | 'exclude';
+  tagIds: string[];
+  untagged: boolean;
+}
+
+export const emptyTagFilter = (): TagFilter => ({ mode: 'include', tagIds: [], untagged: false });
+
+export function tagFilterActive(filter: TagFilter): boolean {
+  return filter.tagIds.length > 0 || filter.untagged;
+}
+
+/** Parent tags match their descendants in both include and exclude modes. */
+export function matchesTagFilter(effective: Set<string>, index: TagIndex, filter: TagFilter): boolean {
+  if (!tagFilterActive(filter)) return true;
+  const matched = filter.tagIds.some((tagId) => {
     const accepted = tagWithDescendants(index, tagId);
     for (const t of effective) if (accepted.has(t)) return true;
     return false;
   });
+  const untagged = effective.size === 0;
+  return filter.mode === 'include'
+    ? matched || (filter.untagged && untagged)
+    : !matched && !(filter.untagged && untagged);
 }
 
 /** Rejects a reparenting that would introduce a cycle (R22, "nest tags without cycles"). */

@@ -339,7 +339,7 @@ describe('Counts and ordering (R12, R25)', () => {
     h.apply(assignTag(h.db, h.ctx(), tagId, 'task', taggedToday));
     h.apply(assignTag(h.db, h.ctx(), tagId, 'task', taggedAnytime));
 
-    const filtered = runView(h.db, buildIndexes(h.db, h.today), 'today', { tagFilter: [tagId] });
+    const filtered = runView(h.db, buildIndexes(h.db, h.today), 'today', { tagFilter: { mode: 'include', tagIds: [tagId], untagged: false } });
     const taskIds = filtered.sections.flatMap((section) => section.items)
       .flatMap((item) => item.kind === 'task' ? [item.task.id] : []);
     expect(taskIds).toEqual([taggedToday]);
@@ -359,7 +359,7 @@ describe('Counts and ordering (R12, R25)', () => {
     expect(titlesIn(h, 'allTasks')).toEqual(expect.arrayContaining(['Inbox item', 'Project item', 'Someday item']));
     expect(titlesIn(h, 'allTasks')).toHaveLength(3);
 
-    const filtered = runView(h.db, buildIndexes(h.db, h.today), 'allTasks', { tagFilter: [tagId] });
+    const filtered = runView(h.db, buildIndexes(h.db, h.today), 'allTasks', { tagFilter: { mode: 'include', tagIds: [tagId], untagged: false } });
     expect(filtered.sections.flatMap((section) => section.items)
       .flatMap((item) => item.kind === 'task' ? [item.task.id] : [])).toEqual([project]);
     expect([inbox, someday]).not.toContain(project);
@@ -377,13 +377,45 @@ describe('Counts and ordering (R12, R25)', () => {
     h.apply(assignTag(h.db, h.ctx(), home, 'task', both));
     h.apply(assignTag(h.db, h.ctx(), work, 'task', both));
 
-    const all = runView(h.db, buildIndexes(h.db, h.today), 'allTasks', { tagFilter: [home, work] });
+    const all = runView(h.db, buildIndexes(h.db, h.today), 'allTasks', { tagFilter: { mode: 'include', tagIds: [home, work], untagged: false } });
     expect(all.sections.flatMap((section) => section.items)
       .flatMap((item) => item.kind === 'task' ? [item.task.id] : [])).toEqual(expect.arrayContaining([homeOnly, workOnly, both]));
 
-    const homeFilteredByWork = runView(h.db, buildIndexes(h.db, h.today), `tag:${home}`, { tagFilter: [work] });
+    const homeFilteredByWork = runView(h.db, buildIndexes(h.db, h.today), `tag:${home}`, { tagFilter: { mode: 'include', tagIds: [work], untagged: false } });
     expect(homeFilteredByWork.sections.flatMap((section) => section.items)
       .flatMap((item) => item.kind === 'task' ? [item.task.id] : [])).toEqual([both]);
+  });
+
+  it('can include untagged tasks or select all and exclude one tag', () => {
+    const h = new Harness();
+    const skipped = h.run(createTag(h.db, h.ctx(), 'Skip')).id;
+    const retained = h.run(createTag(h.db, h.ctx(), 'Keep')).id;
+    const area = h.run(createArea(h.db, h.ctx(), 'Tagged area')).id;
+    const noTag = h.run(createTask(h.db, h.ctx(), { title: 'No tag', target: { parentType: 'inbox', parentId: null, headingId: null, myDay: true } })).id;
+    const skipOnly = h.run(createTask(h.db, h.ctx(), { title: 'Skip only', target: { parentType: 'inbox', parentId: null, headingId: null, myDay: true } })).id;
+    const keepOnly = h.run(createTask(h.db, h.ctx(), { title: 'Keep only', target: { parentType: 'inbox', parentId: null, headingId: null, myDay: true } })).id;
+    const both = h.run(createTask(h.db, h.ctx(), { title: 'Both', target: { parentType: 'inbox', parentId: null, headingId: null, myDay: true } })).id;
+    const inherited = h.run(createTask(h.db, h.ctx(), { title: 'Inherited', target: { parentType: 'area', parentId: area, headingId: null, myDay: true } })).id;
+    h.apply(assignTag(h.db, h.ctx(), skipped, 'task', skipOnly));
+    h.apply(assignTag(h.db, h.ctx(), retained, 'task', keepOnly));
+    h.apply(assignTag(h.db, h.ctx(), skipped, 'task', both));
+    h.apply(assignTag(h.db, h.ctx(), retained, 'task', both));
+    h.apply(assignTag(h.db, h.ctx(), skipped, 'area', area));
+
+    const ids = (filter: { mode: 'include' | 'exclude'; tagIds: string[]; untagged: boolean }, view: 'today' | 'allTasks') =>
+      runView(h.db, buildIndexes(h.db, h.today), view, { tagFilter: filter }).sections
+        .flatMap((section) => section.items)
+        .flatMap((item) => item.kind === 'task' ? [item.task.id] : []);
+
+    expect(ids({ mode: 'include', tagIds: [], untagged: true }, 'allTasks')).toEqual([noTag]);
+    expect(ids({ mode: 'include', tagIds: [retained], untagged: true }, 'allTasks')).toEqual(expect.arrayContaining([noTag, keepOnly, both]));
+    const withoutSkipped = ids({ mode: 'exclude', tagIds: [skipped], untagged: false }, 'allTasks');
+    expect(withoutSkipped).toEqual(expect.arrayContaining([noTag, keepOnly]));
+    expect(withoutSkipped).not.toContain(skipOnly);
+    expect(withoutSkipped).not.toContain(both);
+    expect(withoutSkipped).not.toContain(inherited);
+    expect(ids({ mode: 'exclude', tagIds: [], untagged: true }, 'today')).toEqual(expect.arrayContaining([skipOnly, keepOnly, both, inherited]));
+    expect(ids({ mode: 'exclude', tagIds: [], untagged: true }, 'today')).not.toContain(noTag);
   });
 
   it('supports saved manual order and non-destructive presentation sorts', () => {

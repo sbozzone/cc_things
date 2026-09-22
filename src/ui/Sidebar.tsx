@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { byRank } from '@/core/rank';
 import { projectProgress } from '@/core/membership';
-import { tagPath } from '@/core/tags';
+import { emptyTagFilter, tagFilterActive, tagPath } from '@/core/tags';
 import { BUILT_IN_ORDER, VIEW_TITLES, type ViewKey } from '@/core/selectors';
 import type { SidebarFavoriteView, SidebarSection } from '@/core/types';
 import { useApp, useCounts, useIndexes } from '@/state/store';
@@ -133,6 +133,15 @@ export function Sidebar({
 
   const pinnedViews = (db.settings.sidebarPinnedViews ?? ['allTasks'])
     .filter((key): key is SidebarFavoriteView => OVERFLOW_VIEWS.includes(key as SidebarFavoriteView));
+  const toggleSidebarTag = (tagId: string) => {
+    const included = tagFilter.mode === 'include' ? tagFilter.tagIds : [];
+    const active = included.includes(tagId);
+    setTagFilter({
+      mode: 'include',
+      tagIds: active ? included.filter((id) => id !== tagId) : [...included, tagId],
+      untagged: tagFilter.mode === 'include' ? tagFilter.untagged : false,
+    });
+  };
   const sectionCollapsed = (section: SidebarSection) => db.settings.sidebarSections?.[section] === true;
 
   const toggleSection = (section: SidebarSection) => {
@@ -354,7 +363,7 @@ export function Sidebar({
         {tags.length > 0 ? (
           <ul className="space-y-0.5 px-3">
             {tags.map((tag) => {
-              const active = tagFilter.includes(tag.id);
+              const active = tagFilter.mode === 'include' && tagFilter.tagIds.includes(tag.id);
               return (
                 <NavItem
                   key={tag.id}
@@ -362,7 +371,7 @@ export function Sidebar({
                   icon={<TagIcon size={16} />}
                   color={tag.color && tag.color in tagColors ? tagColors[tag.color as keyof typeof tagColors] : active ? 'var(--accent)' : 'var(--text-faint)'}
                   active={active}
-                  onSelect={() => setTagFilter(active ? tagFilter.filter((t) => t !== tag.id) : [...tagFilter, tag.id])}
+                  onSelect={() => toggleSidebarTag(tag.id)}
                 />
               );
             })}
@@ -370,8 +379,8 @@ export function Sidebar({
         ) : (
           <p className="px-3 pb-1 text-[13px] text-faint">No tags yet.</p>
         )}
-        {tagFilter.length > 0 ? (
-          <button type="button" onClick={() => setTagFilter([])} className="px-3 pt-1 text-[13px] font-medium text-accent hover:underline">
+        {tagFilterActive(tagFilter) ? (
+          <button type="button" onClick={() => setTagFilter(emptyTagFilter())} className="px-3 pt-1 text-[13px] font-medium text-accent hover:underline">
             Clear tag filter
           </button>
         ) : null}
