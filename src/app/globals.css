@@ -57,7 +57,10 @@
 
   --shadow-sm: 0 1px 2px rgb(30 28 24 / 6%), 0 1px 3px rgb(30 28 24 / 4%);
   --shadow: 0 1px 2px rgb(30 28 24 / 5%), 0 4px 10px rgb(30 28 24 / 6%), 0 16px 34px rgb(30 28 24 / 9%);
-  --radius: 9px;
+  /* A resting card: barely lifted, mostly defined by its border. */
+  --shadow-card: 0 1px 1px rgb(30 28 24 / 3%), 0 2px 6px rgb(30 28 24 / 4%);
+  /* Popovers and sheets: clearly above the page, with a soft ambient spread. */
+  --shadow-pop: 0 1px 2px rgb(30 28 24 / 6%), 0 8px 24px rgb(30 28 24 / 10%), 0 24px 48px rgb(30 28 24 / 10%);
   color-scheme: light;
 
   /* Dark values, declared once. */
@@ -95,6 +98,8 @@
   --d-chip-neutral-fg: #a2a8b6;
   --d-shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
   --d-shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 6px 16px rgb(0 0 0 / 40%), 0 18px 40px rgb(0 0 0 / 45%);
+  --d-shadow-card: 0 1px 1px rgb(0 0 0 / 30%), 0 2px 6px rgb(0 0 0 / 25%);
+  --d-shadow-pop: 0 1px 2px rgb(0 0 0 / 50%), 0 10px 28px rgb(0 0 0 / 45%), 0 28px 56px rgb(0 0 0 / 40%);
 }
 
 /* Warm paper and botanical greens. Structural surfaces change as well as accents. */
@@ -230,6 +235,8 @@
     --chip-neutral-fg: var(--d-chip-neutral-fg);
     --shadow-sm: var(--d-shadow-sm);
     --shadow: var(--d-shadow);
+    --shadow-card: var(--d-shadow-card);
+    --shadow-pop: var(--d-shadow-pop);
     color-scheme: dark;
   }
 }
@@ -269,6 +276,8 @@
   --chip-neutral-fg: var(--d-chip-neutral-fg);
   --shadow-sm: var(--d-shadow-sm);
   --shadow: var(--d-shadow);
+  --shadow-card: var(--d-shadow-card);
+  --shadow-pop: var(--d-shadow-pop);
   color-scheme: dark;
 }
 
@@ -305,6 +314,23 @@
   --color-chip-cool-fg: var(--chip-cool-fg);
   --color-chip-neutral: var(--chip-neutral-bg);
   --color-chip-neutral-fg: var(--chip-neutral-fg);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --shadow-soft: var(--shadow-sm);
+  --shadow-float: var(--shadow);
+}
+
+/*
+ * One radius scale for utilities and hand-written CSS alike: controls are 8px, cards
+ * 12px, dialogs 16px and sheets 20px. Slightly rounder than the Tailwind defaults.
+ */
+@theme {
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
 }
 
 /*
@@ -320,27 +346,40 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Inter Variable', Inter, 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 15px;
     line-height: 1.45;
+    /* Slight negative tracking at body size reads as tighter and more settled; numerals line up in counts. */
+    letter-spacing: -0.006em;
+    font-feature-settings: 'cv11', 'ss01', 'tnum' 0;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     overscroll-behavior: none;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
   }
 
   /* A visible focus ring on every interactive element is part of the accessibility target. */
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 6px;
   }
 
   button, input, textarea, select {
     font: inherit;
     color: inherit;
+    letter-spacing: inherit;
   }
 
-  textarea, input[type='text'], input[type='email'], input[type='password'] {
+  textarea, input[type='text'], input[type='email'], input[type='password'], input[type='number'], input[type='date'] {
     background: transparent;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent-fill) 28%, transparent);
   }
 }
 
@@ -369,6 +408,10 @@
   background-clip: content-box;
 }
 .scroll-area::-webkit-scrollbar-track { background: transparent; }
+
+/* Horizontal strips that scroll by swipe or wheel; the bar itself would only add noise. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
 .sr-only {
   position: absolute;
@@ -407,18 +450,88 @@
   color: var(--view-accent, var(--accent));
 }
 
-/* Sticky page header: content slides under it rather than colliding with it. */
+/* Sticky page header: content slides under it rather than colliding with it. It carries a
+ * very gentle wash of the list's hue so the top of the page belongs to that list. */
 .page-header {
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: saturate(1.5) blur(10px);
-  -webkit-backdrop-filter: saturate(1.5) blur(10px);
+  background:
+    linear-gradient(to bottom, color-mix(in srgb, var(--view-accent, var(--accent)) 7%, transparent), transparent),
+    color-mix(in srgb, var(--bg) 84%, transparent);
+  backdrop-filter: saturate(1.6) blur(14px);
+  -webkit-backdrop-filter: saturate(1.6) blur(14px);
+  transition: box-shadow 0.2s ease;
+}
+.page-header[data-stuck='true'] {
+  box-shadow: 0 1px 0 var(--border);
 }
 
+/* A raised surface: card radius, a hairline border and a resting shadow. */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* Task rows. The hover state is a soft fill; the active/selected row keeps its rail. */
+.row {
+  border-radius: var(--radius-md);
+  transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+.row:hover {
+  background: color-mix(in srgb, var(--text) 4.5%, transparent);
+}
+.row:focus-visible {
+  outline-offset: -2px;
+}
+.row[aria-selected='true'] {
+  background: var(--selected);
+}
+
+/* Interactive chrome: buttons and controls settle back down when pressed. */
+.press:active { transform: translateY(0.5px) scale(0.985); }
+
 @keyframes pop-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.985); }
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
-.pop-in { animation: pop-in 0.13s ease-out; }
+.pop-in { animation: pop-in 0.16s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+.sheet-in { animation: sheet-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+.fade-in { animation: fade-in 0.18s ease-out both; }
+
+/* Modal scrim: a touch of the page hue so it reads as the same room, dimmed. */
+.scrim {
+  background: color-mix(in srgb, var(--text) 32%, transparent);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 11.5px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+/* Completion box: a soft fill sweep when it checks, rather than an instant flip. */
+.check-box {
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.check-box[data-status='completed'] { transform: scale(1.04); }
 
 /* iOS recommends a 44pt minimum hit area. Keep the artwork compact while making the
  * interactive box forgiving enough for a thumb on phone-sized layouts. */

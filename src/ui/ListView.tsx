@@ -41,7 +41,7 @@ function Pill({
     neutral: 'bg-chip-neutral text-chip-neutral-fg',
   } as const;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-[1px] text-[11.5px] font-medium ${tones[tone]}`}>
+    <span className={`inline-flex h-[20px] items-center gap-1 rounded-full px-1.5 text-[11.5px] font-medium leading-none ${tones[tone]}`}>
       {icon}
       {children}
     </span>
@@ -164,7 +164,7 @@ function TaskRow({
 
   if (isEditing && !isPhone) {
     return (
-      <li ref={rowRef} data-row data-id={task.id} className="px-1 py-0.5">
+      <li ref={rowRef} data-row data-id={task.id} className="fade-in px-0.5 py-1.5">
         <TaskEditor task={task} onClose={() => openItem(null)} />
       </li>
     );
@@ -218,14 +218,14 @@ function TaskRow({
         else if (selection.length > 0) setSelection([]);
         else openItem(task.id);
       }}
-      className={`group relative flex cursor-default items-start gap-2.5 rounded-lg px-2.5 py-2 transition-colors ${
-        selected ? 'bg-selected' : 'hover:bg-surface-2'
-      } ${nested ? 'ml-5 border-l border-line pl-3' : ''} ${
+      className={`row group relative flex cursor-default items-start gap-3 px-3 py-2.5 ${
+        nested ? 'ml-5 border-l border-line pl-3' : ''
+      } ${
         dropSide === 'above' ? 'shadow-[inset_0_2px_0_0_var(--accent)]' : dropSide === 'below' ? 'shadow-[inset_0_-2px_0_0_var(--accent)]' : ''
       }`}
     >
       {selected ? (
-        <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-accent-fill" />
+        <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-accent-fill" />
       ) : null}
       <StatusControl
         status={task.status}
@@ -241,30 +241,32 @@ function TaskRow({
       ) : null}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className={`text-[14.5px] leading-snug ${task.status !== 'open' ? 'text-muted line-through' : ''}`}>
+          <span className={`text-[14.5px] leading-snug ${task.status !== 'open' ? 'text-muted line-through decoration-[color-mix(in_srgb,var(--text)_35%,transparent)]' : 'text-ink'}`}>
             {task.title || <span className="text-faint">Untitled</span>}
           </span>
           {meta.repeating ? <RepeatIcon size={12} className="translate-y-[1px] text-faint" /> : null}
           {task.notes.trim() ? <NoteIcon size={12} className="translate-y-[1px] text-faint" /> : null}
           {meta.checklistTotal > 0 ? (
-            <span className="inline-flex items-center gap-0.5 text-[12px] text-faint">
+            <span className="inline-flex items-center gap-0.5 text-[12px] tabular-nums text-faint">
               <ChecklistIcon size={12} />{meta.checklistChecked}/{meta.checklistTotal}
             </span>
           ) : null}
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-          <DateChip task={task} today={today} hideStart={scope === 'today'} />
-          {task.priority ? <Pill tone={task.priority === 'urgent' ? 'danger' : task.priority === 'low' ? 'neutral' : 'warm'} icon={<FlagIcon size={11} />}>{priorities[task.priority]}</Pill> : null}
-          {meta.contextLabel ? <span className="text-[12px] text-faint">{meta.contextLabel}</span> : null}
-          {meta.heldContextLabel ? (
-            <span className="inline-flex items-center gap-1 text-[12px] text-[var(--someday)]">
-              <AlertIcon size={12} />Deadline reached in held “{meta.heldContextLabel}”
-            </span>
-          ) : null}
-          {meta.tagIds.slice(0, 3).map((tagId) => (
-            <Chip key={tagId}><TagDot color={db.tags[tagId]?.color} />{tagPath(db, tagId)}</Chip>
-          ))}
-        </div>
+        {(task.startDate && !(scope === 'today' && task.startDate <= today)) || task.deadline || task.priority || meta.contextLabel || meta.heldContextLabel || meta.tagIds.length > 0 || task.planning === 'someday' || (scope === 'today' && task.eveningDate !== null && task.eveningDate === task.startDate) ? (
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <DateChip task={task} today={today} hideStart={scope === 'today'} />
+            {task.priority ? <Pill tone={task.priority === 'urgent' ? 'danger' : task.priority === 'low' ? 'neutral' : 'warm'} icon={<FlagIcon size={11} />}>{priorities[task.priority]}</Pill> : null}
+            {meta.contextLabel ? <span className="text-[12px] text-faint">{meta.contextLabel}</span> : null}
+            {meta.heldContextLabel ? (
+              <span className="inline-flex items-center gap-1 text-[12px] text-[var(--someday)]">
+                <AlertIcon size={12} />Deadline reached in held “{meta.heldContextLabel}”
+              </span>
+            ) : null}
+            {meta.tagIds.slice(0, 3).map((tagId) => (
+              <Chip key={tagId}><TagDot color={db.tags[tagId]?.color} />{tagPath(db, tagId)}</Chip>
+            ))}
+          </div>
+        ) : null}
       </div>
       {canOrder && orderedIds.length > 1 ? <OrderHandle id={task.id} ids={orderedIds} group={sectionId} scope={scope} /> : null}
       {isPhone ? (
@@ -320,16 +322,16 @@ function ProjectRow({
         }
       }}
       onClick={() => setView(`project:${project.id}`)}
-      className="flex min-h-[44px] cursor-default items-center gap-2.5 rounded-md px-2 hover:bg-surface-2"
+      className="row flex min-h-[46px] cursor-default items-center gap-3 px-3"
     >
-      <ProgressRing percent={progress.percent} size={17} />
+      <ProgressRing percent={progress.percent} size={18} />
       <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium">{project.title}</span>
       {project.deadline ? (
         <span className={`text-[12px] ${meta.overdue ? 'text-danger' : 'text-[var(--upcoming)]'}`}>
           <FlagIcon size={12} className="mr-1 inline" />Due {formatDateLabel(project.deadline, today)}
         </span>
       ) : null}
-      <span className="text-[12px] text-faint">
+      <span className="text-[12px] tabular-nums text-faint">
         {progress.percent === null ? 'No tasks' : `${progress.completed} of ${progress.total}`}
       </span>
       {order && order.ids.length > 1 ? <OrderHandle id={project.id} ids={order.ids} group={order.group} scope="structural" /> : null}
@@ -361,14 +363,14 @@ function EventRow({ event }: { event: CalendarEvent }) {
       ? new Date(event.startInstant).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
       : '';
   return (
-    <li className="flex items-center gap-2.5 rounded-md px-2 py-[7px] text-muted">
+    <li className="flex items-center gap-3 rounded-md px-3 py-[7px] text-muted">
       <span aria-hidden="true" className="h-4 w-[3px] shrink-0 rounded-full bg-[var(--upcoming)]" />
       <span className="min-w-0 flex-1 truncate text-[14px]">
         {event.sourceUrl ? (
           <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{event.title}</a>
         ) : event.title}
       </span>
-      <span className="shrink-0 text-[12px] text-faint">{time}</span>
+      <span className="shrink-0 text-[12px] tabular-nums text-faint">{time}</span>
     </li>
   );
 }
@@ -378,36 +380,39 @@ function InlineComposer({ target, onDone }: { target: AddTarget; onDone: () => v
   const ref = useRef<HTMLInputElement | null>(null);
   useEffect(() => ref.current?.focus(), []);
   return (
-    <li className="px-2 py-1">
-      <input
-        ref={ref}
-        type="text"
-        value={value}
-        aria-label="New task title"
-        placeholder="New task"
-        onChange={(event) => setValue(event.target.value)}
-        onBlur={() => {
-          // Closing an empty editor leaves the task count unchanged (R01).
-          if (value.trim()) actions.addTask(target, value);
-          onDone();
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            if (!value.trim()) {
-              onDone();
-              return;
-            }
-            actions.addTask(target, value);
-            setValue('');
-          } else if (event.key === 'Escape') {
-            event.preventDefault();
-            setValue('');
+    <li className="fade-in px-0.5 py-1">
+      <div className="card flex items-center gap-2.5 px-3 ring-2 ring-[color-mix(in_srgb,var(--accent-fill)_35%,transparent)]">
+        <span aria-hidden="true" className="h-[22px] w-[22px] shrink-0 rounded-[7px] border-[1.5px] border-dashed border-control" />
+        <input
+          ref={ref}
+          type="text"
+          value={value}
+          aria-label="New task title"
+          placeholder="New task"
+          onChange={(event) => setValue(event.target.value)}
+          onBlur={() => {
+            // Closing an empty editor leaves the task count unchanged (R01).
+            if (value.trim()) actions.addTask(target, value);
             onDone();
-          }
-        }}
-        className="h-9 w-full rounded-md border border-accent bg-surface px-2.5 text-[14.5px] outline-none"
-      />
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              if (!value.trim()) {
+                onDone();
+                return;
+              }
+              actions.addTask(target, value);
+              setValue('');
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              setValue('');
+              onDone();
+            }
+          }}
+          className="h-10 w-full bg-transparent text-[14.5px] outline-none placeholder:text-faint"
+        />
+      </div>
     </li>
   );
 }
@@ -438,7 +443,7 @@ function TaskTagFilter({ view }: { view: 'today' | 'allTasks' }) {
   };
 
   return (
-    <div className="mb-2 flex flex-wrap items-center justify-end gap-1 px-2">
+    <div className="flex items-center gap-1">
       <Button size="sm" variant={active ? 'secondary' : 'ghost'} onClick={(event) => setAnchor(event.currentTarget)}>
         <TagIcon size={14} /> Tags{active ? ` (${filterCount}${tagFilter.mode === 'exclude' ? ' excluded' : ''})` : ''}
       </Button>
@@ -593,15 +598,15 @@ function SectionHeader({ section, onAdd }: { section: ListSection; onAdd: () => 
   if (!section.title) return null;
   const isHeading = section.id.startsWith('heading:');
   return (
-    <div className="mt-5 mb-1.5 flex items-center gap-2 px-2.5 first:mt-1">
+    <div className="mt-6 mb-1.5 flex items-center gap-2 px-3 first:mt-1">
       {isHeading ? (
-        <span aria-hidden="true" className="h-[13px] w-[3px] shrink-0 rounded-full view-accent-bg opacity-70" />
+        <span aria-hidden="true" className="h-[14px] w-[3px] shrink-0 rounded-full view-accent-bg opacity-80" />
       ) : null}
       <h2
         className={
           isHeading
-            ? 'text-[13.5px] font-semibold tracking-[-0.01em] text-ink'
-            : 'text-[11.5px] font-semibold uppercase tracking-[0.08em] text-faint'
+            ? 'text-[14px] font-semibold tracking-[-0.01em] text-ink'
+            : 'text-[11.5px] font-bold uppercase tracking-[0.1em] text-faint'
         }
       >
         {section.title}
@@ -647,9 +652,9 @@ function SelectionBar({ ids }: { ids: string[] }) {
     <div
       role="toolbar"
       aria-label={`${ids.length} selected`}
-      className="sticky bottom-[max(12px,env(safe-area-inset-bottom))] z-20 mx-auto flex w-fit max-w-full flex-wrap items-center gap-1 rounded-xl border border-line bg-surface p-1.5 shadow-[var(--shadow)]"
+      className="pop-in sticky bottom-[max(12px,env(safe-area-inset-bottom))] z-20 mx-auto flex w-fit max-w-full flex-wrap items-center gap-1 rounded-lg border border-line bg-surface p-1.5 shadow-[var(--shadow-pop)]"
     >
-      <span className="px-2 text-[13px] font-medium" aria-live="polite">{ids.length} selected</span>
+      <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[12.5px] font-semibold tabular-nums text-accent" aria-live="polite">{ids.length} selected</span>
       <Button size="sm" variant="ghost" onClick={open('when')}><CalendarIcon size={14} />When</Button>
       <Button size="sm" variant="ghost" onClick={open('deadline')}><FlagIcon size={14} />Deadline</Button>
       <Button size="sm" variant="ghost" onClick={open('move')}><MoveIcon size={14} />Move</Button>
@@ -736,24 +741,26 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   return (
     <>
       <div data-list-root className="pt-1 pb-24">
-        {doc.view === 'today' || doc.view === 'allTasks' ? <TaskTagFilter view={doc.view} /> : null}
-        {!['logbook', 'trash'].includes(doc.view) ? <label className="mb-2 flex flex-wrap items-center justify-end gap-2 px-2 text-sm text-muted">
-          Sort
-          <select aria-label="Sort items" className="min-h-11 rounded-md border border-line bg-surface px-2" value={sort}
-            onChange={(e) => actions.updateSettings({ listSorts: { ...db.settings.listSorts, [doc.view]: e.target.value as ListSort } })}>
-            <option value="manual">Manual order</option>
-            <option value="alphabetical">Alphabetical (A–Z)</option>
-            <option value="alphabeticalDesc">Alphabetical (Z–A)</option>
-            <option value="due">Due date (earliest first)</option>
-            <option value="dueDesc">Due date (latest first)</option>
-            <option value="created">Created date (newest first)</option>
-            <option value="createdAsc">Created date (oldest first)</option>
-            <option value="priority">Priority (highest first)</option>
-            <option value="priorityDesc">Priority (lowest first)</option>
-            <option value="tags">Tags (A–Z)</option>
-            <option value="tagsDesc">Tags (Z–A)</option>
-          </select>
-        </label> : null}
+        <div className="mb-2 flex flex-wrap items-center justify-end gap-x-1 gap-y-1 px-1">
+          {doc.view === 'today' || doc.view === 'allTasks' ? <TaskTagFilter view={doc.view} /> : null}
+          {!['logbook', 'trash'].includes(doc.view) ? <label className="flex items-center gap-1.5 text-[12.5px] text-muted">
+            <span className="sr-only sm:not-sr-only">Sort</span>
+            <select aria-label="Sort items" className="h-8 max-w-[200px] rounded-md border border-line bg-surface px-2 text-[12.5px] text-ink shadow-[var(--shadow-card)]" value={sort}
+              onChange={(e) => actions.updateSettings({ listSorts: { ...db.settings.listSorts, [doc.view]: e.target.value as ListSort } })}>
+              <option value="manual">Manual order</option>
+              <option value="alphabetical">Alphabetical (A–Z)</option>
+              <option value="alphabeticalDesc">Alphabetical (Z–A)</option>
+              <option value="due">Due date (earliest first)</option>
+              <option value="dueDesc">Due date (latest first)</option>
+              <option value="created">Created date (newest first)</option>
+              <option value="createdAsc">Created date (oldest first)</option>
+              <option value="priority">Priority (highest first)</option>
+              <option value="priorityDesc">Priority (lowest first)</option>
+              <option value="tags">Tags (A–Z)</option>
+              <option value="tagsDesc">Tags (Z–A)</option>
+            </select>
+          </label> : null}
+        </div>
         {doc.view === 'allProjects' && allProjectIds.length > 0 ? (
           <div role="group" aria-label="Project display" className="mb-1 flex justify-end gap-1 px-1">
             <Button
@@ -776,8 +783,8 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
         ) : null}
 
         {isEmpty && !composerSection ? (
-          <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
-            <span aria-hidden="true" className="badge-wash flex h-14 w-14 items-center justify-center rounded-2xl [&>svg]:h-6 [&>svg]:w-6">
+          <div className="fade-in flex flex-col items-center gap-3 px-4 py-16 text-center">
+            <span aria-hidden="true" className="badge-wash flex h-16 w-16 items-center justify-center rounded-[22px] [&>svg]:h-7 [&>svg]:w-7">
               {viewStyle(doc.view).icon}
             </span>
             <p className="max-w-[34ch] text-[14px] leading-relaxed text-muted">{doc.emptyMessage}</p>
@@ -850,9 +857,10 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
                 <button
                   type="button"
                   onClick={() => addTo(section)}
-                  className="mt-0.5 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-faint hover:bg-surface-2 hover:text-muted"
+                  className="row mt-0.5 flex w-full items-center gap-3 px-3 py-2 text-left text-[13px] text-faint hover:text-muted"
                 >
-                  <PlusIcon size={14} /> Add a task{section.title ? ` to ${section.title}` : ''}
+                  <span aria-hidden="true" className="flex h-[22px] w-[22px] items-center justify-center rounded-[7px] border-[1.5px] border-dashed border-line-strong"><PlusIcon size={12} /></span>
+                  Add a task{section.title ? ` to ${section.title}` : ''}
                 </button>
               ) : null}
             </section>
@@ -864,9 +872,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
 
       {isPhone && openTask ? (
         <Modal label="Edit task" onClose={() => openItem(null)}>
-          <div className="p-1">
-            <TaskEditor task={openTask} onClose={() => openItem(null)} />
-          </div>
+          <TaskEditor task={openTask} onClose={() => openItem(null)} embedded />
         </Modal>
       ) : null}
     </>

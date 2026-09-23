@@ -53,10 +53,10 @@ function NavItem({
         type="button"
         aria-current={active ? 'page' : undefined}
         onClick={onSelect}
-        className={`flex min-h-[44px] w-full items-center gap-3 rounded-xl pr-2.5 text-left text-[15px] transition-colors ${
+        className={`press flex min-h-[40px] w-full items-center gap-3 rounded-[10px] pr-2.5 text-left text-[14.5px] transition-[background-color,color] duration-150 ${
           active
-            ? 'bg-accent-soft font-semibold text-accent'
-            : 'hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
+            ? 'bg-accent-soft font-semibold text-accent shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_12%,transparent)]'
+            : 'text-ink hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
         }`}
         style={{ paddingLeft: 12 + indent * 16 }}
       >
@@ -67,7 +67,7 @@ function NavItem({
         <span className="min-w-0 flex-1 truncate">{label}</span>
         {trailing}
         {count !== undefined && count > 0 ? (
-          <span className={`shrink-0 text-[13px] tabular-nums ${active ? 'text-accent' : 'text-faint'}`}>{count}</span>
+          <span className={`shrink-0 rounded-full px-1.5 py-px text-[12px] font-medium tabular-nums ${active ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-accent' : 'text-faint'}`}>{count}</span>
         ) : null}
       </button>
     </li>
@@ -85,26 +85,26 @@ function SectionHeading({
   onAdd?: (anchor: HTMLElement) => void;
 }) {
   return (
-    <div className="flex min-h-11 items-center gap-1 px-1.5">
+    <div className="flex min-h-10 items-center gap-1 px-1.5">
       <button
         type="button"
         aria-expanded={!collapsed}
         aria-controls={sectionId}
         aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${label}`}
         onClick={onToggle}
-        className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1.5 text-left hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+        className="flex min-h-10 min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1.5 text-left hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
       >
-        <ChevronIcon size={14} className={`shrink-0 transition-transform ${collapsed ? '' : 'rotate-90'}`} />
-        <span className="truncate text-[12px] font-bold uppercase tracking-[0.1em] text-faint">{label}</span>
+        <ChevronIcon size={13} className={`shrink-0 text-faint transition-transform duration-200 ${collapsed ? '' : 'rotate-90'}`} />
+        <span className="truncate text-[11.5px] font-bold uppercase tracking-[0.1em] text-faint">{label}</span>
       </button>
       {addLabel && onAdd ? (
-        <IconButton className="h-11 min-w-11" label={addLabel} onClick={(event) => onAdd(event.currentTarget)}><PlusIcon size={15} /></IconButton>
+        <IconButton className="h-10 min-w-10" label={addLabel} onClick={(event) => onAdd(event.currentTarget)}><PlusIcon size={15} /></IconButton>
       ) : null}
     </div>
   );
 }
 
-const Divider = () => <div className="mx-3 my-3 border-t border-line" aria-hidden="true" />;
+const Divider = () => <div className="mx-4 my-2.5 border-t border-line" aria-hidden="true" />;
 
 export function Sidebar({
   onOpenSearch, onOpenSettings, onClose, onCollapse,
@@ -196,7 +196,7 @@ export function Sidebar({
             setCreating(null);
           }
         }}
-        className="h-10 w-full rounded-xl border border-accent bg-surface px-3 text-[15px] outline-none"
+        className="h-10 w-full rounded-[10px] border border-accent bg-surface px-3 text-[14.5px] outline-none ring-2 ring-[color-mix(in_srgb,var(--accent-fill)_25%,transparent)]"
       />
     </div>
   );
@@ -206,16 +206,16 @@ export function Sidebar({
 
   return (
     <nav aria-label="Lists" className="flex h-full flex-col bg-sidebar">
-      <div className="flex items-center gap-3 px-4 pb-4 pt-5">
+      <div className="flex items-center gap-3 px-4 pb-3 pt-5">
         <span
           aria-hidden="true"
-          className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-accent-fill text-accent-fill-contrast shadow-[var(--shadow-sm)]"
+          className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-accent-fill text-accent-fill-contrast shadow-[var(--shadow-sm),inset_0_1px_0_rgb(255_255_255_/_18%)]"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m4 12.5 5.2 5.2L20 6.6" />
           </svg>
         </span>
-        <span className="min-w-0 flex-1 text-[22px] font-bold tracking-[-0.02em]">getToDo</span>
+        <span className="min-w-0 flex-1 text-[19px] font-bold tracking-[-0.025em]">ToDone</span>
         {onCollapse ? (
           <IconButton label="Collapse sidebar" onClick={onCollapse}>
             <ChevronIcon size={17} className="rotate-180" />
@@ -228,11 +228,11 @@ export function Sidebar({
         <button
           type="button"
           onClick={onOpenSearch}
-          className="flex h-11 w-full items-center gap-2.5 rounded-xl border border-line bg-surface px-3 text-left text-[15px] text-faint transition-colors hover:border-line-strong"
+          className="press flex h-10 w-full items-center gap-2.5 rounded-[10px] border border-line bg-surface px-3 text-left text-[14px] text-faint shadow-[var(--shadow-card)] transition-[border-color,box-shadow] hover:border-line-strong"
         >
-          <SearchIcon size={17} />
+          <SearchIcon size={16} />
           <span className="flex-1">Quick find</span>
-          <kbd className="rounded-md px-1 font-sans text-[12.5px] text-faint">{shortcut} K</kbd>
+          <kbd>{shortcut} K</kbd>
         </button>
       </div>
 
@@ -340,9 +340,9 @@ export function Sidebar({
           <button
             type="button"
             onClick={() => { setDraft(''); setCreating('project'); }}
-            className="mt-0.5 flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] text-muted transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+            className="mt-0.5 flex min-h-10 w-full items-center gap-3 rounded-[10px] px-3 text-left text-[14.5px] text-muted transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
-            <PlusIcon size={17} />
+            <PlusIcon size={16} />
             New project
           </button>
         )}
@@ -390,9 +390,9 @@ export function Sidebar({
         <button
           type="button"
           onClick={(event) => setMoreAnchor(event.currentTarget)}
-          className="mt-3 flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[15px] text-muted transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+          className="mt-3 flex min-h-10 w-full items-center gap-3 rounded-[10px] px-3 text-left text-[14.5px] text-muted transition-colors hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
         >
-          <MoreIcon size={17} />
+          <MoreIcon size={16} />
           More lists
         </button>
         {moreAnchor ? (
@@ -430,23 +430,32 @@ export function Sidebar({
         <div className="flex items-center gap-2.5">
           <span
             aria-hidden="true"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[14px] font-semibold text-accent"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[13px] font-semibold text-accent"
           >
-            {initial || <UserIcon size={16} />}
+            {initial || <UserIcon size={15} />}
           </span>
-          <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium">{accountName}</span>
+          <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{accountName}</span>
           <IconButton label="Settings" onClick={onOpenSettings}><SettingsIcon size={17} /></IconButton>
         </div>
         <button
           type="button"
           onClick={onOpenSettings}
-          className="mt-1.5 flex w-full items-center gap-1.5 rounded-lg px-1 py-1 text-left text-[13px] text-faint hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+          className="mt-1 flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-[12.5px] text-faint hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
         >
-          <CloudIcon size={14} />
-          <span aria-live="polite">
+          <span
+            aria-hidden="true"
+            className={`h-2 w-2 shrink-0 rounded-full ${
+              syncStatus === 'upToDate' ? 'bg-[var(--logbook)]'
+              : syncStatus === 'syncing' ? 'animate-pulse bg-[var(--inbox)]'
+              : syncStatus === 'error' || syncStatus === 'unsaved' ? 'bg-danger'
+              : 'bg-line-strong'
+            }`}
+          />
+          <span aria-live="polite" className="min-w-0 flex-1 truncate">
             {SYNC_LABELS[syncStatus]}
             {signedIn && pendingCount > 0 ? ` · ${pendingCount} to sync` : ''}
           </span>
+          <CloudIcon size={13} className="shrink-0 opacity-70" />
         </button>
       </div>
     </nav>

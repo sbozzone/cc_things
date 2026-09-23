@@ -1,11 +1,11 @@
 import {
-  addDays, addMonths, addYears, daysInMonth, makeDate, nthWeekdayOfMonth, weekdayOf,
+  addDays, addMonths, addYears, daysBetween, daysInMonth, makeDate, nthWeekdayOfMonth, weekdayOf,
 } from './dates';
 import { newId } from './ids';
 import { byRank, FIRST_RANK, keyBetween } from './rank';
 import { create, update, type EntityPatch, type WriteContext } from './patches';
 import type {
-  Database, DateOnly, OccurrenceLink, RepeatRule, RepeatSnapshot, RepeatTemplate, Task,
+  Database, DateOnly, OccurrenceLink, Project, RepeatRule, RepeatSnapshot, RepeatTemplate, Task,
 } from './types';
 
 /**
@@ -446,6 +446,11 @@ export interface CreateTemplateInput {
   endDate?: DateOnly | null;
   useDeadline?: boolean;
   leadDays?: number;
+  /**
+   * The task or project the template was made from. It is recorded as the anchor-date
+   * occurrence, so generation continues from it rather than producing a second copy.
+   */
+  existingId?: string;
 }
 
 export function createTemplate(ctx: WriteContext, input: CreateTemplateInput): { patches: EntityPatch[]; id: string } {
@@ -455,10 +460,48 @@ export function createTemplate(ctx: WriteContext, input: CreateTemplateInput): {
     rule: input.rule, anchorDate: input.anchorDate, endDate: input.endDate ?? null,
     useDeadline: input.useDeadline ?? false, leadDays: input.leadDays ?? 0,
     timeZone: ctx.timeZone, pausedAt: null, stoppedAt: null, ruleVersion: 1,
-    lastGeneratedKey: null,
+    lastGeneratedKey: input.existingId ? input.anchorDate : null,
     createdAt: ctx.now, updatedAt: ctx.now, deletedAt: null,
   };
-  return { patches: [create('repeatTemplates', id, template as unknown as Record<string, unknown>)], id };
+  const patches: EntityPatch[] = [create('repeatTemplates', id, template as unknown as Record<string, unknown>)];
+  if (input.existingId) {
+    const linkId = newId();
+    patches.push(create('occurrenceLinks', linkId, {
+      id: linkId, ownerId: ctx.ownerId, templateId: id, occurrenceKey: input.anchorDate,
+      materializedId: input.existingId, ruleVersion: 1, createdEarly: false, skipped: false,
+      generatedFrom: null, needsReview: false,
+      createdAt: ctx.now, updatedAt: ctx.now, deletedAt: null,
+    }));
+  }
+  return { patches, id };
+}
+
+/**
+ * Captures a project as a template snapshot. Child start dates become offsets from the
+ * anchor so each copy lands relative to its own occurrence date (§7).
+ */
+export function projectSnapshot(db: Database, project: Project, anchorDate: DateOnly): RepeatSnapshot {
+  const offset = (task: Task) => (task.startDate ? daysBetween(anchorDate, task.startDate) : null);
+  const define = (task: Task) => ({ title: task.title, notes: task.notes, startOffsetDays: offset(task) });
+  const children = Object.values(db.tasks)
+    .filter((t) => t.deletedAt === null && t.status === 'open' && t.parentType === 'project' && t.parentId === project.id)
+    .sort(byRank);
+  const headings = Object.values(db.headings)
+    .filter((h) => h.deletedAt === null && h.projectId === project.id && h.archivedAt === null)
+    .sort(byRank);
+  const tagIds = Object.values(db.tagAssignments)
+    .filter((a) => a.deletedAt === null && a.targetType === 'project' && a.targetId === project.id)
+    .map((a) => a.tagId);
+  return {
+    title: project.title, notes: project.notes,
+    parentType: 'area', parentId: project.areaId, headingId: null, areaId: project.areaId,
+    tagIds, checklist: [],
+    tasks: children.filter((t) => t.headingId === null).map(define),
+    headings: headings.map((heading) => ({
+      title: heading.title,
+      tasks: children.filter((t) => t.headingId === heading.id).map(define),
+    })),
+  };
 }
 
 /** Editing a template affects future unmaterialized copies only; history is untouched. */

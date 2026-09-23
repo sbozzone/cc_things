@@ -39,7 +39,7 @@ export function DueReminders() {
       {due.map((reminder) => {
         const task = db.tasks[reminder.taskId];
         return (
-          <div key={reminder.id} role="alert" className="pop-in rounded-lg border border-line bg-surface p-3 shadow-[var(--shadow)]">
+          <div key={reminder.id} role="alert" className="pop-in rounded-lg border border-line bg-surface p-3 shadow-[var(--shadow-pop)]">
             <div className="flex items-center gap-2 text-[12px] text-muted">
               <ClockIcon size={13} />Reminder · {reminder.wallTime}
             </div>

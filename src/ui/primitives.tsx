@@ -24,8 +24,11 @@ function useFocusTrap(active: boolean, onClose: () => void) {
         ) ?? [],
       ).filter((el) => el.offsetParent !== null || el === document.activeElement);
 
-    const first = focusable()[0];
-    (first ?? node)?.focus();
+    // A child may already have placed focus (the task editor focuses its title); the
+    // trap must not pull it back to the first control, which is the completion box.
+    const preferred = node?.querySelector<HTMLElement>('[data-autofocus]');
+    if (preferred) preferred.focus();
+    else if (!node?.contains(document.activeElement)) (focusable()[0] ?? node)?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -128,16 +131,19 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
         tabIndex={-1}
         className={
           isSheet
-            ? 'pop-in fixed inset-x-0 z-50 overflow-y-auto rounded-t-2xl border-t border-line bg-surface p-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[var(--shadow)] scroll-area'
-            : 'pop-in z-50 max-h-[70vh] overflow-y-auto rounded-[10px] border border-line bg-surface p-2 shadow-[var(--shadow)] scroll-area'
+            ? 'sheet-in fixed inset-x-0 z-50 overflow-y-auto rounded-t-2xl border-t border-line bg-surface px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-2 shadow-[var(--shadow-pop)] scroll-area'
+            : 'pop-in z-50 max-h-[70vh] overflow-y-auto rounded-lg border border-line bg-surface p-2 shadow-[var(--shadow-pop)] scroll-area'
         }
         style={isSheet ? sheetStyle : style}
       >
         {isSheet ? (
-          <div className="mb-2 flex items-center justify-between px-1">
-            <span className="text-[13px] font-semibold text-muted">{label}</span>
-            <IconButton label="Close" onClick={onClose}><CloseIcon /></IconButton>
-          </div>
+          <>
+            <span aria-hidden="true" className="mx-auto mb-2 block h-1 w-9 rounded-full bg-line-strong opacity-70" />
+            <div className="mb-2 flex items-center justify-between px-1">
+              <span className="text-[13px] font-semibold text-muted">{label}</span>
+              <IconButton label="Close" onClick={onClose}><CloseIcon /></IconButton>
+            </div>
+          </>
         ) : null}
         {children}
       </div>
@@ -148,7 +154,7 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
 export function Modal({ label, onClose, children, wide = false }: { label: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const ref = useFocusTrap(true, onClose);
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/30 p-3 sm:p-8">
+    <div className="scrim fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:p-8">
       <div className="fixed inset-0" onPointerDown={onClose} aria-hidden="true" />
       <div
         ref={ref}
@@ -156,7 +162,7 @@ export function Modal({ label, onClose, children, wide = false }: { label: strin
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
-        className={`pop-in relative z-10 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-xl border border-line bg-surface shadow-[var(--shadow)]`}
+        className={`pop-in relative z-10 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]`}
       >
         {children}
       </div>
@@ -190,8 +196,8 @@ export function IconButton({
       aria-label={label}
       title={label}
       aria-pressed={active}
-      className={`inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2 transition-colors disabled:opacity-40 ${
-        active ? 'bg-accent-soft text-accent' : tone === 'danger' ? 'text-danger hover:bg-danger-soft' : 'text-muted hover:bg-surface-2 hover:text-ink'
+      className={`press inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2 transition-colors disabled:opacity-40 ${
+        active ? 'bg-accent-soft text-accent' : tone === 'danger' ? 'text-danger hover:bg-danger-soft' : 'text-muted hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:text-ink'
       } ${className}`}
     >
       {children}
@@ -213,13 +219,13 @@ export function Button({
   keepFocus?: boolean;
 }) {
   const base =
-    'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:opacity-45 disabled:pointer-events-none';
+    'press inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150 disabled:opacity-45 disabled:pointer-events-none';
   const sizes = size === 'sm' ? 'h-8 px-2.5 text-[13px]' : 'h-10 px-3.5 text-[14px]';
   const variants = {
-    primary: 'bg-accent-fill text-accent-fill-contrast hover:opacity-90',
-    secondary: 'border border-line bg-surface hover:bg-surface-2',
-    ghost: 'text-muted hover:bg-surface-2 hover:text-ink',
-    danger: 'border border-line text-danger hover:bg-danger-soft',
+    primary: 'bg-accent-fill text-accent-fill-contrast shadow-[var(--shadow-sm),inset_0_1px_0_rgb(255_255_255_/_18%)] hover:brightness-[1.04] active:brightness-[0.97]',
+    secondary: 'border border-line bg-surface shadow-[var(--shadow-card)] hover:border-line-strong hover:bg-surface-2',
+    ghost: 'text-muted hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:text-ink',
+    danger: 'border border-line text-danger hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:bg-danger-soft',
   } as const;
   return (
     <button
@@ -267,10 +273,11 @@ export function StatusControl({
         event.stopPropagation();
         if (isOpen) onCancel();
       }}
-      className="mt-[1px] flex h-6 w-6 shrink-0 items-center justify-center"
+      className="group/check mt-[1px] flex h-6 w-6 shrink-0 items-center justify-center"
     >
       <span
-        className="flex h-6 w-6 items-center justify-center rounded-[5px] border transition-colors"
+        data-status={status}
+        className="check-box flex h-[22px] w-[22px] items-center justify-center rounded-[7px] border-[1.5px] group-hover/check:border-accent"
         style={{
           borderColor: status === 'open' ? 'var(--control-border)' : 'transparent',
           background: status === 'completed' ? 'var(--accent-fill)' : status === 'canceled' ? 'var(--control-border)' : 'transparent',
@@ -331,6 +338,7 @@ export function AutoTextarea({
   placeholder?: string;
   ariaLabel: string;
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  /** Also marks the field as the preferred initial focus for an enclosing dialog. */
   autoFocus?: boolean;
   className?: string;
   rows?: number;
@@ -352,6 +360,7 @@ export function AutoTextarea({
       aria-label={ariaLabel}
       placeholder={placeholder}
       autoFocus={autoFocus}
+      data-autofocus={autoFocus ? '' : undefined}
       onBlur={onBlur}
       onChange={(event) => {
         onChange(event.target.value);
@@ -385,13 +394,13 @@ export function Chip({
   onRemove?: () => void;
 }) {
   const tones = {
-    default: 'border-line text-muted',
+    default: 'border-line bg-surface text-muted',
     accent: 'border-transparent bg-accent-soft text-accent',
     warning: 'border-transparent bg-[var(--danger-soft)] text-[var(--upcoming)]',
     danger: 'border-transparent bg-danger-soft text-danger',
   } as const;
   const content = (
-    <span className={`inline-flex h-6 items-center gap-1 rounded-full border px-2 text-[12px] ${tones[tone]}`}>
+    <span className={`inline-flex h-[22px] items-center gap-1 rounded-full border px-2 text-[12px] leading-none ${tones[tone]}`}>
       {children}
       {removable ? (
         <button type="button" aria-label={`Remove ${label ?? 'item'}`} onClick={onRemove} className="ml-0.5 opacity-70 hover:opacity-100">

@@ -99,12 +99,15 @@ interface AppState {
   redo: () => void;
   pushToast: (toast: Omit<Toast, 'id'>) => void;
   dismissToast: (id: string) => void;
+  setConflictCount: (count: number) => void;
 
   syncNow: () => Promise<void>;
   refreshSession: () => Promise<void>;
   runMaintenance: () => void;
   replaceDatabase: (db: Database) => Promise<void>;
   signOutLocal: () => Promise<void>;
+  /** Re-reads the shared local database after another tab replaced or erased it. */
+  reloadFromDevice: () => Promise<void>;
 }
 
 const LOCAL_OWNER = 'local-owner';
@@ -112,6 +115,30 @@ let indexCache: { db: Database; today: DateOnly; value: Indexes } | null = null;
 let syncTimer: ReturnType<typeof setInterval> | null = null;
 let clockTimer: ReturnType<typeof setInterval> | null = null;
 let syncInFlight = false;
+
+/**
+ * Cross-tab propagation (R28). Tabs share one IndexedDB database, so a change only
+ * needs to be committed once; the other tabs are told which patches landed and apply
+ * them in memory. Nothing received here is persisted or queued again.
+ */
+type TabMessage =
+  | { kind: 'patches'; ownerId: string; patches: EntityPatch[] }
+  | { kind: 'reload' };
+let tabChannel: BroadcastChannel | null = null;
+
+function openTabChannel(onMessage: (message: TabMessage) => void): void {
+  if (tabChannel || typeof BroadcastChannel === 'undefined') return;
+  tabChannel = new BroadcastChannel('gettodo.tabs');
+  tabChannel.onmessage = (event: MessageEvent<TabMessage>) => onMessage(event.data);
+}
+
+function announce(message: TabMessage): void {
+  try {
+    tabChannel?.postMessage(message);
+  } catch {
+    /* a closed channel or an unclonable payload must never break a save */
+  }
+}
 
 function opsFor(patches: EntityPatch[], deviceId: string, ownerId: string, now: string): SyncOperation[] {
   return patches.map((patch) => ({
@@ -186,6 +213,15 @@ export const useApp = create<AppState>((set, get) => ({
     get().runMaintenance();
     await get().refreshSession();
 
+    openTabChannel((message) => {
+      if (message.kind === 'reload') {
+        void get().reloadFromDevice();
+        return;
+      }
+      if (message.ownerId !== get().ownerId || message.patches.length === 0) return;
+      set({ db: applyPatches(get().db, message.patches) });
+    });
+
     if (clockTimer === null && typeof window !== 'undefined') {
       // The planning date is recomputed rather than incremented, so DST and a sleeping
       // device cannot make a naive 24-hour timer skip or repeat a My Day rollover.
@@ -228,6 +264,7 @@ export const useApp = create<AppState>((set, get) => ({
 
     void persistPatches(db, patches, ops)
       .then(() => {
+        announce({ kind: 'patches', ownerId: state.ownerId, patches });
         if (get().syncConfigured && get().signedIn) void get().syncNow();
       })
       .catch(() => {
@@ -329,6 +366,9 @@ export const useApp = create<AppState>((set, get) => ({
   dismissToast(id) {
     set({ toasts: get().toasts.filter((t) => t.id !== id) });
   },
+  setConflictCount(count) {
+    set({ conflictCount: count });
+  },
 
   /**
    * Housekeeping that must run on load, on rollover and after foregrounding. Its first
@@ -399,6 +439,7 @@ export const useApp = create<AppState>((set, get) => ({
       });
       await persistIncoming(db, response.changes, response.cursor);
       await acknowledgeOps(response.applied, response.cursor);
+      if (response.changes.length > 0) announce({ kind: 'patches', ownerId: state.ownerId, patches: response.changes });
       set({ syncStatus: get().pending.length > 0 ? 'savedOnDevice' : 'upToDate' });
       if (response.conflicts.length > 0) {
         get().pushToast({
@@ -433,6 +474,7 @@ export const useApp = create<AppState>((set, get) => ({
     await setLocalIdentity(get().ownerId, get().deviceId);
     await persistIncoming(db, records, 0);
     set({ cursor: 0, pending: [] });
+    announce({ kind: 'reload' });
   },
 
   async signOutLocal() {
@@ -446,6 +488,26 @@ export const useApp = create<AppState>((set, get) => ({
       db, ownerId: LOCAL_OWNER, pending: [], cursor: 0, signedIn: false,
       email: null, syncStatus: 'local', undoStack: [], redoStack: [], view: 'today',
     });
+    announce({ kind: 'reload' });
+  },
+
+  async reloadFromDevice() {
+    const timeZone = systemClock.timeZone();
+    const loaded = await loadLocal(LOCAL_OWNER, timeZone).catch(() => null);
+    if (!loaded) return;
+    const ownerId = loaded.ownerId ?? LOCAL_OWNER;
+    set({
+      db: loaded.db,
+      ownerId,
+      deviceId: loaded.deviceId ?? get().deviceId,
+      pending: loaded.pending,
+      cursor: loaded.cursor,
+      undoStack: [],
+      redoStack: [],
+      openItemId: null,
+      selection: [],
+    });
+    await get().refreshSession();
   },
 }));
 

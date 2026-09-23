@@ -1,6 +1,6 @@
 {
-  "name": "getToDo",
-  "short_name": "getToDo",
+  "name": "ToDone",
+  "short_name": "ToDone",
   "description": "A calm task manager: capture a thought, plan your day, keep commitments visible.",
   "start_url": "/",
   "scope": "/",

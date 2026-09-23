@@ -1,8 +1,8 @@
 {
-  "name": "gettodo",
-  "version": "0.6.5",
+  "name": "todone",
+  "version": "0.7.0",
   "private": true,
-  "description": "getToDo — a calm, local-first task manager. P0 web/PWA release.",
+  "description": "ToDone — a calm, local-first task manager. P0 web/PWA release.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

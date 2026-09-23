@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { formatDateLabel } from '@/core/dates';
 import { projectProgress } from '@/core/membership';
+import { describeRule } from '@/core/recurrence';
 import { tagPath } from '@/core/tags';
 import { effectiveProjectTags } from '@/core/tags';
 import { useApp, useIndexes } from '@/state/store';
@@ -11,8 +12,9 @@ import { AutoTextarea, Button, Chip, IconButton, Modal, ProgressRing } from './p
 import { Markdown } from './Markdown';
 import { WhenPopover, DeadlinePopover, type WhenValue } from './DatePopover';
 import { MovePicker, TagPicker } from './Pickers';
-import { CalendarIcon, CopyIcon, FlagIcon, MoveIcon, PlusIcon, TagIcon, TrashIcon } from './icons';
+import { CalendarIcon, CopyIcon, FlagIcon, MoveIcon, PlusIcon, RepeatIcon, TagIcon, TrashIcon } from './icons';
 import { DuplicateDialog } from './DuplicateDialog';
+import { RepeatEditor } from './RepeatEditor';
 
 /** Project header (§2): title, notes, schedule, deadline, progress and heading creation. */
 export function ProjectHeader({ projectId }: { projectId: string }) {
@@ -23,7 +25,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
   const showLogged = useApp((s) => s.showLogged);
   const setShowLogged = useApp((s) => s.setShowLogged);
   const setView = useApp((s) => s.setView);
-  const [popover, setPopover] = useState<'when' | 'deadline' | 'area' | 'tags' | null>(null);
+  const [popover, setPopover] = useState<'when' | 'deadline' | 'area' | 'tags' | 'repeat' | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
   const [confirmComplete, setConfirmComplete] = useState(false);
@@ -37,6 +39,10 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
   const openCount = (indexes.tasksByProject.get(projectId) ?? []).filter((t) => t.status === 'open').length;
   const tags = effectiveProjectTags(db, indexes.tagIndex, projectId);
   const area = project.areaId ? db.areas[project.areaId] : null;
+  const template = Object.values(db.occurrenceLinks)
+    .filter((l) => l.deletedAt === null && l.materializedId === projectId)
+    .map((l) => db.repeatTemplates[l.templateId])
+    .find(Boolean);
 
   const open = (kind: typeof popover) => (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchor(event.currentTarget);
@@ -51,18 +57,18 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
   };
 
   return (
-    <header className="mb-3 border-b border-line pb-3">
+    <header className="mb-3 border-b border-line pb-3.5">
       <div className="flex items-start gap-3">
-        <ProgressRing percent={progress.percent} size={22} />
+        <span className="mt-1 flex h-7 w-7 items-center justify-center"><ProgressRing percent={progress.percent} size={24} /></span>
         <div className="min-w-0 flex-1">
           <AutoTextarea
             value={project.title}
             ariaLabel="Project title"
             placeholder="Project name"
-            className="text-[22px] font-semibold leading-tight"
+            className="text-[24px] font-bold leading-tight tracking-[-0.02em]"
             onChange={(value) => actions.updateProject(projectId, { title: value })}
           />
-          <p className="mt-0.5 text-[12.5px] text-muted">
+          <p className="mt-1 text-[13px] text-muted">
             {area ? (
               <button type="button" onClick={() => setView(`area:${area.id}`)} className="hover:underline">{area.title}</button>
             ) : 'No area'}
@@ -74,7 +80,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
       </div>
 
       {notesOpen || project.notes.trim() ? (
-        <div className="mt-2 pl-[34px]">
+        <div className="mt-2 pl-[40px]">
           {notesOpen ? (
             <AutoTextarea
               value={project.notes}
@@ -94,7 +100,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
       ) : null}
 
       {tags.all.size > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1 pl-[34px]">
+        <div className="mt-2 flex flex-wrap gap-1 pl-[40px]">
           {[...tags.direct].map((tagId) => (
             <Chip key={tagId} tone="accent" removable label={tagPath(db, tagId)} onRemove={() => actions.toggleTag('project', projectId, tagId, false)}>
               {tagPath(db, tagId)}
@@ -104,7 +110,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
         </div>
       ) : null}
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-1">
+      <div className="mt-3 flex flex-wrap items-center gap-1">
         <Button size="sm" variant="ghost" keepFocus onClick={open('when')}>
           <CalendarIcon size={14} />
           {project.planning === 'someday' ? 'Someday' : project.startDate ? `Scheduled ${formatDateLabel(project.startDate, today)}` : 'When'}
@@ -114,6 +120,9 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
         </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={open('area')}><MoveIcon size={14} />{area ? area.title : 'Area'}</Button>
         <Button size="sm" variant="ghost" keepFocus onClick={open('tags')}><TagIcon size={14} />Tags</Button>
+        <Button size="sm" variant="ghost" keepFocus onClick={open('repeat')}>
+          <RepeatIcon size={14} />{template ? describeRule(template.rule) : 'Repeat'}
+        </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={() => setNewHeading('')}><PlusIcon size={14} />Heading</Button>
         <Button size="sm" variant="ghost" keepFocus onClick={() => setDuplicating(true)}><CopyIcon size={14} />Duplicate</Button>
         {!notesOpen && !project.notes.trim() ? (
@@ -154,7 +163,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
             }
             if (event.key === 'Escape') setNewHeading(null);
           }}
-          className="mt-2 h-9 w-full rounded-md border border-accent bg-surface px-2.5 text-[14px] outline-none"
+          className="mt-2 h-10 w-full rounded-md border border-accent bg-surface px-3 text-[14px] outline-none ring-2 ring-[color-mix(in_srgb,var(--accent-fill)_25%,transparent)]"
         />
       ) : null}
 
@@ -192,6 +201,10 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
           onToggle={(tagId, next) => actions.toggleTag('project', projectId, tagId, next)}
           onCreate={(name) => actions.createAndAssignTag('project', projectId, name)}
         />
+      ) : null}
+
+      {popover === 'repeat' ? (
+        <RepeatEditor anchor={anchor} onClose={() => setPopover(null)} subject={{ kind: 'project', project }} />
       ) : null}
 
       {duplicating ? (

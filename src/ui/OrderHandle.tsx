@@ -55,6 +55,6 @@ export function OrderHandle({ id, ids, group, scope }: { id: string; ids: string
         next.splice(from, 1); next.splice(to, 0, id);
         actions.orderItems(next, scope);
       }}><span aria-hidden="true">⠿</span></button>
-    {hint ? <span role="status" className="pointer-events-none absolute right-0 z-20 w-44 rounded-md border border-line bg-surface p-2 text-xs shadow-lg">{hint}</span> : null}
+    {hint ? <span role="status" className="pointer-events-none absolute right-0 z-20 w-44 rounded-md border border-line bg-surface p-2 text-xs shadow-[var(--shadow-pop)]">{hint}</span> : null}
   </span>;
 }

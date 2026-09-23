@@ -6,6 +6,7 @@ import {
   onOccurrenceCanceled, onOccurrenceCompleted, onOccurrenceReopened,
 } from '@/core/recurrence';
 import type { EntityPatch } from '@/core/patches';
+import { isEntityTable } from '@/core/patches';
 import type { AddTarget } from '@/core/commands';
 import type { DateOnly, LifecycleStatus, Task } from '@/core/types';
 import {
@@ -318,6 +319,24 @@ export function snoozeReminder(reminderId: string, minutes: 10 | 30 | 60): void 
 export function updateSettings(fields: Partial<import('@/core/types').Settings>): void {
   const state = app();
   state.dispatch([{ table: 'settings', id: 'settings', patch: { ...fields, updatedAt: state.ctx().now } }]);
+}
+
+/* -------------------------------------------------------------- conflicts */
+
+/**
+ * Puts a displaced value back (R34). It is an ordinary edit, so it syncs to every device
+ * and can be undone; the winning value is what Undo restores.
+ */
+export function restoreDisplacedValue(table: string, entityId: string, field: string, value: unknown): boolean {
+  const state = app();
+  if (!isEntityTable(table)) return false;
+  const record = (state.db[table] as Record<string, unknown>)[entityId];
+  if (!record) return false;
+  state.dispatch(
+    [{ table, id: entityId, patch: { [field]: value, updatedAt: state.ctx().now } }],
+    { undoLabel: 'restore displaced value', toast: { message: 'Displaced value restored.', tone: 'info' } },
+  );
+  return true;
 }
 
 /* ------------------------------------------------- duplicate and promote */

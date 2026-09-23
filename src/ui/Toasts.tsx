@@ -18,7 +18,7 @@ export function Toasts() {
         <div
           key={toast.id}
           role="status"
-          className={`pop-in pointer-events-auto flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-[13.5px] shadow-[var(--shadow)] ${
+          className={`pop-in pointer-events-auto flex max-w-full items-center gap-2 rounded-lg border px-3 py-2 text-[13.5px] shadow-[var(--shadow-pop)] ${
             toast.tone === 'error'
               ? 'border-transparent bg-danger-soft text-danger'
               : toast.tone === 'warning'

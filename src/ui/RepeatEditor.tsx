@@ -3,11 +3,11 @@
 import { useMemo, useState } from 'react';
 import { formatDateLabel } from '@/core/dates';
 import {
-  createNextEarly, createTemplate, describeRule, pauseTemplate, previewNext,
+  createNextEarly, createTemplate, describeRule, pauseTemplate, previewNext, projectSnapshot,
   resumeTemplate, skipOccurrence, stopTemplate, updateTemplate, canRepeatTask,
 } from '@/core/recurrence';
 import { byRank } from '@/core/rank';
-import type { RepeatRule, RepeatRuleType, Task } from '@/core/types';
+import type { Project, RepeatRule, RepeatRuleType, RepeatSnapshot, Task } from '@/core/types';
 import { useApp } from '@/state/store';
 import { Button, Popover } from './primitives';
 
@@ -23,18 +23,23 @@ const RULE_LABELS: { value: RepeatRuleType; label: string }[] = [
 
 const DAY_NAMES = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+/** What is being made repeating: a single task, or a whole project with its structure. */
+export type RepeatSubject = { kind: 'task'; task: Task } | { kind: 'project'; project: Project };
+
 /**
  * The recurrence editor (R17, R18). It always says whether the user is looking at the
  * template or at one copy, and it previews upcoming dates without creating anything.
  */
-export function RepeatEditor({ anchor, onClose, task }: { anchor: HTMLElement | null; onClose: () => void; task: Task }) {
+export function RepeatEditor({ anchor, onClose, subject }: { anchor: HTMLElement | null; onClose: () => void; subject: RepeatSubject }) {
   const db = useApp((s) => s.db);
   const today = useApp((s) => s.today);
   const ctx = useApp((s) => s.ctx);
   const dispatch = useApp((s) => s.dispatch);
   const pushToast = useApp((s) => s.pushToast);
 
-  const link = Object.values(db.occurrenceLinks).find((l) => l.deletedAt === null && l.materializedId === task.id);
+  const item = subject.kind === 'task' ? subject.task : subject.project;
+  const noun = subject.kind === 'task' ? 'task' : 'project';
+  const link = Object.values(db.occurrenceLinks).find((l) => l.deletedAt === null && l.materializedId === item.id);
   const existing = link ? db.repeatTemplates[link.templateId] : undefined;
 
   const [rule, setRule] = useState<RepeatRule>(existing?.rule ?? { type: 'everyNWeeks', interval: 1, weekdays: [] });
@@ -42,28 +47,10 @@ export function RepeatEditor({ anchor, onClose, task }: { anchor: HTMLElement | 
   const [leadDays, setLeadDays] = useState(existing?.leadDays ?? 0);
   const [endDate, setEndDate] = useState(existing?.endDate ?? '');
 
-  const anchorDate = existing?.anchorDate ?? task.startDate ?? today;
-  const preview = useMemo(() => {
-    const draft = {
-      ...(existing ?? {
-        id: 'draft', ownerId: '', entityKind: 'task' as const,
-        snapshot: { title: task.title, notes: task.notes, parentType: task.parentType, parentId: task.parentId, headingId: task.headingId, areaId: null, tagIds: [], checklist: [] },
-        timeZone: db.settings.planningTimeZone, pausedAt: null, stoppedAt: null, ruleVersion: 1,
-        lastGeneratedKey: null, createdAt: '', updatedAt: '', deletedAt: null,
-      }),
-      rule, anchorDate, endDate: endDate || null, useDeadline, leadDays,
-    };
-    return previewNext(draft as Parameters<typeof previewNext>[0], today);
-  }, [rule, anchorDate, endDate, useDeadline, leadDays, existing, task, today, db.settings.planningTimeZone]);
-
-  const allowed = canRepeatTask(db, task);
-
-  const save = () => {
-    if (existing) {
-      dispatch(updateTemplate(db, ctx(), existing.id, { rule, useDeadline, leadDays, endDate: endDate || null }), { undoLabel: 'repeat rule' });
-      onClose();
-      return;
-    }
+  const anchorDate = existing?.anchorDate ?? item.startDate ?? today;
+  const draftSnapshot = useMemo<RepeatSnapshot>(() => {
+    if (subject.kind === 'project') return projectSnapshot(db, subject.project, anchorDate);
+    const { task } = subject;
     const checklist = Object.values(db.checklistItems)
       .filter((c) => c.taskId === task.id && c.deletedAt === null)
       .sort(byRank)
@@ -71,15 +58,43 @@ export function RepeatEditor({ anchor, onClose, task }: { anchor: HTMLElement | 
     const tagIds = Object.values(db.tagAssignments)
       .filter((a) => a.deletedAt === null && a.targetType === 'task' && a.targetId === task.id)
       .map((a) => a.tagId);
+    return {
+      priority: task.priority ?? null,
+      title: task.title, notes: task.notes, parentType: task.parentType, parentId: task.parentId,
+      headingId: task.headingId, areaId: null, tagIds, checklist,
+    };
+  }, [db, subject, anchorDate]);
 
-    const created = createTemplate(ctx(), {
-      entityKind: 'task',
-      snapshot: {
-        priority: task.priority ?? null,
-        title: task.title, notes: task.notes, parentType: task.parentType, parentId: task.parentId,
-        headingId: task.headingId, areaId: null, tagIds, checklist,
-      },
+  const preview = useMemo(() => {
+    const draft = {
+      ...(existing ?? {
+        id: 'draft', ownerId: '', entityKind: subject.kind, snapshot: draftSnapshot,
+        timeZone: db.settings.planningTimeZone, pausedAt: null, stoppedAt: null, ruleVersion: 1,
+        lastGeneratedKey: null, createdAt: '', updatedAt: '', deletedAt: null,
+      }),
       rule, anchorDate, endDate: endDate || null, useDeadline, leadDays,
+    };
+    return previewNext(draft as Parameters<typeof previewNext>[0], today);
+  }, [rule, anchorDate, endDate, useDeadline, leadDays, existing, subject.kind, draftSnapshot, today, db.settings.planningTimeZone]);
+
+  const allowed = subject.kind === 'project' || canRepeatTask(db, subject.task);
+  const headingCount = draftSnapshot.headings?.length ?? 0;
+  const childCount = (draftSnapshot.tasks?.length ?? 0) + (draftSnapshot.headings ?? []).reduce((n, h) => n + h.tasks.length, 0);
+  const structureSummary = subject.kind === 'project'
+    ? `${childCount} open task${childCount === 1 ? '' : 's'}${headingCount > 0 ? ` under ${headingCount} heading${headingCount === 1 ? '' : 's'}` : ''}`
+    : null;
+
+  const save = () => {
+    if (existing) {
+      dispatch(updateTemplate(db, ctx(), existing.id, { rule, useDeadline, leadDays, endDate: endDate || null }), { undoLabel: 'repeat rule' });
+      onClose();
+      return;
+    }
+    const created = createTemplate(ctx(), {
+      entityKind: subject.kind,
+      snapshot: draftSnapshot,
+      rule, anchorDate, endDate: endDate || null, useDeadline, leadDays,
+      existingId: item.id,
     });
     dispatch(created.patches, { undoLabel: 'repeat' });
     pushToast({ message: `Repeating: ${describeRule(rule)}. The next copies appear as their dates arrive.`, tone: 'info' });
@@ -96,7 +111,9 @@ export function RepeatEditor({ anchor, onClose, task }: { anchor: HTMLElement | 
         <p className="rounded-md bg-surface-2 px-2 py-1.5 text-[12px] text-muted">
           {existing
             ? 'You are editing the template. Changes apply to future copies; copies already made are untouched.'
-            : 'This creates a template. The task in front of you becomes its first copy.'}
+            : `This creates a template. The ${noun} in front of you becomes its first copy${
+              structureSummary ? `, and each later copy carries its ${structureSummary}, with dates kept relative to the copy` : ''
+            }.`}
         </p>
 
         {!allowed ? (

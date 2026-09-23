@@ -1,4 +1,4 @@
-# getToDo
+# ToDone
 
 A calm, local-first task manager: capture a thought, organise work, choose what to do
 today, and keep commitments visible. Built from
@@ -21,7 +21,7 @@ Nothing else is required. With no configuration the app is fully usable: it stor
 everything in IndexedDB on the device, works offline, and says so in Settings.
 
 ```bash
-npm run verify     # typecheck + 103 unit tests + contrast audit + production build
+npm run verify     # typecheck + 125 unit tests + contrast audit + production build
 ```
 
 ## Deploying to Vercel
@@ -65,7 +65,7 @@ sync**. Sign in with that same account on iPhone and iPad; after each device rep
 The site is responsive and installable as a PWA; no App Store account is needed.
 
 - **iPhone / iPad:** open the Vercel URL in Safari, choose **Share → Add to Home Screen**,
-  then open getToDo from the new icon and sign in.
+  then open ToDone from the new icon and sign in.
 - **PC:** open the URL in Edge or Chrome and use the browser's **Install app** button in
   the address bar, or simply keep using the browser tab.
 
@@ -79,9 +79,11 @@ or decide to change providers later.
 
 ### Optional: inbound email capture
 
-Set `INBOUND_EMAIL_SECRET` (16+ characters) and point a mail provider's inbound webhook
-at `POST /api/inbound-email` with that value in an `x-inbound-secret` header. See
-`.env.example`.
+Set `INBOUND_EMAIL_SECRET` (16+ characters) and `INBOUND_EMAIL_DOMAIN` (the domain the
+capture addresses live under, e.g. `in.example.com`), then point a mail provider's inbound
+webhook at `POST /api/inbound-email` with the secret in an `x-inbound-secret` header.
+Each account issues, pauses, rotates or removes its own address in **Settings →
+Automation**. See `.env.example`.
 
 ## Connecting a calendar
 
@@ -134,12 +136,18 @@ time; one that occurs twice in a fall-back is delivered at the first occurrence,
 Operations are incremental and idempotent by `opId`, so replaying a queue after a
 reconnect never duplicates an item, a completion or a recurring occurrence. Changes to
 different fields — and to different checklist rows — merge. A same-field clash is
-resolved by server-assigned order, and the displaced value is retained for 30 days.
-Deletion beats a stale edit: only an explicit restore reactivates deleted data.
+resolved by server-assigned order, and the displaced value is retained for 30 days and
+listed under **Settings → Account & sync → Conflicting edits**, where it can be read,
+restored as an ordinary (undoable, syncing) edit, or dismissed. Deletion beats a stale
+edit: only an explicit restore reactivates deleted data.
+
+Tabs on the same device share one IndexedDB database and tell each other about every
+committed change over a `BroadcastChannel`, so a second window reflects an edit
+immediately without re-persisting or re-queueing it.
 
 ## Automation API
 
-Create a token in **Settings → Account & sync** (requires an account). All endpoints take
+Create a token in **Settings → Automation** (requires an account). All endpoints take
 `Authorization: Bearer <token>` and accept an `Idempotency-Key` header on writes.
 
 | Method | Path | Purpose |
@@ -161,13 +169,19 @@ The sidebar leads with a Quick find field (⌘K), then the six built-in lists, t
 areas and tags as separate sections with their own add buttons. The special views —
 Tomorrow, Deadlines, Repeating, All Projects, Logged Projects and Trash — sit behind
 "More lists" so they stay reachable without crowding the navigation. The account and
-sync status live along the bottom edge.
+sync status live along the bottom edge, with a coloured dot for the sync state.
 
 Each list carries its own hue — amber for Today, coral for Upcoming, teal for Anytime —
-used for its sidebar icon, its page badge and the wash behind it, so a glance at the
-header tells you where you are. The active row takes a soft fill of the accent while its
-glyph keeps its own colour. Dates render as tinted pills rather than grey text, and an
-overdue deadline is the only red on the page.
+used for its sidebar icon, its page badge, a faint wash across the top of its page and
+the hairline along the top of an open task card, so a glance at the header tells you
+where you are. The active row takes a soft fill of the accent while its glyph keeps its
+own colour. Dates render as tinted pills rather than grey text, and an overdue deadline
+is the only red on the page.
+
+Surfaces follow one scale: controls are 8px-rounded, cards 12px, dialogs 16px and phone
+sheets 20px, with a resting card shadow and a deeper one for anything that floats.
+Motion is short and eased — cards pop in, sheets slide up — and is switched off entirely
+by the system or in-app reduced-motion preference.
 
 Both themes are held to WCAG 2.2 AA by `npm run check:contrast`, which asserts every
 text and UI-component pair in `globals.css` and fails the build if a colour change drops

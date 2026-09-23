@@ -24,6 +24,14 @@ export function syncConfigured(): boolean {
   return databaseUrl() !== null && authSecret() !== null;
 }
 
+/** Email capture needs the webhook secret and the domain the addresses live under (R29). */
+export function emailCaptureDomain(): string | null {
+  const secret = process.env.INBOUND_EMAIL_SECRET ?? '';
+  const domain = (process.env.INBOUND_EMAIL_DOMAIN ?? '').trim().toLowerCase();
+  if (secret.length < 16 || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) return null;
+  return domain;
+}
+
 /** Why sync is unavailable, so the deployment owner sees the actual gap. */
 export function configurationProblem(): string | null {
   if (databaseUrl() === null && authSecret() === null) return 'DATABASE_URL and AUTH_SECRET are not set.';

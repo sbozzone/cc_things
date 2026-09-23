@@ -9,10 +9,11 @@ import * as actions from '@/state/actions';
 import { Button, Modal } from './primitives';
 import { AlertIcon, CloudIcon } from './icons';
 import { AccountPanel } from './AccountPanel';
+import { AutomationPanel } from './AutomationPanel';
 import { CalendarPanel } from './CalendarPanel';
 import { KeyboardHelp } from './KeyboardHelp';
 
-const TABS = ['General', 'Account & sync', 'Calendar', 'Data', 'Keyboard'] as const;
+const TABS = ['General', 'Account & sync', 'Automation', 'Calendar', 'Data', 'Keyboard'] as const;
 type Tab = (typeof TABS)[number];
 
 const APPEARANCE_KEY = 'clearing.appearance';
@@ -38,7 +39,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   );
 }
 
-const selectClass = 'h-9 rounded-md border border-line bg-surface px-2 text-[13.5px]';
+const selectClass = 'h-9 rounded-md border border-line bg-surface px-2 text-[13.5px] shadow-[var(--shadow-card)]';
 
 function GeneralTab() {
   const settings = useApp((s) => s.db.settings);
@@ -191,12 +192,12 @@ function DataTab({ onClose }: { onClose: () => void }) {
   return (
     <div>
       <Row label="Export a JSON package" hint="Tasks, hierarchy, notes, tags, schedules and history. No credentials, no cached calendar events.">
-        <Button size="sm" onClick={() => download(`gettodo-${stamp}.json`, JSON.stringify(exportDatabase(db), null, 2), 'application/json')}>
+        <Button size="sm" onClick={() => download(`todone-${stamp}.json`, JSON.stringify(exportDatabase(db), null, 2), 'application/json')}>
           Export JSON
         </Button>
       </Row>
       <Row label="Export readable text" hint="A plain outline you can read anywhere.">
-        <Button size="sm" onClick={() => download(`gettodo-${stamp}.txt`, exportText(db), 'text/plain')}>Export text</Button>
+        <Button size="sm" onClick={() => download(`todone-${stamp}.txt`, exportText(db), 'text/plain')}>Export text</Button>
       </Row>
       <Row label="Import a package" hint="You will see a count preview and choose merge or copy before anything is written.">
         <Button size="sm" onClick={() => fileRef.current?.click()}>Choose file…</Button>
@@ -300,14 +301,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal label="Settings" onClose={onClose} wide>
-      <div className="flex items-center gap-2 border-b border-line px-3 py-2">
-        <h2 className="flex-1 text-[15px] font-semibold">Settings</h2>
+      <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
+        <h2 className="flex-1 text-[16px] font-bold tracking-[-0.01em]">Settings</h2>
         <Button size="sm" variant="ghost" onClick={onClose}>Done</Button>
       </div>
       <div
         role="tablist"
         aria-label="Settings sections"
-        className="scroll-area flex gap-1 overflow-x-auto border-b border-line px-2 py-1.5"
+        className="no-scrollbar flex gap-1 overflow-x-auto border-b border-line px-3 py-2"
       >
         {TABS.map((name) => (
           <button
@@ -316,8 +317,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             type="button"
             aria-selected={tab === name}
             onClick={() => setTab(name)}
-            className={`h-8 shrink-0 rounded-md px-3 text-[13.5px] ${
-              tab === name ? 'bg-accent-soft font-medium text-accent' : 'text-muted hover:bg-surface-2'
+            className={`press h-8 shrink-0 rounded-full px-3.5 text-[13.5px] transition-colors ${
+              tab === name ? 'bg-accent-soft font-semibold text-accent' : 'text-muted hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:text-ink'
             }`}
           >
             {name}
@@ -325,15 +326,19 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         ))}
       </div>
       <div className="scroll-area max-h-[65vh] overflow-y-auto px-4 py-2">
-        {conflictCount > 0 ? (
+        {conflictCount > 0 && tab !== 'Account & sync' ? (
           <p className="my-2 flex items-start gap-2 rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger">
             <AlertIcon size={15} className="mt-0.5 shrink-0" />
-            {conflictCount} conflicting edit{conflictCount === 1 ? '' : 's'} were resolved by server order this session. The
-            displaced values are retained for 30 days and can be recovered from the sync log.
+            <span className="flex-1">
+              {conflictCount} conflicting edit{conflictCount === 1 ? '' : 's'} {conflictCount === 1 ? 'was' : 'were'} resolved by server order. The
+              displaced values are kept for 30 days.
+            </span>
+            <button type="button" onClick={() => setTab('Account & sync')} className="shrink-0 font-medium underline">Review</button>
           </p>
         ) : null}
         {tab === 'General' ? <GeneralTab /> : null}
         {tab === 'Account & sync' ? <AccountPanel /> : null}
+        {tab === 'Automation' ? <AutomationPanel /> : null}
         {tab === 'Calendar' ? <CalendarPanel /> : null}
         {tab === 'Data' ? <DataTab onClose={onClose} /> : null}
         {tab === 'Keyboard' ? <KeyboardHelp /> : null}

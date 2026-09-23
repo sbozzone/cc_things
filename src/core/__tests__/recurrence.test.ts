@@ -3,9 +3,9 @@ import { Harness } from '../testing';
 import {
   createNextEarly, createTemplate, datesInRange, generateDueOccurrences, materialize,
   nextDateAfter, onOccurrenceCanceled, onOccurrenceCompleted, onOccurrenceReopened,
-  pauseTemplate, previewNext, resumeTemplate, skipOccurrence, updateTemplate,
+  pauseTemplate, previewNext, projectSnapshot, resumeTemplate, skipOccurrence, updateTemplate,
 } from '../recurrence';
-import { createTask, setTaskStatus, setWhen } from '../commands';
+import { createHeading, createProject, createTask, setTaskStatus, setWhen } from '../commands';
 import { buildIndexes, runView } from '../selectors';
 import type { RepeatRule, RepeatSnapshot } from '../types';
 
@@ -223,6 +223,67 @@ describe('templates and copies (R18)', () => {
     const before = Object.keys(h.db.tasks).length;
     expect(previewNext(h.db.repeatTemplates[id]!, '2026-09-08')).toEqual(['2026-09-09', '2026-09-23', '2026-10-07']);
     expect(Object.keys(h.db.tasks)).toHaveLength(before);
+  });
+
+  it('adopts the task a template was made from as its first copy instead of duplicating it', () => {
+    const h = new Harness('2026-09-08T09:00:00Z');
+    const taskId = h.run(createTask(h.db, h.ctx(), {
+      title: 'Water plants', target: { parentType: 'inbox', parentId: null, headingId: null },
+    })).id;
+    h.apply(setWhen(h.db, h.ctx(), taskId, { planning: 'scheduled', startDate: '2026-09-08' }));
+    const templateId = h.run(createTemplate(h.ctx(), {
+      entityKind: 'task', snapshot: snapshot('Water plants'),
+      rule: { type: 'everyNDays', interval: 7 }, anchorDate: '2026-09-08', existingId: taskId,
+    })).id;
+
+    h.apply(generateDueOccurrences(h.db, h.ctx()));
+    expect(Object.values(h.db.tasks).filter((t) => t.deletedAt === null)).toHaveLength(1);
+    const link = Object.values(h.db.occurrenceLinks).find((l) => l.templateId === templateId);
+    expect(link?.materializedId).toBe(taskId);
+
+    h.advanceDays(7);
+    h.apply(generateDueOccurrences(h.db, h.ctx()));
+    expect(openTitles(h)).toEqual(['2026-09-08', '2026-09-15']);
+  });
+
+  it('snapshots a project with heading structure and child dates as offsets, then materializes it', () => {
+    const h = new Harness('2026-09-08T09:00:00Z');
+    const projectId = h.run(createProject(h.db, h.ctx(), { title: 'Month end close' })).id;
+    const headingId = h.run(createHeading(h.db, h.ctx(), projectId, 'Reports')).id;
+    const loose = h.run(createTask(h.db, h.ctx(), {
+      title: 'Reconcile', target: { parentType: 'project', parentId: projectId, headingId: null },
+    })).id;
+    const under = h.run(createTask(h.db, h.ctx(), {
+      title: 'Send summary', target: { parentType: 'project', parentId: projectId, headingId },
+    })).id;
+    h.apply(setWhen(h.db, h.ctx(), under, { planning: 'scheduled', startDate: '2026-09-11' }));
+
+    const snap = projectSnapshot(h.db, h.db.projects[projectId]!, '2026-09-08');
+    expect(snap.tasks).toEqual([{ title: 'Reconcile', notes: '', startOffsetDays: null }]);
+    expect(snap.headings).toEqual([{ title: 'Reports', tasks: [{ title: 'Send summary', notes: '', startOffsetDays: 3 }] }]);
+
+    const templateId = h.run(createTemplate(h.ctx(), {
+      entityKind: 'project', snapshot: snap, rule: { type: 'dayOfMonth', interval: 1, dayOfMonth: 8 },
+      anchorDate: '2026-09-08', existingId: projectId,
+    })).id;
+    h.apply(generateDueOccurrences(h.db, h.ctx()));
+    expect(Object.values(h.db.projects).filter((p) => p.deletedAt === null)).toHaveLength(1);
+
+    h.setInstant('2026-10-08T09:00:00Z');
+    h.apply(generateDueOccurrences(h.db, h.ctx()));
+    const copies = Object.values(h.db.projects).filter((p) => p.id !== projectId);
+    expect(copies).toHaveLength(1);
+    const copy = copies[0]!;
+    expect(copy.startDate).toBe('2026-10-08');
+    const copiedTasks = Object.values(h.db.tasks).filter((t) => t.parentId === copy.id);
+    expect(copiedTasks.map((t) => [t.title, t.startDate]).sort()).toEqual([
+      ['Reconcile', null], ['Send summary', '2026-10-11'],
+    ]);
+    const copiedHeading = Object.values(h.db.headings).find((hd) => hd.projectId === copy.id);
+    expect(copiedHeading?.title).toBe('Reports');
+    expect(copiedTasks.find((t) => t.title === 'Send summary')?.headingId).toBe(copiedHeading?.id);
+    expect(h.db.tasks[loose]?.parentId).toBe(projectId);
+    expect(Object.values(h.db.occurrenceLinks).filter((l) => l.templateId === templateId)).toHaveLength(2);
   });
 });
 

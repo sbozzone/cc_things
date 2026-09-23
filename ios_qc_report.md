@@ -90,7 +90,7 @@ The release cannot be certified as an iOS 17 simulator build from this test bed.
   - **Resolution:** Resolved. Phone-width buttons, options, tabs, inputs, selects, textareas, and labeled checkboxes now expose at least 44 × 44 px hit areas. The completion artwork remains 24 × 24 inside a 44 × 44 hit area. Reverification found no undersized visible controls in the Today view, task editor, or Settings dialog.
   - **Logs/URL:** `http://localhost:3000/?view=today`; DOM measurements captured during the run.
 
-- [ ] **IOS-QC-004 — Task editor initially focuses completion control instead of title**
+- [x] **IOS-QC-004 — Task editor initially focuses completion control instead of title**
   - **Severity:** Minor
   - **Device/OS:** iPhone 15 Pro-sized viewport, 393 × 852
   - **Reproduce steps:**
@@ -99,6 +99,7 @@ The release cannot be certified as an iOS 17 simulator build from this test bed.
     3. Inspect the active element.
   - **Expected:** If the editor is intended for immediate text editing, the title field receives focus; otherwise no destructive/action control should receive initial focus unexpectedly.
   - **Actual:** The completion checkbox receives initial focus. Editing still works after tapping the title.
+  - **Resolution:** Resolved. The dialog focus trap now honours a `data-autofocus` marker and leaves focus alone when a child has already placed it, so the title field receives initial focus on both the phone modal and the inline desktop editor.
   - **Logs/URL:** `http://localhost:3000/?view=today`; accessibility snapshot showed the checkbox as active.
 
 - [x] **IOS-QC-005 — Move picker announces Inbox as selected even when task is in a project**

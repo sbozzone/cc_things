@@ -59,9 +59,12 @@ The full §7 contract is implemented and tested: occurrence keys, missed-date ge
 day-31 and February-29 fallbacks, deadline lead time, project copies as date offsets,
 completion reversal (retract if untouched, flag for review if edited), and cancel/stop.
 
-Repeating **projects** are modelled and materialize correctly (`RepeatSnapshot.headings`)
-but the editor only offers task templates; a project template must be created through
-the API or an import today.
+Repeating **projects** are modelled, materialize correctly (`RepeatSnapshot.headings`)
+and can be authored from the project header's **Repeat** button: `projectSnapshot`
+captures the open tasks, their headings and each start date as an offset from the
+anchor, so every copy lands relative to its own occurrence date. Making an existing task
+or project repeat records it as the anchor-date occurrence (`existingId`), so generation
+continues from it rather than producing a second copy.
 
 ## 8. Reminders and calendar display
 
@@ -92,9 +95,9 @@ OAuth adapter can be added behind the same interface without touching the displa
 | | Requirement | Status | Where |
 | --- | --- | --- | --- |
 | R27 | Notes and appearance | ✅ | `core/markdown.ts`, `ui/Markdown.tsx`. Markdown rendered as React elements, never as HTML, so embedded markup cannot execute; source preserved. Light/dark/system, scalable text, reduced motion, collapsible sidebar. |
-| R28 | Multiple windows | ✅ | Stable links (`?view=`, `?task=`) in `ui/AppShell.tsx`. Two tabs share one IndexedDB database. **Live cross-tab propagation is not built** — a second tab picks up changes on reload or on the next sync, not instantly. |
-| R29 | Email capture | ⚙️ | `server/email.ts`, `api/inbound-email`. Subject as title, HTML sanitized to text, attachments ignored with a note, 100/day and 10 000 characters, deduplicated by message id, address disable/rotate. **No UI for issuing the address yet** — rows are managed directly in `email_inboxes`. |
-| R30 | Links and automation | ✅ | `api/v1/*`, `server/automation.ts`. Scoped revocable tokens, validation, idempotency keys, pagination, structured project creation. |
+| R28 | Multiple windows | ✅ | Stable links (`?view=`, `?task=`) in `ui/AppShell.tsx`. Two tabs share one IndexedDB database, and `state/store.ts` announces every committed patch set over a `BroadcastChannel` so other tabs apply it in memory at once — without persisting or queueing it again. A replace or erase tells other tabs to reload from the shared store. |
+| R29 | Email capture | ⚙️ | `server/email.ts`, `api/inbound-email`, `api/auth/email-inbox`, `ui/AutomationPanel.tsx`. Subject as title, HTML sanitized to text, attachments ignored with a note, 100/day and 10 000 characters, deduplicated by message id. Each account issues, pauses, rotates or removes its own address under **Settings → Automation**; addresses live under `INBOUND_EMAIL_DOMAIN`. Needs a mail provider's inbound webhook. |
+| R30 | Links and automation | ✅ | `api/v1/*`, `server/automation.ts`, `ui/AutomationPanel.tsx`. Scoped revocable tokens created and revoked under **Settings → Automation** (the secret is shown once), validation, idempotency keys, pagination, structured project creation. |
 
 ## 11. Native Apple platform requirements
 
@@ -125,8 +128,8 @@ Two deliberate simplifications, both preserving the stated behaviour:
 | --- | --- | --- | --- |
 | R32 | Account access and isolation | ⚙️ | `server/auth.ts`, `api/auth/*`. scrypt passwords, signed httpOnly session cookies, owner authorization on every read and write, session revocation. Task text and tokens never enter logs. **Password reset by email is not built** (no mail provider is assumed). |
 | R33 | Durable local operations | ✅ | `db/idb.ts`, `db/local.ts`, `state/store.ts`. Record and pending operation commit in one transaction; four distinguishable states; a storage failure surfaces as "Not saved" with export offered. |
-| R34 | Synchronisation and conflicts | ⚙️ | `server/sync.ts`, `state/sync-client.ts`. Idempotent by `opId`, field-level merge, server-order resolution with 30-day displaced values, deletion before stale edits. **Conflicts are counted and surfaced in Settings but there is no browser UI to read a displaced value back** — the rows are in the `conflicts` table. |
-| R35 | Export, import and account deletion | ⚙️ | `core/portability.ts`, `ui/SettingsPanel.tsx`. Versioned JSON, validation, count preview, merge or copy, readable text export. **Account deletion is not exposed** — sign-out and local erase are. |
+| R34 | Synchronisation and conflicts | ⚙️ | `server/sync.ts`, `state/sync-client.ts`, `api/sync/conflicts`, `ui/ConflictsPanel.tsx`. Idempotent by `opId`, field-level merge, server-order resolution with 30-day displaced values, deletion before stale edits. Displaced values are listed under **Settings → Account & sync**, where each can be read beside the value that won, restored as an ordinary undoable edit (`actions.restoreDisplacedValue`), or dismissed. Needs a configured database. |
+| R35 | Export, import and account deletion | ⚙️ | `core/portability.ts`, `ui/SettingsPanel.tsx`, `api/auth/account`, `ui/AccountPanel.tsx`. Versioned JSON, validation, count preview, merge or copy, readable text export. Account deletion asks for the password again, removes every server row the account owns in one transaction, clears the session and erases the device's local copy. |
 
 ## 14. Quality requirements
 
@@ -155,7 +158,7 @@ Two deliberate simplifications, both preserving the stated behaviour:
 | A11 | Export, import, repeated merge | `portability.test.ts` (six cases) |
 | A12 | Keyboard and screen reader only | Not automated. Keyboard paths exist and were exercised by hand; no screen-reader pass was run. |
 
-**103 unit tests** cover the domain rules. **18 browser interaction checks** cover
+**125 unit tests** cover the domain rules. **18 browser interaction checks** cover
 capture, editing, scheduling, list membership, headings, duplication, promotion, undo
 and reload persistence.
 

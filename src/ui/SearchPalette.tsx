@@ -49,8 +49,8 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal label="Search" onClose={onClose} wide>
-      <div className="flex items-center gap-2 border-b border-line px-3">
-        <SearchIcon className="text-faint" />
+      <div className="flex items-center gap-2.5 border-b border-line px-4">
+        <SearchIcon size={18} className="text-faint" />
         <input
           type="text"
           autoFocus
@@ -72,7 +72,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
               if (result) choose(result);
             }
           }}
-          className="h-12 flex-1 bg-transparent text-[15px] outline-none placeholder:text-faint"
+          className="h-14 flex-1 bg-transparent text-[16px] outline-none placeholder:text-faint"
         />
       </div>
 

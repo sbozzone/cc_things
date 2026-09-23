@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'getToDo',
+  title: 'ToDone',
   description: 'A calm task manager: capture a thought, plan your day, keep commitments visible.',
-  applicationName: 'getToDo',
+  applicationName: 'ToDone',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, title: 'getToDo', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'ToDone', statusBarStyle: 'default' },
   icons: { icon: '/icon.svg', apple: '/apple-icon.png' },
 };
 
@@ -17,8 +17,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f6f6f4' },
-    { media: '(prefers-color-scheme: dark)', color: '#17181a' },
+    { media: '(prefers-color-scheme: light)', color: '#f7f8fb' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f1115' },
   ],
 };
 

@@ -26,7 +26,7 @@ import { TagDot } from './TagColor';
  * The expanded task editor. Optional fields are revealed on demand rather than always
  * shown (§2), and every field persists as it is edited — there is no separate Save.
  */
-export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void }) {
+export function TaskEditor({ task, onClose, embedded = false }: { task: Task; onClose: () => void; embedded?: boolean }) {
   const db = useApp((s) => s.db);
   const today = useApp((s) => s.today);
   const settings = useApp((s) => s.db.settings);
@@ -82,8 +82,10 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
       : 'Inbox';
 
   return (
-    <div className="rounded-lg border border-line bg-surface p-3 shadow-[var(--shadow)]">
-      <div className="flex items-start gap-2.5">
+    <div className={embedded ? 'relative overflow-hidden rounded-xl p-3.5' : 'card relative overflow-hidden p-3.5 shadow-[var(--shadow-pop)]'}>
+      {/* A hairline of the page's hue along the top ties the open card to the list it sits in. */}
+      <span aria-hidden="true" className="view-accent-bg absolute inset-x-0 top-0 h-[3px] opacity-80" />
+      <div className="flex items-start gap-3">
         <StatusControl
           status={task.status}
           label={task.title || 'Untitled task'}
@@ -102,7 +104,8 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
             value={titleDraft}
             ariaLabel="Task title"
             placeholder="New task"
-            className="text-[15px] font-medium"
+            autoFocus
+            className="text-[16px] font-semibold leading-snug tracking-[-0.01em]"
             onChange={setTitleDraft}
             onBlur={commitTitle}
             onKeyDown={(event) => {
@@ -118,7 +121,7 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
       </div>
 
       {showNotes || task.notes.trim() ? (
-        <div className="mt-2 pl-[34px]">
+        <div className="mt-2 pl-[36px]">
           {notesFocused ? (
             <AutoTextarea
               value={task.notes}
@@ -135,7 +138,7 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
               type="button"
               onClick={() => setNotesFocused(true)}
               aria-label="Edit notes"
-              className="block w-full rounded-md text-left hover:bg-surface-2"
+              className="block w-full rounded-md px-1.5 py-1 -mx-1.5 text-left hover:bg-[color-mix(in_srgb,var(--text)_4.5%,transparent)]"
             >
               {task.notes.trim() ? (
                 <Markdown source={task.notes} />
@@ -148,17 +151,17 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
       ) : null}
 
       {checklist.length > 0 || newChecklistText ? (
-        <ul className="mt-2 space-y-0.5 pl-[30px]">
+        <ul className="mt-2.5 space-y-0.5 pl-[32px]">
           {checklist.map((item, index) => (
-            <li key={item.id} className="group flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-surface-2">
+            <li key={item.id} className="group flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-[color-mix(in_srgb,var(--text)_4.5%,transparent)]">
               <button
                 type="button"
                 role="checkbox"
                 aria-checked={item.checked}
                 aria-label={item.text || 'Checklist row'}
                 onClick={() => actions.updateChecklistItem(item.id, { checked: !item.checked })}
-                className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px] border text-[10px] ${
-                  item.checked ? 'border-accent bg-accent-fill text-accent-fill-contrast' : 'border-control'
+                className={`check-box flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] text-[10px] ${
+                  item.checked ? 'border-accent bg-accent-fill text-accent-fill-contrast' : 'border-control hover:border-accent'
                 }`}
               >
                 {item.checked ? '✓' : ''}
@@ -212,14 +215,14 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
         </div>
       ) : null}
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-1 border-t border-line pt-2.5">
+      <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-line pt-3">
         <Button size="sm" variant={task.isInToday ? 'secondary' : 'ghost'} keepFocus onClick={() => actions.setInToday(task.id, !task.isInToday)}>
           <SunIcon size={14} />{task.isInToday ? 'Remove from My Day' : 'Add to My Day'}
         </Button>
         <label className="flex min-h-11 items-center gap-1 px-2 text-sm">
           <FlagIcon size={14} />
           <select aria-label="Task priority" value={task.priority ?? ''}
-            className="min-h-11 max-w-40 rounded-md bg-surface text-sm"
+            className="min-h-11 max-w-40 rounded-md bg-surface text-sm text-muted min-[620px]:min-h-8"
             onChange={(e) => actions.updateTask(task.id, { priority: (e.target.value || null) as Task['priority'] }, 'priority')}>
             <option value="">No priority</option>
             {Object.entries(priorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -279,7 +282,7 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
       </div>
 
       {directTags.length + inherited.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1 pl-[34px]">
+        <div className="mt-2.5 flex flex-wrap gap-1 pl-[36px]">
           {directTags.map((tagId) => (
             <Chip key={tagId} tone="accent" removable label={tagPath(db, tagId)} onRemove={() => actions.toggleTag('task', task.id, tagId, false)}>
               <TagDot color={db.tags[tagId]?.color} />
@@ -340,7 +343,7 @@ export function TaskEditor({ task, onClose }: { task: Task; onClose: () => void 
         />
       ) : null}
       {popover === 'repeat' ? (
-        <RepeatEditor anchor={anchor} onClose={() => setPopover(null)} task={task} />
+        <RepeatEditor anchor={anchor} onClose={() => setPopover(null)} subject={{ kind: 'task', task }} />
       ) : null}
       {duplicating ? (
         <DuplicateDialog

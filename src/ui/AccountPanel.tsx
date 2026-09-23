@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useApp } from '@/state/store';
-import { Button } from './primitives';
+import { Button, Modal } from './primitives';
+import { ConflictsPanel } from './ConflictsPanel';
 
 /**
  * Account access (R32) and the sync status line (R33).
@@ -25,6 +26,9 @@ export function AccountPanel() {
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
   const [form, setForm] = useState({ email: '', password: '' });
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
 
   const submit = async () => {
     setBusy(true);
@@ -53,6 +57,32 @@ export function AccountPanel() {
     await fetch('/api/auth/sign-out', { method: 'POST' });
     if (!keepLocal) await signOutLocal();
     await refreshSession();
+  };
+
+  const deleteAccount = async () => {
+    setBusy(true);
+    try {
+      const response = await fetch('/api/auth/account', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      if (!response.ok) {
+        const body = (await response.json()) as { error?: string };
+        pushToast({ message: body.error ?? 'Could not delete the account.', tone: 'error' });
+        return;
+      }
+      setDeleting(false);
+      setDeletePassword('');
+      setDeleteAcknowledged(false);
+      await signOutLocal();
+      await refreshSession();
+      pushToast({ message: 'Account deleted. This device has been cleared.', tone: 'info' });
+    } catch {
+      pushToast({ message: 'Could not reach the server.', tone: 'error' });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const statusText = {
@@ -86,17 +116,76 @@ export function AccountPanel() {
           </p>
         </div>
       ) : signedIn ? (
-        <div className="rounded-lg border border-line p-3">
-          <h3 className="text-[14px] font-semibold">Signed in</h3>
-          <p className="mt-0.5 text-[13.5px] text-muted">{email}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => void signOut(true)}>Sign out, keep data here</Button>
-            <Button size="sm" variant="danger" onClick={() => void signOut(false)}>Sign out and erase this device</Button>
+        <>
+          <div className="rounded-lg border border-line p-3">
+            <h3 className="text-[14px] font-semibold">Signed in</h3>
+            <p className="mt-0.5 text-[13.5px] text-muted">{email}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => void signOut(true)}>Sign out, keep data here</Button>
+              <Button size="sm" variant="danger" onClick={() => void signOut(false)}>Sign out and erase this device</Button>
+            </div>
+            <p className="mt-2 text-[12.5px] text-muted">
+              Signing out ends this device's session. Export your work first if you have changes still waiting to sync.
+            </p>
           </div>
-          <p className="mt-2 text-[12.5px] text-muted">
-            Signing out ends this device's session. Export your work first if you have changes still waiting to sync.
-          </p>
-        </div>
+
+          <ConflictsPanel />
+
+          <div className="mt-4 rounded-lg border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] p-3">
+            <h3 className="text-[14px] font-semibold text-danger">Delete account</h3>
+            <p className="mt-0.5 text-[12.5px] text-muted">
+              Removes the account and every task, project, token and capture address stored for it. This device is cleared
+              too. Export first if you want a copy.
+            </p>
+            <div className="mt-2">
+              <Button size="sm" variant="danger" onClick={() => setDeleting(true)}>Delete my account…</Button>
+            </div>
+          </div>
+
+          {deleting ? (
+            <Modal label="Delete account" onClose={() => setDeleting(false)}>
+              <form
+                className="p-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void deleteAccount();
+                }}
+              >
+                <h2 className="text-[16px] font-semibold">Delete {email}?</h2>
+                <p className="mt-1.5 text-[14px] text-muted">
+                  Everything synced to this account is erased on the server, and local data on this device is cleared. Other
+                  devices keep their offline copy until they sign in again. This cannot be undone.
+                </p>
+                <label className="mt-3 block text-[13px]">
+                  <span className="mb-1 block text-muted">Confirm your password</span>
+                  <input
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={deletePassword}
+                    onChange={(event) => setDeletePassword(event.target.value)}
+                    className="h-10 w-full rounded-md border border-line px-2.5 text-[14px] outline-none focus:border-accent"
+                  />
+                </label>
+                <label className="mt-3 flex items-start gap-2 text-[13px]">
+                  <input
+                    type="checkbox"
+                    checked={deleteAcknowledged}
+                    onChange={(event) => setDeleteAcknowledged(event.target.checked)}
+                    className="mt-0.5 h-4 w-4"
+                  />
+                  <span>I understand this permanently deletes my account and its data.</span>
+                </label>
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setDeleting(false)}>Cancel</Button>
+                  <Button size="sm" variant="danger" type="submit" disabled={busy || !deleteAcknowledged || deletePassword.length === 0}>
+                    Delete account
+                  </Button>
+                </div>
+              </form>
+            </Modal>
+          ) : null}
+        </>
       ) : (
         <form
           className="rounded-lg border border-line p-3"
