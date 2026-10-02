@@ -15,7 +15,7 @@ import { MovePicker } from './Pickers';
 import { DuplicateDialog } from './DuplicateDialog';
 import {
   AlertIcon, ArchiveBoxIcon, CalendarIcon, ChecklistIcon, CopyIcon, EveningIcon, FlagIcon,
-  MoreIcon, MoveIcon, NoteIcon, PlusIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon, SunIcon, TagIcon,
+  MoreIcon, MoveIcon, NoteIcon, PlusIcon, PrintIcon, PromoteIcon, RepeatIcon, TrashIcon, ChevronIcon, SunIcon, TagIcon,
 } from './icons';
 import { usePhone } from './useMediaQuery';
 import { viewStyle } from './view-style';
@@ -448,6 +448,11 @@ function TaskTagFilter({ view }: { view: 'today' | 'allTasks' }) {
         <TagIcon size={14} /> Tags{active ? ` (${filterCount}${tagFilter.mode === 'exclude' ? ' excluded' : ''})` : ''}
       </Button>
       {active ? <Button size="sm" variant="ghost" onClick={() => setTagFilter(emptyTagFilter())}>Clear</Button> : null}
+      {view === 'today' ? (
+        <Button size="sm" variant="ghost" onClick={() => window.print()}>
+          <PrintIcon size={15} /> Print
+        </Button>
+      ) : null}
       {anchor ? (
         <Popover anchor={anchor} onClose={() => setAnchor(null)} label={`Filter ${viewLabel} by tags`} width={280}>
           <div className="flex items-center justify-between gap-2 px-2 pb-1">
@@ -690,6 +695,56 @@ function SelectionBar({ ids }: { ids: string[] }) {
   );
 }
 
+/** A read-only paper layout of the same filtered and sorted My Day document. */
+function MyDayPrint({ doc }: { doc: ListDocument }) {
+  const db = useApp((s) => s.db);
+  const today = useApp((s) => s.today);
+  const sections = doc.sections.filter((section) => section.items.length > 0);
+
+  return (
+    <article data-print-my-day>
+      <header className="my-day-print-header">
+        <h1>My Day</h1>
+        <p>{doc.subtitle}</p>
+      </header>
+      {sections.length === 0 ? <p>No items in My Day.</p> : sections.map((section) => (
+        <section key={section.id} className="my-day-print-section">
+          <h2>{section.title ?? (section.isEventSection ? 'Calendar' : 'Tasks')}</h2>
+          <ul>
+            {section.items.map((item) => {
+              if (item.kind === 'event') {
+                const time = item.event.allDay ? 'All day' : item.event.startInstant
+                  ? new Date(item.event.startInstant).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+                return <li key={item.id} className="my-day-print-row my-day-print-event"><span>{item.event.title}</span><span>{time}</span></li>;
+              }
+              if (item.kind === 'project') {
+                return <li key={item.id} className="my-day-print-row my-day-print-project"><span>{item.project.title}</span><span>Project</span></li>;
+              }
+              if (item.kind !== 'task') return null;
+              return (
+                <li key={item.id} className="my-day-print-row">
+                  <span className="my-day-print-checkbox" aria-hidden="true" />
+                  <div>
+                    <div className="my-day-print-task-title">{item.task.title || 'Untitled'}</div>
+                    {item.task.deadline || item.meta.contextLabel || item.task.priority || item.meta.tagIds.length > 0 ? (
+                      <div className="my-day-print-meta">
+                        {item.task.deadline ? <span>Due {formatDateLabel(item.task.deadline, today)}</span> : null}
+                        {item.meta.contextLabel ? <span>{item.meta.contextLabel}</span> : null}
+                        {item.task.priority ? <span>{priorities[item.task.priority]}</span> : null}
+                        {item.meta.tagIds.map((tagId) => <span key={tagId}>#{tagPath(db, tagId)}</span>)}
+                      </div>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+    </article>
+  );
+}
+
 export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const selection = useApp((s) => s.selection);
   const openItemId = useApp((s) => s.openItemId);
@@ -867,6 +922,8 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
           );
         })}
       </div>
+
+      {doc.view === 'today' ? <MyDayPrint doc={doc} /> : null}
 
       {selection.length > 0 ? <SelectionBar ids={selection} /> : null}
 
