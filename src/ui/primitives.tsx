@@ -3,6 +3,7 @@
 import {
   useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { CloseIcon } from './icons';
 
 /** Traps focus inside an overlay and restores it on close, so keyboard flow never escapes. */
@@ -121,9 +122,12 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
     if (active?.matches('input, textarea')) active.blur();
   }, [isSheet]);
 
-  return (
+  // The editor row animates with a transform, which otherwise becomes the containing
+  // block for fixed children and pushes the picker outside the viewport on desktop.
+  if (typeof document === 'undefined') return null;
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-40" onPointerDown={onClose} aria-hidden="true" />
+      <div className="fixed inset-0 z-60" onPointerDown={onClose} aria-hidden="true" />
       <div
         ref={ref}
         role="dialog"
@@ -131,8 +135,8 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
         tabIndex={-1}
         className={
           isSheet
-            ? 'sheet-in fixed inset-x-0 z-50 overflow-y-auto rounded-t-2xl border-t border-line bg-surface px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-2 shadow-[var(--shadow-pop)] scroll-area'
-            : 'pop-in z-50 max-h-[70vh] overflow-y-auto rounded-lg border border-line bg-surface p-2 shadow-[var(--shadow-pop)] scroll-area'
+            ? 'sheet-in fixed inset-x-0 z-70 overflow-y-auto rounded-t-2xl border-t border-line bg-surface px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-2 shadow-[var(--shadow-pop)] scroll-area'
+            : 'pop-in z-70 max-h-[70vh] overflow-y-auto rounded-lg border border-line bg-surface p-2 shadow-[var(--shadow-pop)] scroll-area'
         }
         style={isSheet ? sheetStyle : style}
       >
@@ -147,7 +151,8 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
         ) : null}
         {children}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 
