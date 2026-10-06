@@ -2,9 +2,10 @@
 
 import { useRef, useState } from 'react';
 import * as actions from '@/state/actions';
+import type { ItemOrderScope } from '@/core/types';
 
 /** Pointer capture supports touch, pen and mouse without disabling list scrolling. */
-export function OrderHandle({ id, ids, group, scope }: { id: string; ids: string[]; group: string; scope: 'structural' | 'today' }) {
+export function OrderHandle({ id, ids, group, scope }: { id: string; ids: string[]; group: string; scope: ItemOrderScope }) {
   const drag = useRef<{ y: number; target: string; below: boolean; moved: boolean } | null>(null);
   const [hint, setHint] = useState('');
   const finish = (cancel: boolean) => {

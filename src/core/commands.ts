@@ -4,9 +4,11 @@ import { byRank, FIRST_RANK, keyBetween } from './rank';
 import { canArchiveHeading, computeProcessed } from './membership';
 import { wouldCycle } from './tags';
 import { capitalizeNewTitle } from './text';
+import { ERRANDS_TAG_ID, isErrandTask } from './errands';
+import { byErrandRank } from './errand-order';
 import { create, update, type EntityPatch, type WriteContext } from './patches';
 import type {
-  Area, ChecklistItem, Database, DateOnly, Heading, LifecycleStatus, PlanningState,
+  Area, ChecklistItem, Database, DateOnly, Heading, ItemOrderScope, LifecycleStatus, PlanningState,
   Project, Tag, TagTargetType, Task, TaskParentType,
 } from './types';
 import type { Clock } from './clock';
@@ -142,8 +144,9 @@ export function updateTag(db: Database, ctx: WriteContext, id: string, fields: P
 
 /** Persists an explicit order while leaving every item's parent and heading unchanged. */
 export function orderItems(
-  db: Database, ctx: WriteContext, ids: string[], scope: 'structural' | 'today' = 'structural',
+  db: Database, ctx: WriteContext, ids: string[], scope: ItemOrderScope = 'structural',
 ): EntityPatch[] {
+  if (scope === 'errands') return orderErrands(db, ctx, ids);
   let rank: string | null = null;
   const patches: EntityPatch[] = [];
   for (const id of ids) {
@@ -154,6 +157,44 @@ export function orderItems(
     patches.push(update(task ? 'tasks' : 'projects', id, {
       [task && scope === 'today' ? 'todayRank' : 'rank']: rank,
     }, ctx));
+  }
+  return patches;
+}
+
+/** A stable global route also disambiguates equal fallback ranks from separate projects. */
+function openErrands(db: Database, ownerId: string): Task[] {
+  return Object.values(db.tasks)
+    .filter((task) => task.ownerId === ownerId && task.deletedAt === null && task.status === 'open' && isErrandTask(task))
+    .sort(byErrandRank);
+}
+
+/** Reordering a filtered/day subset must leave all hidden route stops in their slots. */
+function orderErrands(db: Database, ctx: WriteContext, ids: string[]): EntityPatch[] {
+  const all = openErrands(db, ctx.ownerId);
+  const eligible = new Map(all.map((task) => [task.id, task]));
+  const visible = [...new Set(ids)].filter((id) => eligible.has(id));
+  if (visible.length < 2) return [];
+  const selected = new Set(visible);
+  let index = 0;
+  const next = all.map((task) => selected.has(task.id) ? eligible.get(visible[index++]!)! : task);
+  if (next.every((task, i) => task.id === all[i]!.id)) return [];
+
+  // Mint around the middle recursively rather than appending hundreds of keys;
+  // global routes can otherwise exceed fractional indexing's depth limit.
+  const ranks: string[] = Array(next.length);
+  const fillRanks = (start: number, end: number, before: string | null, after: string | null): void => {
+    if (start >= end) return;
+    const middle = Math.floor((start + end) / 2);
+    const rank = keyBetween(before, after);
+    ranks[middle] = rank;
+    fillRanks(start, middle, before, rank);
+    fillRanks(middle + 1, end, rank, after);
+  };
+  fillRanks(0, next.length, null, null);
+  const patches: EntityPatch[] = [];
+  for (const [i, task] of next.entries()) {
+    const rank = ranks[i]!;
+    if (task.errandRank !== rank) patches.push(update('tasks', task.id, { errandRank: rank }, ctx));
   }
   return patches;
 }
@@ -276,14 +317,29 @@ export function moveTasks(db: Database, ctx: WriteContext, ids: string[], target
   return patches;
 }
 
-/** Reorders within a list. `view` picks structural order or Today's separate order (R25). */
+/** Reorders within one independent ordering scope (R25). */
 export function reorderTask(
   db: Database, ctx: WriteContext, id: string,
   neighbours: { beforeId: string | null; afterId: string | null },
-  view: 'structural' | 'today' = 'structural',
+  view: ItemOrderScope = 'structural',
 ): EntityPatch[] {
   const task = db.tasks[id];
   if (!task) return [];
+  if (view === 'errands') {
+    const all = openErrands(db, ctx.ownerId);
+    if (!all.some((other) => other.id === id)) return [];
+    const next = all.filter((other) => other.id !== id).map((other) => other.id);
+    const { beforeId, afterId } = neighbours;
+    if ((!beforeId && !afterId) || beforeId === id || afterId === id) return [];
+    const before = beforeId === null ? -1 : next.indexOf(beforeId);
+    const after = afterId === null ? next.length : next.indexOf(afterId);
+    if ((beforeId !== null && before < 0) || after < 0 || before >= after) return [];
+    // A hidden stop between the bounds is not a safe neighbour: callers should
+    // submit their complete visible order to orderItems, which preserves slots.
+    if (beforeId !== null && afterId !== null && after !== before + 1) return [];
+    next.splice(beforeId !== null ? before + 1 : after, 0, id);
+    return orderErrands(db, ctx, next);
+  }
   const field = view === 'today' ? 'todayRank' : 'rank';
   const rankOf = (otherId: string | null): string | null => {
     if (!otherId) return null;
@@ -584,6 +640,7 @@ export function deleteTag(db: Database, ctx: WriteContext, tagId: string): Entit
 export function assignTag(
   db: Database, ctx: WriteContext, tagId: string, targetType: TagTargetType, targetId: string,
 ): EntityPatch[] {
+  if (tagId === ERRANDS_TAG_ID) return []; // derived from the title, never persisted
   const existing = Object.values(db.tagAssignments).find(
     (a) => a.tagId === tagId && a.targetType === targetType && a.targetId === targetId,
   );
@@ -600,6 +657,7 @@ export function assignTag(
 export function unassignTag(
   db: Database, ctx: WriteContext, tagId: string, targetType: TagTargetType, targetId: string,
 ): EntityPatch[] {
+  if (tagId === ERRANDS_TAG_ID) return []; // removing the @ marker removes membership
   const existing = Object.values(db.tagAssignments).find(
     (a) => a.tagId === tagId && a.targetType === targetType && a.targetId === targetId && a.deletedAt === null,
   );

@@ -166,3 +166,28 @@ Release verification: TypeScript passed; all 156 tests across 17 files passed; a
 Task titles, task notes, and checklist entries now explicitly request native spelling checks with `spellCheck={true}`. Coverage includes the main and inline task composers, Quick Capture title/notes, and existing/new checklist rows. The shared title/notes textarea also covers project and area text. Password, email, calendar feed, and technical fields are unchanged. This does not force autocorrection or override the user's browser/device spelling settings; dictionary availability and visible spelling suggestions require a device check.
 
 Verification: four rendered-component regression tests confirm the emitted spelling-check attributes. All 160 tests across 18 files, TypeScript, and the optimized production build passed.
+
+## October 6, 2026 — v0.7.7 errands grouping and route ordering
+
+Implementation follows the approved preference: errands first on screen and paper,
+manually ordered, with automatic classification that follows the title. A standalone
+`@` or `@Location` marker derives a read-only Errands tag; email addresses are ignored.
+Removing the marker removes the computed membership without touching manual tags.
+
+| Check | Result | Evidence |
+|---|---|---|
+| My Day, Upcoming, All Tasks | Pass | Errands precede ordinary tasks even under alphabetical/tag sorts. My Day collects errands across projects; Evening remains separate. Upcoming preserves each concrete date, including month sections. Calendar appointments stay before tasks. |
+| Independent route order | Pass | A saved `errandRank` does not alter project rank, My Day rank, parent, dates, or tags. Hidden/filtered stops retain their global positions. Undo, duplication, import/export, invalid IDs, and 2,000-stop normalization are covered. |
+| Desktop browser | Pass | Keyboard handle movement reordered All Tasks errands and that order appeared in My Day. Ordinary alphabetical sorting remained intact. |
+| Phone-width browser, measured 393 × 852 CSS px | Pass | Route-handle pointer drag reordered Friday errands under alphabetical sort. Handles measured 44 × 44 CSS px. No horizontal overflow was observed. This was a responsive Chromium check, not Mobile Safari or a native touch test. |
+| Screen/paper agreement | Pass | Selected Friday's print article had the exact reordered task sequence. My Day paper markup uses the same Errands/Other tasks grouping. Existing balanced-column printing is unchanged. Native AirPrint output remains a device check. |
+| Automatic tag filter and title edits | Pass | Selecting Errands showed only marked tasks; changing `Return clamps @ Lowe’s` to `Return clamps from Lowe’s` removed it from that filter while retaining the task under Other tasks. Emails stayed outside Errands. |
+| Recurring tasks and manual tags | Pass | Templates/materialization cannot persist the virtual tag. Occurrences derive classification from their own title. A manually created tag named Errands remains independent. |
+| Browser console after fixture correction | Pass | No warning/error entries during the functional checks. An initial temporary fixture import typo was corrected before testing; the fixture was removed before production build. |
+
+All browser records were generated in memory with persistence disabled; no personal
+tasks, accounts, or calendar feeds were modified. Temporary browser tabs were closed
+and viewport overrides reset. The test route is absent from the production build.
+
+Release verification: TypeScript passed; 203 tests across 22 files passed; all eight
+light/dark palette contrast audits passed; the optimized production build passed.

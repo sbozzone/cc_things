@@ -8,7 +8,7 @@ import {
 import type { EntityPatch } from '@/core/patches';
 import { isEntityTable } from '@/core/patches';
 import type { AddTarget } from '@/core/commands';
-import type { DateOnly, LifecycleStatus, Task } from '@/core/types';
+import type { DateOnly, ItemOrderScope, LifecycleStatus, Task } from '@/core/types';
 import {
   duplicateHeading, duplicateProject, duplicateTask, headingToProject, taskToProject,
   type DuplicateOptions,
@@ -56,7 +56,7 @@ export function setTagColor(id: string, color: string | null): void {
 }
 
 /** Explicit ordering changes preserve parent/heading membership. */
-export function orderItems(ids: string[], scope: 'structural' | 'today'): void {
+export function orderItems(ids: string[], scope: ItemOrderScope): void {
   const state = app();
   state.dispatch(commands.orderItems(state.db, state.ctx(), ids, scope), { undoLabel: 'reorder' });
 }
@@ -148,7 +148,7 @@ export function moveTasks(ids: string[], target: AddTarget): void {
   });
 }
 
-export function reorderTask(id: string, beforeId: string | null, afterId: string | null, scope: 'structural' | 'today'): void {
+export function reorderTask(id: string, beforeId: string | null, afterId: string | null, scope: ItemOrderScope): void {
   const state = app();
   state.dispatch(commands.reorderTask(state.db, state.ctx(), id, { beforeId, afterId }, scope), { undoLabel: 'reorder' });
 }

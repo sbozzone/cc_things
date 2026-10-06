@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { byRank } from '@/core/rank';
 import { formatDateLabel } from '@/core/dates';
 import { tagPath } from '@/core/tags';
+import { getErrandsTag, isErrandTitle } from '@/core/errands';
 import { describeRule } from '@/core/recurrence';
 import type { Task } from '@/core/types';
 import { useApp } from '@/state/store';
@@ -45,6 +46,9 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
     .sort(byRank);
   const directTags = actions.directTagsOf(task.id);
   const inherited = actions.inheritedTagsOf(task.id);
+  const automaticErrands = isErrandTitle(titleDraft);
+  const errandsTag = getErrandsTag(db);
+  const tagCount = directTags.length + inherited.length + (automaticErrands ? 1 : 0);
   const reminder = Object.values(db.reminders).find((r) => r.taskId === task.id && r.deletedAt === null && r.canceledAt === null);
   const template = Object.values(db.occurrenceLinks)
     .filter((l) => l.deletedAt === null && l.materializedId === task.id)
@@ -244,7 +248,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
         </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={openPopover('tags')}>
           <TagIcon size={14} />
-          {directTags.length + inherited.length > 0 ? `${directTags.length + inherited.length} tags` : 'Tags'}
+          {tagCount > 0 ? `${tagCount} tags` : 'Tags'}
         </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={openPopover('move')}>
           <MoveIcon size={14} />{contextLabel ? `Move · ${contextLabel}` : 'Move'}
@@ -283,8 +287,15 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
         </IconButton>
       </div>
 
-      {directTags.length + inherited.length > 0 ? (
+      {tagCount > 0 ? (
         <div className="mt-2.5 flex flex-wrap gap-1 pl-[36px]">
+          {automaticErrands ? (
+            <Chip tone="accent">
+              <TagDot color={errandsTag.color} />
+              <span>{errandsTag.name}</span>
+              <span className="text-faint">· automatic from @</span>
+            </Chip>
+          ) : null}
           {directTags.map((tagId) => (
             <Chip key={tagId} tone="accent" removable label={tagPath(db, tagId)} onRemove={() => actions.toggleTag('task', task.id, tagId, false)}>
               <TagDot color={db.tags[tagId]?.color} />
@@ -340,6 +351,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
           db={db}
           directTagIds={directTags}
           inherited={inherited}
+          automaticErrands={automaticErrands}
           onToggle={(tagId, next) => actions.toggleTag('task', task.id, tagId, next)}
           onCreate={(name) => actions.createAndAssignTag('task', task.id, name)}
         />

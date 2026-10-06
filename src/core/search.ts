@@ -1,5 +1,7 @@
 import { VIEW_TITLES, type ViewKey } from './selectors';
 import type { Database } from './types';
+import { getSelectableTags } from './tags';
+import { ERRANDS_TAG_ID } from './errands';
 
 /**
  * Search and navigation (R23).
@@ -69,11 +71,11 @@ export function search(db: Database, rawQuery: string, options: SearchOptions = 
     }
   }
 
-  for (const tag of Object.values(db.tags)) {
+  for (const tag of getSelectableTags(db)) {
     if (tag.deletedAt !== null) continue;
     const score = scoreOf(tag.name, query);
     if (score > 0) {
-      results.push({ kind: 'tag', id: tag.id, title: tag.name, detail: 'Tag', target: { view: `tag:${tag.id}` }, score, logged: false });
+      results.push({ kind: 'tag', id: tag.id, title: tag.name, detail: tag.id === ERRANDS_TAG_ID ? 'Automatic tag · titles marked with @' : 'Tag', target: { view: `tag:${tag.id}` }, score, logged: false });
     }
   }
 

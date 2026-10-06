@@ -4,7 +4,8 @@ import {
   isAvailable, isOpen, isOverdue, projectHold, projectInToday, projectProgress,
   type Hold, type Progress,
 } from './membership';
-import { buildTagIndex, effectiveProjectTags, effectiveTaskTags, emptyTagFilter, matchesTagFilter, tagFilterActive, type TagFilter, type TagIndex } from './tags';
+import { buildTagIndex, effectiveProjectTags, effectiveTaskTags, emptyTagFilter, getTag, matchesTagFilter, tagFilterActive, type TagFilter, type TagIndex } from './tags';
+import { ERRANDS_TAG_ID } from './errands';
 import { addDays, formatDateLabel, monthName, weekdayName } from './dates';
 import { resolveSectionDate } from './quick-add';
 import { evaluateSmartList, SMART_LISTS } from './smart-lists';
@@ -784,8 +785,8 @@ function tagView(db: Database, ix: Indexes, tagId: string, opts: QueryOptions): 
     .filter((t) => t.status === 'open' && passesFilter(db, ix, ownTag, t) && passesFilter(db, ix, opts, t))
     .sort(byRank)
     .map((task) => ({ kind: 'task' as const, id: task.id, task, meta: taskMeta(db, ix, task) }));
-  const tag = db.tags[tagId];
-  return doc(`tag:${tagId}`, tag?.name ?? 'Tag', 'Everything carrying this tag', [
+  const tag = getTag(db, tagId);
+  return doc(`tag:${tagId}`, tag?.name ?? 'Tag', tagId === ERRANDS_TAG_ID ? 'Automatically includes tasks marked with @' : 'Everything carrying this tag', [
     { id: 'tag', title: null, subtitle: null, date: null, items, addTarget: null },
   ], opts, 'Nothing carries this tag.', inboxTarget());
 }

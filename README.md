@@ -21,7 +21,7 @@ Nothing else is required. With no configuration the app is fully usable: it stor
 everything in IndexedDB on the device, works offline, and says so in Settings.
 
 ```bash
-npm run verify     # typecheck + 125 unit tests + contrast audit + production build
+npm run verify     # typecheck + unit tests + contrast audit + production build
 ```
 
 ## Deploying to Vercel
@@ -93,6 +93,20 @@ Events appear above tasks in Today and on the matching Upcoming day. Access is o
 a calendar change can never complete or reschedule a task. Calendar connections sync
 privately with your account, so your phone and PC use the same feeds. Downloaded events
 and refresh status stay device-local. Feed addresses and events never leave in an export.
+
+## Batching errands
+
+Put an `@` marker in a task title, such as `Return clamps @ Lowe’s` or `@Walmart buy
+fertilizer`. The read-only **Errands · Automatic** tag follows the title: removing the
+marker removes the classification. Email addresses do not count, and ordinary tags
+remain unchanged.
+
+Errands appear before other tasks in My Day, each Upcoming date, and All Tasks. Drag
+their handles to set the stop order (or focus a handle and use Up/Down). That route is
+saved separately from project and My Day ordering, survives sync/export, and is used
+by My Day and selected-day printing. A filtered route rearranges only its visible
+stops. Calendar appointments remain above tasks; Evening and Upcoming date boundaries
+remain intact. The chosen list sort continues to apply to non-errand tasks.
 
 ---
 

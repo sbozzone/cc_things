@@ -3,10 +3,12 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { formatDateLabel } from '@/core/dates';
-import { emptyTagFilter, tagFilterActive, tagPath } from '@/core/tags';
+import { emptyTagFilter, getSelectableTags, getTag, tagFilterActive, tagPath } from '@/core/tags';
+import { ERRANDS_TAG_ID, isErrandTask } from '@/core/errands';
+import { groupErrandsDocument, isErrandsOrderingView } from '@/core/errand-order';
 import { inToday } from '@/core/membership';
 import type { AddTarget, ListDocument, ListItem, ListSection } from '@/core/selectors';
-import type { CalendarEvent, Project, Task } from '@/core/types';
+import type { CalendarEvent, ItemOrderScope, Project, Task } from '@/core/types';
 import { useApp } from '@/state/store';
 import * as actions from '@/state/actions';
 import { TaskEditor } from './TaskEditor';
@@ -84,15 +86,17 @@ function DateChip({ task, today, hideStart }: { task: Task; today: string; hideS
 }
 
 function TaskRow({
-  item, sectionId, orderedIds, scope, isPhone, nested = false, canOrder = true,
+  item, sectionId, orderedIds, orderIds = orderedIds, scope, isPhone, nested = false, canOrder = true, myDayView = scope === 'today',
 }: {
   item: Extract<ListItem, { kind: 'task' }>;
   sectionId: string;
   orderedIds: string[];
-  scope: 'structural' | 'today';
+  orderIds?: string[];
+  scope: ItemOrderScope;
   isPhone: boolean;
   nested?: boolean;
   canOrder?: boolean;
+  myDayView?: boolean;
 }) {
   const { task, meta } = item;
   const db = useApp((s) => s.db);
@@ -113,14 +117,15 @@ function TaskRow({
 
   const move = (direction: -1 | 1) => {
     if (!canOrder) return;
-    const index = orderedIds.indexOf(task.id);
+    const index = orderIds.indexOf(task.id);
     const target = index + direction;
-    if (index < 0 || target < 0 || target >= orderedIds.length) return;
-    const reordered = [...orderedIds];
+    if (index < 0 || target < 0 || target >= orderIds.length) return;
+    const reordered = [...orderIds];
     reordered.splice(index, 1);
     reordered.splice(target, 0, task.id);
     const at = reordered.indexOf(task.id);
-    actions.reorderTask(task.id, reordered[at - 1] ?? null, reordered[at + 1] ?? null, scope);
+    if (scope === 'errands') actions.orderItems(reordered, scope);
+    else actions.reorderTask(task.id, reordered[at - 1] ?? null, reordered[at + 1] ?? null, scope);
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLLIElement>) => {
@@ -206,10 +211,14 @@ function TaskRow({
         setDropSide(null);
         // A cancelled drag makes no change (R26).
         if (!canOrder || !source || source.sectionId !== sectionId || source.id === task.id) return;
-        const ids = orderedIds.filter((id) => id !== source.id);
+        const ids = orderIds.filter((id) => id !== source.id);
         const at = ids.indexOf(task.id);
+        if (at < 0 || !orderIds.includes(source.id)) return;
         const insertAt = dropSide === 'above' ? at : at + 1;
-        actions.reorderTask(source.id, ids[insertAt - 1] ?? null, ids[insertAt] ?? null, scope);
+        if (scope === 'errands') {
+          ids.splice(insertAt, 0, source.id);
+          actions.orderItems(ids, scope);
+        } else actions.reorderTask(source.id, ids[insertAt - 1] ?? null, ids[insertAt] ?? null, scope);
         dragSource = null;
       }}
       onKeyDown={onKeyDown}
@@ -254,9 +263,9 @@ function TaskRow({
             </span>
           ) : null}
         </div>
-        {(task.startDate && !(scope === 'today' && task.startDate <= today)) || task.deadline || task.priority || meta.contextLabel || meta.heldContextLabel || meta.tagIds.length > 0 || task.planning === 'someday' || (scope === 'today' && task.eveningDate !== null && task.eveningDate === task.startDate) ? (
+        {(task.startDate && !(myDayView && task.startDate <= today)) || task.deadline || task.priority || meta.contextLabel || meta.heldContextLabel || meta.tagIds.length > 0 || task.planning === 'someday' || (myDayView && task.eveningDate !== null && task.eveningDate === task.startDate) ? (
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <DateChip task={task} today={today} hideStart={scope === 'today'} />
+            <DateChip task={task} today={today} hideStart={myDayView} />
             {task.priority ? <Pill tone={task.priority === 'urgent' ? 'danger' : task.priority === 'low' ? 'neutral' : 'warm'} icon={<FlagIcon size={11} />}>{priorities[task.priority]}</Pill> : null}
             {meta.contextLabel ? <span className="text-[12px] text-faint">{meta.contextLabel}</span> : null}
             {meta.heldContextLabel ? (
@@ -264,13 +273,13 @@ function TaskRow({
                 <AlertIcon size={12} />Deadline reached in held “{meta.heldContextLabel}”
               </span>
             ) : null}
-            {meta.tagIds.slice(0, 3).map((tagId) => (
-              <Chip key={tagId}><TagDot color={db.tags[tagId]?.color} />{tagPath(db, tagId)}</Chip>
+            {[...meta.tagIds].sort((a, b) => Number(b === ERRANDS_TAG_ID) - Number(a === ERRANDS_TAG_ID)).slice(0, 3).map((tagId) => (
+              <Chip key={tagId}><TagDot color={getTag(db, tagId)?.color} />{tagPath(db, tagId)}</Chip>
             ))}
           </div>
         ) : null}
       </div>
-      {canOrder && orderedIds.length > 1 ? <OrderHandle id={task.id} ids={orderedIds} group={sectionId} scope={scope} /> : null}
+      {canOrder && orderIds.length > 1 ? <OrderHandle id={task.id} ids={orderIds} group={sectionId} scope={scope} /> : null}
       {isPhone ? (
         <button
           type="button"
@@ -427,8 +436,7 @@ function TaskTagFilter({ view }: { view: 'today' | 'allTasks' }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const viewLabel = view === 'today' ? 'My Day' : 'All Tasks';
   const tags = useMemo(
-    () => Object.values(db.tags)
-      .filter((tag) => tag.deletedAt === null)
+    () => getSelectableTags(db)
       .sort((a, b) => tagPath(db, a.id).localeCompare(tagPath(db, b.id))),
     [db],
   );
@@ -490,7 +498,7 @@ function TaskTagFilter({ view }: { view: 'today' | 'allTasks' }) {
                     className="h-5 w-5"
                   />
                   <TagDot color={tag.color} />
-                  <span className="min-w-0 flex-1 truncate">{tagPath(db, tag.id)}</span>
+                  <span className="min-w-0 flex-1 truncate">{tagPath(db, tag.id)}{tag.id === ERRANDS_TAG_ID ? ' · Automatic' : ''}</span>
                 </label>
               </li>
             ))}
@@ -624,7 +632,7 @@ function SectionHeader({ section, onAdd, onPrint }: { section: ListSection; onAd
       {isHeading ? <HeadingMenu headingId={section.id.slice(8)} title={section.title} /> : null}
       {onPrint ? <IconButton label={`Print ${section.title}`} onClick={onPrint}><PrintIcon size={15} /></IconButton> : null}
       {section.addTarget ? (
-        <IconButton label={`Add a task to ${section.title}`} onClick={onAdd}><PlusIcon size={15} /></IconButton>
+        <IconButton label={section.title === 'Other tasks' ? 'Add a task' : `Add a task to ${section.title}`} onClick={onAdd}><PlusIcon size={15} /></IconButton>
       ) : null}
     </div>
   );
@@ -818,8 +826,10 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const openItem = useApp((s) => s.openItem);
   const db = useApp((s) => s.db);
   const sort = db.settings.listSorts?.[sourceDoc.view] ?? 'manual';
-  const doc = useMemo(() => sortDocument(sourceDoc, sort, (tagId) => tagPath(db, tagId)), [sourceDoc, sort, db]);
+  const doc = useMemo(() => groupErrandsDocument(sortDocument(sourceDoc, sort, (tagId) => tagPath(db, tagId))), [sourceDoc, sort, db]);
   const canOrder = sort === 'manual' && !['upcoming', 'logbook', 'trash', 'review', 'allTasks'].includes(doc.view);
+  const errandsView = isErrandsOrderingView(doc.view);
+  const hasErrands = errandsView && doc.sections.some((section) => section.items.some((item) => item.kind === 'task' && isErrandTask(item.task)));
   const isPhone = usePhone();
   const [composerSection, setComposerSection] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => new Set());
@@ -941,6 +951,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
             </select>
           </label> : null}
         </div>
+        {hasErrands ? <p className="mb-2 px-3 text-[12px] text-faint">Errands first · drag the handles to arrange your stops. Sort applies to other tasks.</p> : null}
         {doc.view === 'allProjects' && allProjectIds.length > 0 ? (
           <div role="group" aria-label="Project display" className="mb-1 flex justify-end gap-1 px-1">
             <Button
@@ -1019,15 +1030,25 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
                     );
                   }
                   if (item.kind === 'heading') return null;
+                  const errand = errandsView && isErrandTask(item.task);
+                  // Later-month sections contain several dates. A route drag must
+                  // stay within the displayed day and must never change task dates.
+                  const routeDate = doc.view === 'upcoming' ? /@(\d{4}-\d{2}-\d{2})$/.exec(item.id)?.[1] ?? section.date : null;
+                  const orderIds = errandsView ? section.items
+                    .filter((row) => row.kind === 'task' && isErrandTask(row.task) === errand &&
+                      (!routeDate || /@(\d{4}-\d{2}-\d{2})$/.exec(row.id)?.[1] === routeDate))
+                    .map((row) => (row as { task: Task }).task.id) : orderedIds;
                   return (
                     <TaskRow
                       key={item.id}
                       item={item}
-                      sectionId={section.id}
+                      sectionId={errandsView ? `${section.id}:${routeDate ?? ''}:${errand ? 'errands' : 'tasks'}` : section.id}
                       orderedIds={orderedIds}
-                      scope={scope}
+                      orderIds={orderIds}
+                      scope={errand ? 'errands' : scope}
+                      myDayView={doc.view === 'today'}
                       isPhone={isPhone}
-                      canOrder={canOrder}
+                      canOrder={errand || canOrder}
                     />
                   );
                 })}
@@ -1042,7 +1063,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
                   className="row mt-0.5 flex w-full items-center gap-3 px-3 py-2 text-left text-[13px] text-faint hover:text-muted"
                 >
                   <span aria-hidden="true" className="flex h-[22px] w-[22px] items-center justify-center rounded-[7px] border-[1.5px] border-dashed border-line-strong"><PlusIcon size={12} /></span>
-                  Add a task{section.title ? ` to ${section.title}` : ''}
+                  Add a task{section.title && section.title !== 'Other tasks' ? ` to ${section.title}` : ''}
                 </button>
               ) : null}
             </section>

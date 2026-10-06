@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { byRank } from '@/core/rank';
 import { projectProgress } from '@/core/membership';
-import { emptyTagFilter, tagFilterActive, tagPath } from '@/core/tags';
+import { emptyTagFilter, getSelectableTags, tagFilterActive, tagPath } from '@/core/tags';
+import { ERRANDS_TAG_ID } from '@/core/errands';
 import { BUILT_IN_ORDER, VIEW_TITLES, type ViewKey } from '@/core/selectors';
 import type { SidebarFavoriteView, SidebarSection } from '@/core/types';
 import { useApp, useCounts, useIndexes } from '@/state/store';
@@ -166,7 +166,7 @@ export function Sidebar({
     onClose?.();
   };
 
-  const tags = Object.values(db.tags).filter((t) => t.deletedAt === null).sort(byRank);
+  const tags = getSelectableTags(db);
 
   const submitDraft = () => {
     const title = draft.trim();
@@ -372,6 +372,7 @@ export function Sidebar({
                   color={tag.color && tag.color in tagColors ? tagColors[tag.color as keyof typeof tagColors] : active ? 'var(--accent)' : 'var(--text-faint)'}
                   active={active}
                   onSelect={() => toggleSidebarTag(tag.id)}
+                  trailing={tag.id === ERRANDS_TAG_ID ? <span className="shrink-0 text-[11px] text-faint">Auto</span> : undefined}
                 />
               );
             })}

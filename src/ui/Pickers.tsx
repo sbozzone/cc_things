@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { byRank } from '@/core/rank';
 import { tagPath } from '@/core/tags';
+import { getErrandsTag } from '@/core/errands';
 import type { Database } from '@/core/types';
 import type { AddTarget } from '@/core/commands';
 import { Popover } from './primitives';
@@ -165,7 +166,7 @@ export function MovePicker({
  * separately with the entity they came from, and cannot be removed on the child.
  */
 export function TagPicker({
-  anchor, onClose, db, directTagIds, inherited, onToggle, onCreate,
+  anchor, onClose, db, directTagIds, inherited, onToggle, onCreate, automaticErrands,
 }: {
   anchor: HTMLElement | null;
   onClose: () => void;
@@ -174,13 +175,19 @@ export function TagPicker({
   inherited: { tagId: string; from: string }[];
   onToggle: (tagId: string, next: boolean) => void;
   onCreate: (name: string) => void;
+  /** Task context only: this state follows the title and cannot be assigned here. */
+  automaticErrands?: boolean;
 }) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const automaticHelpId = useId();
   const tags = Object.values(db.tags).filter((t) => t.deletedAt === null).sort(byRank);
   const needle = query.trim().toLowerCase();
   const filtered = needle ? tags.filter((t) => t.name.toLowerCase().includes(needle)) : tags;
-  const exact = tags.some((t) => t.name.toLowerCase() === needle);
+  const errandsTag = getErrandsTag(db);
+  const showAutomatic = automaticErrands !== undefined && (!needle || errandsTag.name.toLowerCase().includes(needle));
+  const exact = tags.some((t) => t.name.toLowerCase() === needle)
+    || (automaticErrands !== undefined && errandsTag.name.toLowerCase() === needle);
 
   return (
     <Popover anchor={anchor} onClose={onClose} label="Tags" width={280}>
@@ -204,6 +211,28 @@ export function TagPicker({
         />
       </div>
       <ul className="space-y-0.5">
+        {showAutomatic ? (
+          <li className="rounded-md px-2 py-2">
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={automaticErrands}
+              aria-describedby={automaticHelpId}
+              disabled
+              className="flex min-h-11 w-full items-center gap-2.5 text-left text-[14px]"
+            >
+              <span aria-hidden="true" className={`flex h-4 w-4 items-center justify-center rounded-[4px] border text-[10px] ${automaticErrands ? 'border-accent bg-accent-fill text-accent-fill-contrast' : 'border-control'}`}>
+                {automaticErrands ? '✓' : ''}
+              </span>
+              <TagDot color={errandsTag.color} />
+              <span className="flex-1">{errandsTag.name}</span>
+              <span className="text-[11px] text-faint">Automatic</span>
+            </button>
+            <p id={automaticHelpId} className="pl-6.5 text-[12px] leading-relaxed text-faint">
+              Add @ to the title to mark an errand. Remove @ to stop marking it.
+            </p>
+          </li>
+        ) : null}
         {needle && !exact ? (
           <li>
             <button
@@ -249,7 +278,7 @@ export function TagPicker({
             </li>
           );
         })}
-        {filtered.length === 0 && !needle ? (
+        {filtered.length === 0 && !needle && !showAutomatic ? (
           <li className="px-2 py-3 text-[13px] text-muted">No tags yet. Type a name to create one.</li>
         ) : null}
       </ul>

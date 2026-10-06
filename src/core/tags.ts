@@ -1,4 +1,16 @@
 import type { Database, Tag, TagTargetType } from './types';
+import { ERRANDS_TAG_ID, getErrandsTag, isErrandTask } from './errands';
+import { byRank } from './rank';
+
+/** Resolve computed tags without inserting them into the persisted tag table. */
+export function getTag(db: Database, tagId: string): Tag | undefined {
+  return tagId === ERRANDS_TAG_ID ? getErrandsTag(db) : db.tags[tagId];
+}
+
+/** Tags offered by task filters, including the read-only automatic Errands tag. */
+export function getSelectableTags(db: Database): Tag[] {
+  return [getErrandsTag(db), ...Object.values(db.tags).filter((tag) => tag.deletedAt === null).sort(byRank)];
+}
 
 /**
  * Tags and inheritance (R22).
@@ -109,6 +121,7 @@ export function effectiveTaskTags(db: Database, index: TagIndex, taskId: string)
   }
 
   const all = new Set([...direct, ...inherited.keys()]);
+  if (isErrandTask(task)) all.add(ERRANDS_TAG_ID);
   return { direct, inherited, all };
 }
 
@@ -166,6 +179,7 @@ export function wouldCycle(db: Database, tagId: string, newParentId: string | nu
 }
 
 export function tagPath(db: Database, tagId: string): string {
+  if (tagId === ERRANDS_TAG_ID) return getErrandsTag(db).name;
   const parts: string[] = [];
   let cursor: string | null = tagId;
   const seen = new Set<string>();

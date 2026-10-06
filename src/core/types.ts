@@ -103,6 +103,8 @@ export interface Task extends BaseEntity {
   rank: string;
   /** Today's manual order, persisted separately from structural order (R25). */
   todayRank: string;
+  /** Cross-project manual errand route; omitted until this task is reordered as an errand. */
+  errandRank?: string;
   completedAt: Instant | null;
   canceledAt: Instant | null;
 }
@@ -238,6 +240,9 @@ export type ListSort =
   | 'created' | 'createdAsc'
   | 'priority' | 'priorityDesc'
   | 'tags' | 'tagsDesc';
+
+/** Each list order is independent of task membership, scheduling and the other orders. */
+export type ItemOrderScope = 'structural' | 'today' | 'errands';
 
 export interface Settings extends BaseEntity {
   /** Planning day whose My Day rollover has already been processed. */

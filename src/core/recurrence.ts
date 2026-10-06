@@ -4,6 +4,7 @@ import {
 import { newId } from './ids';
 import { byRank, FIRST_RANK, keyBetween } from './rank';
 import { create, update, type EntityPatch, type WriteContext } from './patches';
+import { ERRANDS_TAG_ID } from './errands';
 import type {
   Database, DateOnly, OccurrenceLink, Project, RepeatRule, RepeatSnapshot, RepeatTemplate, Task,
 } from './types';
@@ -162,7 +163,7 @@ function checklistPatches(ctx: WriteContext, taskId: string, snapshot: RepeatSna
 }
 
 function tagPatches(ctx: WriteContext, targetId: string, snapshot: RepeatSnapshot, targetType: 'task' | 'project'): EntityPatch[] {
-  return snapshot.tagIds.map((tagId) => {
+  return snapshot.tagIds.filter((tagId) => tagId !== ERRANDS_TAG_ID).map((tagId) => {
     const id = newId();
     return create('tagAssignments', id, {
       id, ownerId: ctx.ownerId, tagId, targetType, targetId,
@@ -453,10 +454,15 @@ export interface CreateTemplateInput {
   existingId?: string;
 }
 
+/** Smart classification follows the occurrence title, not a stored assignment. */
+function manualSnapshotTags(snapshot: RepeatSnapshot): RepeatSnapshot {
+  return { ...snapshot, tagIds: snapshot.tagIds.filter((tagId) => tagId !== ERRANDS_TAG_ID) };
+}
+
 export function createTemplate(ctx: WriteContext, input: CreateTemplateInput): { patches: EntityPatch[]; id: string } {
   const id = newId();
   const template: RepeatTemplate = {
-    id, ownerId: ctx.ownerId, entityKind: input.entityKind, snapshot: input.snapshot,
+    id, ownerId: ctx.ownerId, entityKind: input.entityKind, snapshot: manualSnapshotTags(input.snapshot),
     rule: input.rule, anchorDate: input.anchorDate, endDate: input.endDate ?? null,
     useDeadline: input.useDeadline ?? false, leadDays: input.leadDays ?? 0,
     timeZone: ctx.timeZone, pausedAt: null, stoppedAt: null, ruleVersion: 1,
@@ -511,6 +517,7 @@ export function updateTemplate(db: Database, ctx: WriteContext, id: string, fiel
   const ruleChanged = fields.rule !== undefined || fields.anchorDate !== undefined || fields.useDeadline !== undefined;
   return [update('repeatTemplates', id, {
     ...fields,
+    ...(fields.snapshot ? { snapshot: manualSnapshotTags(fields.snapshot) } : {}),
     ruleVersion: ruleChanged ? template.ruleVersion + 1 : template.ruleVersion,
   }, ctx)];
 }
