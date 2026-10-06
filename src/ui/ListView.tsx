@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { formatDateLabel } from '@/core/dates';
 import { emptyTagFilter, tagFilterActive, tagPath } from '@/core/tags';
 import { inToday } from '@/core/membership';
@@ -22,6 +23,7 @@ import { viewStyle } from './view-style';
 import { OrderHandle } from './OrderHandle';
 import { TagDot } from './TagColor';
 import { priorities, sortDocument, type ListSort } from '@/core/list-order';
+import { needsBalancedColumns, upcomingItemsForDate } from '@/core/upcoming-print';
 
 /** Row currently being dragged. Drag is an accelerator; every move has a menu equivalent (R26). */
 let dragSource: { id: string; sectionId: string } | null = null;
@@ -599,7 +601,7 @@ function HeadingMenu({ headingId, title }: { headingId: string; title: string })
   );
 }
 
-function SectionHeader({ section, onAdd }: { section: ListSection; onAdd: () => void }) {
+function SectionHeader({ section, onAdd, onPrint }: { section: ListSection; onAdd: () => void; onPrint?: () => void }) {
   if (!section.title) return null;
   const isHeading = section.id.startsWith('heading:');
   return (
@@ -619,6 +621,7 @@ function SectionHeader({ section, onAdd }: { section: ListSection; onAdd: () => 
       {section.subtitle ? <span className="text-[12px] text-faint">{section.subtitle}</span> : null}
       <span className="h-px flex-1 bg-line" aria-hidden="true" />
       {isHeading ? <HeadingMenu headingId={section.id.slice(8)} title={section.title} /> : null}
+      {onPrint ? <IconButton label={`Print ${section.title}`} onClick={onPrint}><PrintIcon size={15} /></IconButton> : null}
       {section.addTarget ? (
         <IconButton label={`Add a task to ${section.title}`} onClick={onAdd}><PlusIcon size={15} /></IconButton>
       ) : null}
@@ -745,6 +748,65 @@ function MyDayPrint({ doc }: { doc: ListDocument }) {
   );
 }
 
+/** Paper layout for exactly one Upcoming date, including its calendar events. */
+function UpcomingDayPrint({
+  date, items, twoColumns, printRef,
+}: {
+  date: string;
+  items: ListItem[];
+  twoColumns: boolean;
+  printRef: React.RefObject<HTMLElement | null>;
+}) {
+  const db = useApp((s) => s.db);
+  const settings = db.settings;
+  const title = new Intl.DateTimeFormat(settings.locale, {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  }).format(new Date(`${date}T00:00:00Z`));
+  const taskCount = items.filter((item) => item.kind === 'task').length;
+  const eventCount = items.filter((item) => item.kind === 'event').length;
+
+  return (
+    <article ref={printRef} data-print-upcoming-day data-columns={twoColumns ? '2' : '1'}>
+      <header className="day-print-header">
+        <h1>{title}</h1>
+        <p>{taskCount} {taskCount === 1 ? 'task' : 'tasks'}{eventCount ? ` · ${eventCount} ${eventCount === 1 ? 'event' : 'events'}` : ''}</p>
+      </header>
+      <ul className="day-print-items">
+        {items.map((item) => {
+          if (item.kind === 'event') {
+            const time = item.event.allDay ? 'All day' : item.event.startInstant
+              ? new Intl.DateTimeFormat(settings.locale, {
+                hour: 'numeric', minute: '2-digit', timeZone: settings.planningTimeZone,
+              }).format(new Date(item.event.startInstant)) : '';
+            return <li key={item.id} className="day-print-row day-print-event"><span>{item.event.title}</span><span>{time}</span></li>;
+          }
+          if (item.kind === 'project') {
+            return <li key={item.id} className="day-print-row day-print-project"><span>{item.project.title}</span><span>Project</span></li>;
+          }
+          if (item.kind !== 'task') return null;
+          return (
+            <li key={item.id} className="day-print-row day-print-task">
+              <span className="day-print-checkbox" aria-hidden="true" />
+              <div className="day-print-task-body">
+                <div className="day-print-task-title">{item.task.title || 'Untitled'}</div>
+                {item.meta.contextLabel || item.task.priority || item.meta.tagIds.length > 0 || item.meta.showStartMarker || item.meta.showDeadlineMarker ? (
+                  <div className="day-print-meta">
+                    {item.meta.showStartMarker ? <span>Scheduled</span> : null}
+                    {item.meta.showDeadlineMarker ? <span>Due</span> : null}
+                    {item.meta.contextLabel ? <span>{item.meta.contextLabel}</span> : null}
+                    {item.task.priority ? <span>{priorities[item.task.priority]}</span> : null}
+                    {item.meta.tagIds.map((tagId) => <span key={tagId}>#{tagPath(db, tagId)}</span>)}
+                  </div>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </article>
+  );
+}
+
 export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const selection = useApp((s) => s.selection);
   const openItemId = useApp((s) => s.openItemId);
@@ -756,6 +818,27 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const isPhone = usePhone();
   const [composerSection, setComposerSection] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => new Set());
+  const [chosenPrintDate, setChosenPrintDate] = useState(() => sourceDoc.sections.find((s) => s.id.startsWith('day:') && s.items.length)?.date ?? '');
+  const [printDate, setPrintDate] = useState<string | null>(null);
+  const [twoPrintColumns, setTwoPrintColumns] = useState(false);
+  const printRef = useRef<HTMLElement | null>(null);
+  const selectedPrintItems = useMemo(() => chosenPrintDate ? upcomingItemsForDate(doc, chosenPrintDate) : [], [doc, chosenPrintDate]);
+  const activePrintItems = useMemo(() => printDate ? upcomingItemsForDate(doc, printDate) : [], [doc, printDate]);
+
+  useEffect(() => {
+    if (doc.view !== 'upcoming') return;
+    const firstDay = doc.sections.find((section) => section.id.startsWith('day:') && section.items.length)?.date;
+    if (firstDay) setChosenPrintDate((current) => current || firstDay);
+  }, [doc.view, doc.sections]);
+
+  const printUpcomingDate = useCallback((date: string) => {
+    if (!date || upcomingItemsForDate(doc, date).length === 0) return;
+    flushSync(() => { setPrintDate(date); setTwoPrintColumns(false); });
+    const height = printRef.current?.scrollHeight ?? 0;
+    if (needsBalancedColumns(height)) flushSync(() => setTwoPrintColumns(true));
+    window.addEventListener('afterprint', () => setPrintDate(null), { once: true });
+    window.print();
+  }, [doc]);
 
   const scope: 'structural' | 'today' = doc.view === 'today' ? 'today' : 'structural';
   const orderedIdsBySection = useMemo(() => {
@@ -796,6 +879,19 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   return (
     <>
       <div data-list-root className="pt-1 pb-24">
+        {doc.view === 'upcoming' ? (
+          <div className="mb-2 flex flex-wrap items-center justify-end gap-2 px-1 text-[12.5px] text-muted">
+            <label htmlFor="upcoming-print-date">Print a day</label>
+            <input
+              id="upcoming-print-date" type="date" value={chosenPrintDate}
+              onChange={(event) => setChosenPrintDate(event.target.value)}
+              className="h-9 rounded-md border border-line bg-surface px-2 text-ink"
+            />
+            <Button size="sm" variant="ghost" disabled={selectedPrintItems.length === 0} onClick={() => printUpcomingDate(chosenPrintDate)}>
+              <PrintIcon size={15} /> Print
+            </Button>
+          </div>
+        ) : null}
         <div className="mb-2 flex flex-wrap items-center justify-end gap-x-1 gap-y-1 px-1">
           {doc.view === 'today' || doc.view === 'allTasks' ? <TaskTagFilter view={doc.view} /> : null}
           {!['logbook', 'trash'].includes(doc.view) ? <label className="flex items-center gap-1.5 text-[12.5px] text-muted">
@@ -851,7 +947,9 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
           const orderedIds = orderedIdsBySection.get(section.id) ?? [];
           return (
             <section key={section.id} aria-label={section.title ?? doc.title}>
-              <SectionHeader section={section} onAdd={() => addTo(section)} />
+              <SectionHeader section={section} onAdd={() => addTo(section)}
+                onPrint={doc.view === 'upcoming' && section.id.startsWith('day:') && section.date && section.items.length > 0
+                  ? () => printUpcomingDate(section.date!) : undefined} />
               <ul
                 role={section.isEventSection ? 'list' : 'listbox'}
                 aria-multiselectable={section.isEventSection ? undefined : true}
@@ -924,6 +1022,9 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
       </div>
 
       {doc.view === 'today' ? <MyDayPrint doc={doc} /> : null}
+      {doc.view === 'upcoming' && printDate ? (
+        <UpcomingDayPrint date={printDate} items={activePrintItems} twoColumns={twoPrintColumns} printRef={printRef} />
+      ) : null}
 
       {selection.length > 0 ? <SelectionBar ids={selection} /> : null}
 

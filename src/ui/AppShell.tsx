@@ -188,7 +188,7 @@ export function AppShell() {
   const { icon, accent } = viewStyle(view);
 
   return (
-    <div className={`flex h-dvh overflow-hidden ${view === 'today' ? 'printing-my-day' : ''}`}>
+    <div className={`app-shell flex h-dvh overflow-hidden ${view === 'today' ? 'printing-my-day' : ''}`}>
       <a href="#main" className="skip-link">Skip to list</a>
 
       {!isPhone && !settings.sidebarCollapsed ? (
