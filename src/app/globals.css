@@ -565,11 +565,14 @@ kbd {
   visibility: hidden;
   pointer-events: none;
   font: 11pt/1.35 Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 .day-print-header { border-bottom: 2px solid #111; padding-bottom: 0.16in; }
 .day-print-header h1 { font-size: 19pt; font-weight: 700; margin: 0; }
 .day-print-header p { font-size: 9pt; margin: 2pt 0 0; color: #444; }
-.day-print-items { list-style: none; margin: 0.14in 0 0; padding: 0; }
+.day-print-columns { margin-top: 0.14in; }
+.day-print-items { list-style: none; margin: 0; padding: 0; }
 .day-print-row { display: flex; gap: 7pt; padding: 6pt 1pt; break-inside: avoid; page-break-inside: avoid; }
 .day-print-checkbox { align-self: flex-start; border: 1px solid #444; border-radius: 2px; height: 11pt; width: 11pt; flex: none; margin-top: 2pt; }
 .day-print-task-body { min-width: 0; }
@@ -578,13 +581,14 @@ kbd {
 .day-print-event, .day-print-project { justify-content: space-between; border-left: 2px solid #555; padding-left: 6pt; }
 .day-print-event > :first-child, .day-print-project > :first-child { min-width: 0; overflow-wrap: anywhere; }
 .day-print-event > :last-child, .day-print-project > :last-child { color: #555; flex: none; font-size: 9pt; }
-[data-print-upcoming-day][data-columns='2'] .day-print-items { column-count: 2; column-gap: 0.35in; column-fill: balance; }
+[data-print-upcoming-day][data-columns='2'] .day-print-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.35in; }
 
 @media print {
   @page { size: letter portrait; margin: 0.6in; }
 
   :root { color-scheme: light; }
   body { background: #fff !important; color: #111 !important; }
+  body:has([data-print-upcoming-day]) { width: 7.3in !important; min-width: 7.3in !important; max-width: none !important; }
   .printing-my-day { display: block !important; height: auto !important; overflow: visible !important; }
   .printing-my-day > :not(main) { display: none !important; }
   .printing-my-day main { display: block !important; height: auto !important; overflow: visible !important; }
@@ -606,11 +610,11 @@ kbd {
   .my-day-print-event, .my-day-print-project { justify-content: space-between; }
   .my-day-print-event > :last-child, .my-day-print-project > :last-child { color: #555; flex: none; font-size: 9pt; }
 
-  .app-shell:has([data-print-upcoming-day]) { display: block !important; height: auto !important; overflow: visible !important; }
+  .app-shell:has([data-print-upcoming-day]) { display: block !important; width: 7.3in !important; min-width: 7.3in !important; height: auto !important; overflow: visible !important; }
   .app-shell:has([data-print-upcoming-day]) > :not(main) { display: none !important; }
-  .app-shell:has([data-print-upcoming-day]) main { display: block !important; height: auto !important; overflow: visible !important; }
+  .app-shell:has([data-print-upcoming-day]) main { display: block !important; width: 7.3in !important; max-width: none !important; height: auto !important; overflow: visible !important; }
   .app-shell:has([data-print-upcoming-day]) main > :not(:last-child) { display: none !important; }
-  .app-shell:has([data-print-upcoming-day]) main > div:last-child { max-width: none !important; padding: 0 !important; }
+  .app-shell:has([data-print-upcoming-day]) main > div:last-child { width: 7.3in !important; max-width: none !important; padding: 0 !important; }
   .app-shell:has([data-print-upcoming-day]) main > div:last-child > :not([data-print-upcoming-day]) { display: none !important; }
-  [data-print-upcoming-day] { position: static; visibility: visible; pointer-events: auto; width: auto; color: #111; }
+  [data-print-upcoming-day] { position: static; visibility: visible; pointer-events: auto; width: 7.3in !important; max-width: none !important; color: #111; }
 }

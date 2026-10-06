@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ListDocument, ListItem, ListSection } from '../selectors';
-import { needsBalancedColumns, upcomingItemsForDate } from '../upcoming-print';
+import { balancedColumnSplit, needsBalancedColumns, upcomingItemsForDate } from '../upcoming-print';
 
 const item = (id: string): ListItem => ({ kind: 'event', id, event: {} } as ListItem);
 const section = (id: string, items: ListItem[]): ListSection => ({
@@ -35,5 +35,13 @@ describe('printing one Upcoming day', () => {
   it('uses a second balanced column only when one column would overrun the page', () => {
     expect(needsBalancedColumns(600)).toBe(false);
     expect(needsBalancedColumns(1000)).toBe(true);
+  });
+
+  it('divides ordered rows by their rendered heights, leaving both columns populated', () => {
+    expect(balancedColumnSplit([])).toBe(0);
+    expect(balancedColumnSplit([100])).toBe(1);
+    expect(balancedColumnSplit([40, 40, 40, 40])).toBe(2);
+    expect(balancedColumnSplit([100, 20, 20, 20])).toBe(1);
+    expect(balancedColumnSplit([0, 0, 0, 0])).toBe(2);
   });
 });

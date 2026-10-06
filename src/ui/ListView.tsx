@@ -23,7 +23,7 @@ import { viewStyle } from './view-style';
 import { OrderHandle } from './OrderHandle';
 import { TagDot } from './TagColor';
 import { priorities, sortDocument, type ListSort } from '@/core/list-order';
-import { needsBalancedColumns, upcomingItemsForDate } from '@/core/upcoming-print';
+import { balancedColumnSplit, needsBalancedColumns, upcomingItemsForDate } from '@/core/upcoming-print';
 
 /** Row currently being dragged. Drag is an accelerator; every move has a menu equivalent (R26). */
 let dragSource: { id: string; sectionId: string } | null = null;
@@ -750,11 +750,12 @@ function MyDayPrint({ doc }: { doc: ListDocument }) {
 
 /** Paper layout for exactly one Upcoming date, including its calendar events. */
 function UpcomingDayPrint({
-  date, items, twoColumns, printRef,
+  date, items, twoColumns, splitIndex, printRef,
 }: {
   date: string;
   items: ListItem[];
   twoColumns: boolean;
+  splitIndex: number;
   printRef: React.RefObject<HTMLElement | null>;
 }) {
   const db = useApp((s) => s.db);
@@ -765,44 +766,47 @@ function UpcomingDayPrint({
   const taskCount = items.filter((item) => item.kind === 'task').length;
   const eventCount = items.filter((item) => item.kind === 'event').length;
 
+  const renderItem = (item: ListItem) => {
+    if (item.kind === 'event') {
+      const time = item.event.allDay ? 'All day' : item.event.startInstant
+        ? new Intl.DateTimeFormat(settings.locale, {
+          hour: 'numeric', minute: '2-digit', timeZone: settings.planningTimeZone,
+        }).format(new Date(item.event.startInstant)) : '';
+      return <li key={item.id} className="day-print-row day-print-event"><span>{item.event.title}</span><span>{time}</span></li>;
+    }
+    if (item.kind === 'project') {
+      return <li key={item.id} className="day-print-row day-print-project"><span>{item.project.title}</span><span>Project</span></li>;
+    }
+    if (item.kind !== 'task') return null;
+    return (
+      <li key={item.id} className="day-print-row day-print-task">
+        <span className="day-print-checkbox" aria-hidden="true" />
+        <div className="day-print-task-body">
+          <div className="day-print-task-title">{item.task.title || 'Untitled'}</div>
+          {item.meta.contextLabel || item.task.priority || item.meta.tagIds.length > 0 || item.meta.showStartMarker || item.meta.showDeadlineMarker ? (
+            <div className="day-print-meta">
+              {item.meta.showStartMarker ? <span>Scheduled</span> : null}
+              {item.meta.showDeadlineMarker ? <span>Due</span> : null}
+              {item.meta.contextLabel ? <span>{item.meta.contextLabel}</span> : null}
+              {item.task.priority ? <span>{priorities[item.task.priority]}</span> : null}
+              {item.meta.tagIds.map((tagId) => <span key={tagId}>#{tagPath(db, tagId)}</span>)}
+            </div>
+          ) : null}
+        </div>
+      </li>
+    );
+  };
+
   return (
     <article ref={printRef} data-print-upcoming-day data-columns={twoColumns ? '2' : '1'}>
       <header className="day-print-header">
         <h1>{title}</h1>
         <p>{taskCount} {taskCount === 1 ? 'task' : 'tasks'}{eventCount ? ` · ${eventCount} ${eventCount === 1 ? 'event' : 'events'}` : ''}</p>
       </header>
-      <ul className="day-print-items">
-        {items.map((item) => {
-          if (item.kind === 'event') {
-            const time = item.event.allDay ? 'All day' : item.event.startInstant
-              ? new Intl.DateTimeFormat(settings.locale, {
-                hour: 'numeric', minute: '2-digit', timeZone: settings.planningTimeZone,
-              }).format(new Date(item.event.startInstant)) : '';
-            return <li key={item.id} className="day-print-row day-print-event"><span>{item.event.title}</span><span>{time}</span></li>;
-          }
-          if (item.kind === 'project') {
-            return <li key={item.id} className="day-print-row day-print-project"><span>{item.project.title}</span><span>Project</span></li>;
-          }
-          if (item.kind !== 'task') return null;
-          return (
-            <li key={item.id} className="day-print-row day-print-task">
-              <span className="day-print-checkbox" aria-hidden="true" />
-              <div className="day-print-task-body">
-                <div className="day-print-task-title">{item.task.title || 'Untitled'}</div>
-                {item.meta.contextLabel || item.task.priority || item.meta.tagIds.length > 0 || item.meta.showStartMarker || item.meta.showDeadlineMarker ? (
-                  <div className="day-print-meta">
-                    {item.meta.showStartMarker ? <span>Scheduled</span> : null}
-                    {item.meta.showDeadlineMarker ? <span>Due</span> : null}
-                    {item.meta.contextLabel ? <span>{item.meta.contextLabel}</span> : null}
-                    {item.task.priority ? <span>{priorities[item.task.priority]}</span> : null}
-                    {item.meta.tagIds.map((tagId) => <span key={tagId}>#{tagPath(db, tagId)}</span>)}
-                  </div>
-                ) : null}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="day-print-columns">
+        <ul className="day-print-items">{(twoColumns ? items.slice(0, splitIndex) : items).map(renderItem)}</ul>
+        {twoColumns ? <ul className="day-print-items">{items.slice(splitIndex).map(renderItem)}</ul> : null}
+      </div>
     </article>
   );
 }
@@ -821,6 +825,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const [chosenPrintDate, setChosenPrintDate] = useState(() => sourceDoc.sections.find((s) => s.id.startsWith('day:') && s.items.length)?.date ?? '');
   const [printDate, setPrintDate] = useState<string | null>(null);
   const [twoPrintColumns, setTwoPrintColumns] = useState(false);
+  const [printSplitIndex, setPrintSplitIndex] = useState(0);
   const printRef = useRef<HTMLElement | null>(null);
   const selectedPrintItems = useMemo(() => chosenPrintDate ? upcomingItemsForDate(doc, chosenPrintDate) : [], [doc, chosenPrintDate]);
   const activePrintItems = useMemo(() => printDate ? upcomingItemsForDate(doc, printDate) : [], [doc, printDate]);
@@ -832,10 +837,20 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   }, [doc.view, doc.sections]);
 
   const printUpcomingDate = useCallback((date: string) => {
-    if (!date || upcomingItemsForDate(doc, date).length === 0) return;
-    flushSync(() => { setPrintDate(date); setTwoPrintColumns(false); });
+    const items = date ? upcomingItemsForDate(doc, date) : [];
+    if (items.length === 0) return;
+    flushSync(() => { setPrintDate(date); setTwoPrintColumns(false); setPrintSplitIndex(items.length); });
     const height = printRef.current?.scrollHeight ?? 0;
-    if (needsBalancedColumns(height)) flushSync(() => setTwoPrintColumns(true));
+    if (items.length > 1 && needsBalancedColumns(height)) {
+      // Measure at the actual half-page width before choosing the paper break.
+      flushSync(() => setTwoPrintColumns(true));
+      const rowHeights = [...(printRef.current?.querySelectorAll('.day-print-row') ?? [])]
+        .map((row) => row.getBoundingClientRect().height);
+      const split = rowHeights.length === items.length
+        ? balancedColumnSplit(rowHeights)
+        : Math.ceil(items.length / 2);
+      flushSync(() => setPrintSplitIndex(split));
+    }
     window.addEventListener('afterprint', () => setPrintDate(null), { once: true });
     window.print();
   }, [doc]);
@@ -1023,7 +1038,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
 
       {doc.view === 'today' ? <MyDayPrint doc={doc} /> : null}
       {doc.view === 'upcoming' && printDate ? (
-        <UpcomingDayPrint date={printDate} items={activePrintItems} twoColumns={twoPrintColumns} printRef={printRef} />
+        <UpcomingDayPrint date={printDate} items={activePrintItems} twoColumns={twoPrintColumns} splitIndex={printSplitIndex} printRef={printRef} />
       ) : null}
 
       {selection.length > 0 ? <SelectionBar ids={selection} /> : null}
