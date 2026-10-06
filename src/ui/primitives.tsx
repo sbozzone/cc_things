@@ -362,6 +362,7 @@ export function AutoTextarea({
       ref={ref}
       rows={rows}
       value={value}
+      spellCheck={true}
       aria-label={ariaLabel}
       placeholder={placeholder}
       autoFocus={autoFocus}

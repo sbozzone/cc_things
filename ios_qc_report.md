@@ -160,3 +160,9 @@ The browser fixture used only generated, in-memory QA records and was removed af
 Calendar coverage now includes today's and future appointments in Upcoming, initial-launch refresh, and account-backed connection configuration. Downloaded event caches remain device-local; connection URLs and events remain excluded from task exports. Existing desktop connections migrate once when that account opens the updated app, then another device can recover them through sync. Automated tests cover migration, cache freshness, enable/disable/remove behavior, account changes, and server payload restrictions.
 
 Release verification: TypeScript passed; all 156 tests across 17 files passed; all eight light/dark palette contrast audits passed; the optimized production build passed. The removed QA fixture is absent from production routes. Live personal calendar providers and native AirPrint still require the user's device check after deployment.
+
+## October 6, 2026 — v0.7.6 spell check
+
+Task titles, task notes, and checklist entries now explicitly request native spelling checks with `spellCheck={true}`. Coverage includes the main and inline task composers, Quick Capture title/notes, and existing/new checklist rows. The shared title/notes textarea also covers project and area text. Password, email, calendar feed, and technical fields are unchanged. This does not force autocorrection or override the user's browser/device spelling settings; dictionary availability and visible spelling suggestions require a device check.
+
+Verification: four rendered-component regression tests confirm the emitted spelling-check attributes. All 160 tests across 18 files, TypeScript, and the optimized production build passed.

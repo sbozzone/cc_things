@@ -169,6 +169,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
               <input
                 type="text"
                 value={item.text}
+                spellCheck={true}
                 aria-label={`Checklist row ${index + 1}`}
                 onChange={(event) => actions.updateChecklistItem(item.id, { text: event.target.value })}
                 onKeyDown={(event) => {
@@ -192,6 +193,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
           <input
             type="text"
             value={newChecklistText}
+            spellCheck={true}
             placeholder="Add a row"
             aria-label="Add a checklist row"
             onChange={(event) => setNewChecklistText(event.target.value)}

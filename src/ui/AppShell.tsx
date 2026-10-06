@@ -293,6 +293,7 @@ export function AppShell() {
                 <input
                   ref={composerRef}
                   type="text"
+                  spellCheck={true}
                   aria-label={`New task in ${doc.title}`}
                   placeholder={`New task in ${doc.title}`}
                   onBlur={(event) => {

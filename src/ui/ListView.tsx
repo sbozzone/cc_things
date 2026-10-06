@@ -389,6 +389,7 @@ function InlineComposer({ target, onDone }: { target: AddTarget; onDone: () => v
           ref={ref}
           type="text"
           value={value}
+          spellCheck={true}
           aria-label="New task title"
           placeholder="New task"
           onChange={(event) => setValue(event.target.value)}

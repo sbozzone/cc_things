@@ -78,6 +78,7 @@ export function QuickCapture({ target, onClose }: { target?: AddTarget; onClose:
           ref={inputRef}
           type="text"
           value={title}
+          spellCheck={true}
           aria-label="What is on your mind?"
           placeholder="What is on your mind?"
           onChange={(event) => setTitle(event.target.value)}
@@ -92,6 +93,7 @@ export function QuickCapture({ target, onClose }: { target?: AddTarget; onClose:
         {showNotes ? (
           <textarea
             value={notes}
+            spellCheck={true}
             rows={3}
             aria-label="Notes"
             placeholder="Notes"
