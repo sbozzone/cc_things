@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { withTransaction } from './db';
+import { CALENDAR_CONFIG_FIELDS } from '@/core/calendar-sync';
 
 /**
  * Server half of the sync protocol (R34).
@@ -17,7 +18,7 @@ const MAX_CHANGES_PER_PULL = 1000;
 
 const ALLOWED_TABLES = new Set([
   'areas', 'projects', 'headings', 'tasks', 'checklistItems', 'tags', 'tagAssignments',
-  'repeatTemplates', 'occurrenceLinks', 'reminders', 'settings',
+  'repeatTemplates', 'occurrenceLinks', 'reminders', 'settings', 'calendarSubscriptions',
 ]);
 
 export interface IncomingOp {
@@ -38,6 +39,15 @@ export interface OutgoingChange {
   remove?: boolean;
 }
 
+/** Calendar tombstones retain only config identity to suppress stale legacy duplicates. */
+export function outgoingSyncChange(table: string, id: string, data: Record<string, unknown>, removed: boolean): OutgoingChange {
+  if (!removed) return { table, id, patch: data, create: true };
+  const patch = table === 'calendarSubscriptions'
+    ? Object.fromEntries(CALENDAR_CONFIG_FIELDS.filter((field) => field in data).map((field) => [field, data[field]]))
+    : {};
+  return { table, id, patch, remove: true };
+}
+
 export interface ConflictOut {
   id: string;
   ownerId: string;
@@ -56,6 +66,7 @@ export interface SyncResult {
   changes: OutgoingChange[];
   conflicts: ConflictOut[];
   serverTime: string;
+  hasMore: boolean;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -75,6 +86,18 @@ export function validateOps(value: unknown): { ops: IncomingOp[] } | { error: st
     if (typeof table !== 'string' || !ALLOWED_TABLES.has(table)) return { error: `Unknown table: ${String(table)}` };
     if (typeof entityId !== 'string' || entityId.length === 0 || entityId.length > 128) return { error: 'Invalid entityId.' };
     if (!isPlainObject(patch)) return { error: 'Invalid patch.' };
+    if (table === 'calendarSubscriptions') {
+      const fields = [...CALENDAR_CONFIG_FIELDS, '__removed'];
+      if (Object.keys(patch).some((field) => !(fields as readonly string[]).includes(field))) {
+        return { error: 'Only calendar connection settings can be synced.' };
+      }
+      for (const field of CALENDAR_CONFIG_FIELDS) {
+        if (!(field in patch)) continue;
+        if (field === 'enabled') {
+          if (typeof patch[field] !== 'boolean') return { error: 'Invalid calendar connection setting.' };
+        } else if (typeof patch[field] !== 'string') return { error: 'Invalid calendar connection setting.' };
+      }
+    }
     if (typeof createdAt !== 'string' || Number.isNaN(Date.parse(createdAt))) return { error: 'Invalid createdAt.' };
     ops.push({
       opId, deviceId, table, entityId, patch, createdAt,
@@ -178,14 +201,13 @@ export async function applySync(
     const out: OutgoingChange[] = [];
     for (const change of changes.rows) {
       nextCursor = Math.max(nextCursor, Number(change.seq));
-      if (change.removed) out.push({ table: change.table_name, id: change.entity_id, patch: {}, remove: true });
-      else out.push({ table: change.table_name, id: change.entity_id, patch: change.data, create: true });
+      out.push(outgoingSyncChange(change.table_name, change.entity_id, change.data, change.removed));
     }
 
     await client.query('delete from conflicts where expires_at < now()');
     await client.query("delete from applied_ops where applied_at < now() - interval '90 days'");
 
-    return { cursor: nextCursor, applied, changes: out, conflicts, serverTime: new Date().toISOString() };
+    return { cursor: nextCursor, applied, changes: out, conflicts, serverTime: new Date().toISOString(), hasMore: changes.rows.length === MAX_CHANGES_PER_PULL };
   });
 }
 

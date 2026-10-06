@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseIcs, toCacheRecords } from '../calendar';
+import { buildIndexes, runView } from '../selectors';
+import { Harness } from '../testing';
 
 const feed = (body: string) => `BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${body}\r\nEND:VCALENDAR`;
 
@@ -143,5 +145,27 @@ describe('calendar adapter (R20, R21, scenario A10)', () => {
       'SUMMARY:A very long title that the', ' \tprovider wrapped', 'END:VEVENT',
     ].join('\r\n'));
     expect(parseIcs(text, '2026-09-01', '2026-09-30')[0]?.title).toBe('A very long title that the\tprovider wrapped');
+  });
+
+  it('shows today and future recurring appointments in Upcoming, including with a task tag filter', () => {
+    const h = new Harness('2026-10-06T12:00:00Z', 'America/Indianapolis');
+    const text = feed([
+      'BEGIN:VEVENT', 'UID:meeting@example.com',
+      'DTSTART;TZID=Eastern Standard Time:20261006T100000',
+      'DTEND;TZID=Eastern Standard Time:20261006T103000',
+      'RRULE:FREQ=DAILY;COUNT=4', 'SUMMARY:Morning meeting', 'END:VEVENT',
+    ].join('\r\n'));
+    for (const event of toCacheRecords(parseIcs(text, h.today, '2026-10-10', h.ctx().timeZone), h.ownerId, 'ics', 'work', h.ctx().now)) {
+      h.db.calendarEvents[event.id] = event;
+    }
+
+    const upcoming = runView(h.db, buildIndexes(h.db, h.today), 'upcoming', {
+      tagFilter: { mode: 'include', tagIds: ['some-task-tag'], untagged: false },
+    });
+    const today = upcoming.sections.find((section) => section.date === h.today);
+    expect(today?.title).toBe('Today');
+    expect(today?.items).toMatchObject([{ kind: 'event', event: { title: 'Morning meeting', startInstant: '2026-10-06T14:00:00.000Z' } }]);
+    expect(upcoming.sections.filter((section) => section.items.some((item) => item.kind === 'event')).map((section) => section.date))
+      .toEqual(['2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09']);
   });
 });

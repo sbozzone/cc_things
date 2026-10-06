@@ -118,9 +118,10 @@ Two deliberate simplifications, both preserving the stated behaviour:
 - **View order** is stored as `rank` and `todayRank` fields on the task rather than as a
   separate table. Today's order stays independent of structural order, which is what the
   requirement tests for, with far less sync surface.
-- **Calendar subscriptions and their event cache are device-local.** §12 asks for device
-  capabilities and permission state to be device-local; this extends that to the feed
-  address, so a secret calendar URL never travels through sync or an export.
+- **Calendar connection configuration syncs privately within the account.** Only its
+  identity, title, feed address and enabled state travel through authenticated sync.
+  Downloaded events, refresh timestamps and parser status stay device-local. Neither
+  secret feed addresses nor event caches travel through an export.
 
 ## 13. Accounts, offline operation and recovery
 

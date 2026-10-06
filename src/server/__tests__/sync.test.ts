@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateOps } from '../sync';
+import { outgoingSyncChange, validateOps } from '../sync';
 
 const op = (overrides: Record<string, unknown> = {}) => ({
   opId: 'op_1', deviceId: 'dev_1', table: 'tasks', entityId: 'task_1',
@@ -11,6 +11,27 @@ describe('sync operation validation (R34, N08)', () => {
   it('accepts a well-formed operation', () => {
     const result = validateOps([op()]);
     expect('ops' in result && result.ops).toHaveLength(1);
+  });
+
+  it('accepts private calendar connection configuration but rejects cache and parser fields', () => {
+    const config = {
+      id: 'cal_1', ownerId: 'owner', providerId: 'ics', calendarId: 'cal_1', title: 'Work',
+      url: 'https://example.com/work.ics', enabled: true,
+    };
+    expect('ops' in validateOps([op({ table: 'calendarSubscriptions', entityId: 'cal_1', patch: config })])).toBe(true);
+    expect('ops' in validateOps([op({ table: 'calendarSubscriptions', patch: { __removed: true } })])).toBe(true);
+    for (const field of ['lastRefreshedAt', 'lastError', 'parserVersion', 'configSynced']) {
+      expect('error' in validateOps([op({ table: 'calendarSubscriptions', patch: { ...config, [field]: 'local' } })])).toBe(true);
+    }
+    expect('error' in validateOps([op({ table: 'calendarSubscriptions', patch: { enabled: 'yes' } })])).toBe(true);
+  });
+
+  it('sends only calendar config identity with removals and keeps generic task tombstones unchanged', () => {
+    const config = { id: 'cal', ownerId: 'owner', providerId: 'ics', calendarId: 'cal', title: 'Work', url: 'https://example.com/work.ics', enabled: true };
+    expect(outgoingSyncChange('calendarSubscriptions', 'cal', { ...config, lastRefreshedAt: 'local', configSynced: true }, true))
+      .toEqual({ table: 'calendarSubscriptions', id: 'cal', patch: config, remove: true });
+    expect(outgoingSyncChange('tasks', 'task', { title: 'Task' }, true))
+      .toEqual({ table: 'tasks', id: 'task', patch: {}, remove: true });
   });
 
   it('rejects a table the client is not allowed to write', () => {

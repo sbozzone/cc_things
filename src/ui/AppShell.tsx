@@ -33,6 +33,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export function AppShell() {
   const ready = useApp((s) => s.ready);
+  const ownerId = useApp((s) => s.ownerId);
   const initialize = useApp((s) => s.initialize);
   const view = useApp((s) => s.view);
   const setView = useApp((s) => s.setView);
@@ -99,20 +100,23 @@ export function AppShell() {
     navigator.serviceWorker.register('/sw.js').catch(() => undefined);
   }, []);
 
-  // Resuming: catch up on rollover, missed recurrences and stale calendar caches.
+  // Initial launch and resuming: catch up on rollover, missed recurrences and stale
+  // calendar caches. A cold PWA launch may never receive a separate focus event.
   useEffect(() => {
+    if (!ready) return;
     const onFocus = () => {
       if (document.visibilityState === 'hidden') return;
       runMaintenance();
       void refreshStaleCalendars();
     };
+    onFocus();
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
     return () => {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onFocus);
     };
-  }, [runMaintenance]);
+  }, [ready, ownerId, runMaintenance]);
 
   const addHere = useCallback(() => {
     setComposerOpen(true);

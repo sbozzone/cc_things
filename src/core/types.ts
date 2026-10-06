@@ -290,6 +290,9 @@ export interface CalendarSubscription {
   title: string;
   url: string;
   enabled: boolean;
+  /** Device-only marker: the account configuration is queued or has arrived from sync. */
+  configSynced?: boolean;
+  /** Cache metadata below is local to each device; never sent through account sync. */
   lastRefreshedAt: Instant | null;
   lastError: string | null;
   /** Parser revision used for the current local event cache. */

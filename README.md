@@ -90,8 +90,9 @@ Automation**. See `.env.example`.
 **Settings → Calendar** takes a read-only iCalendar (`.ics`) feed address — Google
 Calendar's "Secret address in iCal format", or a published iCloud or Outlook calendar.
 Events appear above tasks in Today and on the matching Upcoming day. Access is one-way:
-a calendar change can never complete or reschedule a task, and the cache is device-local
-so it is never synced as task data and never leaves in an export.
+a calendar change can never complete or reschedule a task. Calendar connections sync
+privately with your account, so your phone and PC use the same feeds. Downloaded events
+and refresh status stay device-local. Feed addresses and events never leave in an export.
 
 ---
 

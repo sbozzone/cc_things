@@ -822,38 +822,51 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const isPhone = usePhone();
   const [composerSection, setComposerSection] = useState<string | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => new Set());
-  const [chosenPrintDate, setChosenPrintDate] = useState(() => sourceDoc.sections.find((s) => s.id.startsWith('day:') && s.items.length)?.date ?? '');
-  const [printDate, setPrintDate] = useState<string | null>(null);
+  const [chosenPrintDate, setChosenPrintDate] = useState(() =>
+    sourceDoc.sections.find((s) => s.id.startsWith('day:') && s.items.length)?.date
+      ?? sourceDoc.sections.find((s) => s.id.startsWith('day:'))?.date ?? '');
   const [twoPrintColumns, setTwoPrintColumns] = useState(false);
   const [printSplitIndex, setPrintSplitIndex] = useState(0);
   const printRef = useRef<HTMLElement | null>(null);
   const selectedPrintItems = useMemo(() => chosenPrintDate ? upcomingItemsForDate(doc, chosenPrintDate) : [], [doc, chosenPrintDate]);
-  const activePrintItems = useMemo(() => printDate ? upcomingItemsForDate(doc, printDate) : [], [doc, printDate]);
 
   useEffect(() => {
     if (doc.view !== 'upcoming') return;
-    const firstDay = doc.sections.find((section) => section.id.startsWith('day:') && section.items.length)?.date;
+    const firstDay = doc.sections.find((section) => section.id.startsWith('day:') && section.items.length)?.date
+      ?? doc.sections.find((section) => section.id.startsWith('day:'))?.date;
     if (firstDay) setChosenPrintDate((current) => current || firstDay);
   }, [doc.view, doc.sections]);
 
-  const printUpcomingDate = useCallback((date: string) => {
-    const items = date ? upcomingItemsForDate(doc, date) : [];
-    if (items.length === 0) return;
-    flushSync(() => { setPrintDate(date); setTwoPrintColumns(false); setPrintSplitIndex(items.length); });
+  const prepareUpcomingPrint = useCallback(() => {
+    const count = printRef.current?.querySelectorAll('.day-print-row').length ?? 0;
+    flushSync(() => { setTwoPrintColumns(false); setPrintSplitIndex(count); });
     const height = printRef.current?.scrollHeight ?? 0;
-    if (items.length > 1 && needsBalancedColumns(height)) {
+    if (count > 1 && needsBalancedColumns(height)) {
       // Measure at the actual half-page width before choosing the paper break.
       flushSync(() => setTwoPrintColumns(true));
       const rowHeights = [...(printRef.current?.querySelectorAll('.day-print-row') ?? [])]
         .map((row) => row.getBoundingClientRect().height);
-      const split = rowHeights.length === items.length
+      const split = rowHeights.length === count
         ? balancedColumnSplit(rowHeights)
-        : Math.ceil(items.length / 2);
+        : Math.ceil(count / 2);
       flushSync(() => setPrintSplitIndex(split));
     }
-    window.addEventListener('afterprint', () => setPrintDate(null), { once: true });
+  }, []);
+
+  useEffect(() => {
+    if (doc.view !== 'upcoming') return;
+    // AirPrint ends individual preview/PDF render phases with afterprint. Keep
+    // the selected day's article mounted for every phase, including Share > Print.
+    window.addEventListener('beforeprint', prepareUpcomingPrint);
+    return () => window.removeEventListener('beforeprint', prepareUpcomingPrint);
+  }, [doc.view, prepareUpcomingPrint]);
+
+  const printUpcomingDate = useCallback((date: string) => {
+    if (!date || upcomingItemsForDate(doc, date).length === 0) return;
+    flushSync(() => setChosenPrintDate(date));
+    prepareUpcomingPrint();
     window.print();
-  }, [doc]);
+  }, [doc, prepareUpcomingPrint]);
 
   const scope: 'structural' | 'today' = doc.view === 'today' ? 'today' : 'structural';
   const orderedIdsBySection = useMemo(() => {
@@ -1037,8 +1050,8 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
       </div>
 
       {doc.view === 'today' ? <MyDayPrint doc={doc} /> : null}
-      {doc.view === 'upcoming' && printDate ? (
-        <UpcomingDayPrint date={printDate} items={activePrintItems} twoColumns={twoPrintColumns} splitIndex={printSplitIndex} printRef={printRef} />
+      {doc.view === 'upcoming' && chosenPrintDate ? (
+        <UpcomingDayPrint date={chosenPrintDate} items={selectedPrintItems} twoColumns={twoPrintColumns} splitIndex={printSplitIndex} printRef={printRef} />
       ) : null}
 
       {selection.length > 0 ? <SelectionBar ids={selection} /> : null}

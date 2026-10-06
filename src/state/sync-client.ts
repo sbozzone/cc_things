@@ -20,6 +20,8 @@ export interface SyncResponse {
   changes: EntityPatch[];
   conflicts: ConflictRecord[];
   serverTime: string;
+  /** A full pull page must finish before legacy connection migration is considered. */
+  hasMore?: boolean;
 }
 
 export class SyncUnavailableError extends Error {}

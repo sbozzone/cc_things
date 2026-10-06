@@ -453,11 +453,11 @@ function upcomingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocume
   ]);
   const sections: ListSection[] = [];
 
-  // Upcoming begins with work due today, but a start date alone does not place an
-  // item here once that date has arrived. Today's calendar events remain in My Day.
-  if (byDate.has(ix.today) || projectsByDate.has(ix.today)) {
+  // Today's appointments belong beside today's due work. A start date alone does
+  // not place a task here once that date has arrived.
+  if (byDate.has(ix.today) || projectsByDate.has(ix.today) || ix.eventsByDate.has(ix.today)) {
     sections.push(upcomingSection(
-      db, ix, ix.today, byDate, projectsByDate, 'Today', true, false,
+      db, ix, ix.today, byDate, projectsByDate, 'Today', true,
     ));
   }
 

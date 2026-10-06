@@ -141,3 +141,22 @@ The release cannot be certified as an iOS 17 simulator build from this test bed.
 3. Provide staging `DATABASE_URL` and `AUTH_SECRET` values plus a known disposable account before certifying login and sync.
 4. Correct Move picker selection semantics so the current parent is announced accurately.
 5. Simplify or stack the Settings footer metadata on narrow screens.
+
+## October 6, 2026 — v0.7.5 print and calendar regression checks
+
+The reported AirPrint preview contained the regular Upcoming screen rather than the selected day's paper layout. The selected-day article now stays mounted through repeated `beforeprint`/`afterprint` phases, and Safari's native Share → Print uses the chosen date too.
+
+| Check | Result | Evidence |
+|---|---|---|
+| iPhone-sized viewport, 393 × 852 | Pass | Real day-print action survived two simulated preview/render cycles; paper CSS showed only Friday, October 9, 2026, with 13 tasks and 2 calendar events. App header, sort controls, other dates, and selection controls were hidden. |
+| Long day, mobile and desktop | Pass | 32 tasks plus 2 events split into 17 rows per column. At desktop size the column bottoms differed by about 31 CSS px (less than one task row), leaving the unused bottom of the sheet clear. |
+| Short day and switching dates | Pass | Short lists remained in one column. Printing Tuesday after Friday replaced the article with Tuesday's single task rather than retaining Friday's rows. |
+| Desktop regression, 1280 × 900 | Pass | The same selected-day layout and balanced columns remained available after repeated print phases. |
+| Browser console | Pass | No warning or error entries during the print checks. |
+| Real iPhone AirPrint dialog and physical output | Pending device check | Windows cannot run Mobile Safari or Xcode's iPhone Simulator. Responsive checks and explicit lifecycle simulation do not certify native AirPrint output. |
+
+The browser fixture used only generated, in-memory QA records and was removed after testing. No personal tasks or calendar feeds were modified.
+
+Calendar coverage now includes today's and future appointments in Upcoming, initial-launch refresh, and account-backed connection configuration. Downloaded event caches remain device-local; connection URLs and events remain excluded from task exports. Existing desktop connections migrate once when that account opens the updated app, then another device can recover them through sync. Automated tests cover migration, cache freshness, enable/disable/remove behavior, account changes, and server payload restrictions.
+
+Release verification: TypeScript passed; all 156 tests across 17 files passed; all eight light/dark palette contrast audits passed; the optimized production build passed. The removed QA fixture is absent from production routes. Live personal calendar providers and native AirPrint still require the user's device check after deployment.

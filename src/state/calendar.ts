@@ -2,6 +2,7 @@
 
 import { addDays } from '@/core/dates';
 import { CACHE_STALE_MS, CALENDAR_PARSER_VERSION, parseIcs, toCacheRecords } from '@/core/calendar';
+import { calendarConfig, calendarFeedKey } from '@/core/calendar-sync';
 import { newId } from '@/core/ids';
 import type { EntityPatch } from '@/core/patches';
 import type { CalendarSubscription } from '@/core/types';
@@ -20,6 +21,12 @@ const WINDOW_AFTER_DAYS = 60;
 
 export function addSubscription(title: string, url: string): string {
   const state = useApp.getState();
+  const existing = Object.values(state.db.calendarSubscriptions).find((subscription) =>
+    subscription.ownerId === state.ownerId && calendarFeedKey(subscription) === calendarFeedKey({ providerId: 'ics', url }));
+  if (existing) {
+    if (!existing.enabled) setSubscriptionEnabled(existing.id, true);
+    return existing.id;
+  }
   const id = newId('cal_');
   const subscription: CalendarSubscription = {
     id,
@@ -29,29 +36,32 @@ export function addSubscription(title: string, url: string): string {
     title: title.trim() || 'Calendar',
     url: url.trim(),
     enabled: true,
+    configSynced: true,
     lastRefreshedAt: null,
     lastError: null,
   };
-  // Calendar selection and its cache stay device-local: they are never synced as tasks
-  // and never leave in an export (R35).
-  state.dispatch([{ table: 'calendarSubscriptions', id, patch: subscription as unknown as Record<string, unknown>, create: true }], { local: true });
+  // Connection configuration is account-backed; downloaded events and freshness
+  // stay on this device. Neither the feed address nor its events enter exports.
+  state.dispatch([{ table: 'calendarSubscriptions', id, patch: subscription as unknown as Record<string, unknown>, create: true }]);
   return id;
 }
 
 export function setSubscriptionEnabled(id: string, enabled: boolean): void {
   const state = useApp.getState();
-  const patches: EntityPatch[] = [{ table: 'calendarSubscriptions', id, patch: { enabled } }];
-  if (!enabled) patches.push(...clearCachePatches(id));
-  state.dispatch(patches, { local: true });
+  const subscription = state.db.calendarSubscriptions[id];
+  if (!subscription) return;
+  state.dispatch([{ table: 'calendarSubscriptions', id, patch: { ...calendarConfig(subscription), enabled, configSynced: true } }]);
+  if (!enabled) state.dispatch(clearCachePatches(id), { local: true });
+  // Disabling removes the cache. Re-enabling must fetch it now, even if the last
+  // successful refresh was recent and the app has not received another focus event.
+  if (enabled) void refreshSubscription(id, true);
 }
 
 /** Removing a calendar clears its cached events but never touches a task (R20). */
 export function removeSubscription(id: string): void {
   const state = useApp.getState();
-  state.dispatch(
-    [{ table: 'calendarSubscriptions', id, patch: {}, remove: true }, ...clearCachePatches(id)],
-    { local: true },
-  );
+  state.dispatch([{ table: 'calendarSubscriptions', id, patch: {}, remove: true }]);
+  state.dispatch(clearCachePatches(id), { local: true });
 }
 
 function clearCachePatches(calendarId: string): EntityPatch[] {
@@ -65,6 +75,12 @@ export async function refreshSubscription(id: string, force = false): Promise<vo
   const state = useApp.getState();
   const subscription = state.db.calendarSubscriptions[id];
   if (!subscription || !subscription.enabled) return;
+  const ownerId = state.ownerId;
+  const stillCurrent = () => {
+    const current = useApp.getState();
+    const saved = current.db.calendarSubscriptions[id];
+    return current.ownerId === ownerId && saved?.enabled && saved.url === subscription.url;
+  };
   if (!force && subscription.lastRefreshedAt) {
     const age = Date.now() - Date.parse(subscription.lastRefreshedAt);
     if (age < CACHE_STALE_MS) return;
@@ -77,6 +93,9 @@ export async function refreshSubscription(id: string, force = false): Promise<vo
       body: JSON.stringify({ url: subscription.url }),
     });
     const body = (await response.json()) as { text?: string; error?: string; fetchedAt?: string };
+    // A request can finish after a calendar was removed, disabled or its account
+    // signed out. Do not recreate that subscription or leak its events into a new one.
+    if (!stillCurrent()) return;
     if (!response.ok || !body.text) {
       useApp.getState().dispatch(
         [{ table: 'calendarSubscriptions', id, patch: { lastError: body.error ?? 'Could not refresh.' } }],
@@ -116,6 +135,7 @@ export async function refreshSubscription(id: string, force = false): Promise<vo
     });
     useApp.getState().dispatch(patches, { local: true });
   } catch {
+    if (!stillCurrent()) return;
     useApp.getState().dispatch(
       [{ table: 'calendarSubscriptions', id, patch: { lastError: 'Could not reach the calendar provider.' } }],
       { local: true },

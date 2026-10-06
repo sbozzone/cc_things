@@ -15,6 +15,7 @@ import { AlertIcon, CalendarIcon, TrashIcon } from './icons';
  * cached events while leaving every task alone.
  */
 export function CalendarPanel() {
+  const signedIn = useApp((s) => s.signedIn);
   const subscriptionMap = useApp((s) => s.db.calendarSubscriptions);
   const subscriptions = useMemo(() => Object.values(subscriptionMap), [subscriptionMap]);
   const eventCount = useApp((s) => Object.keys(s.db.calendarEvents).length);
@@ -39,6 +40,11 @@ export function CalendarPanel() {
         In Google Calendar it is under Settings → your calendar → “Secret address in iCal format”; iCloud and Outlook
         both offer a published feed. Access is read-only and one-way: a calendar change can never complete or
         reschedule a task.
+      </p>
+      <p className="mb-3 text-[13.5px] text-muted">
+        {signedIn
+          ? 'Connections and Show settings sync privately between your devices. Event caches stay on each device. Removing a connection removes it from your other devices too.'
+          : 'Sign in to back up calendar connections and use them on your other devices.'}
       </p>
 
       {subscriptions.length > 0 ? (

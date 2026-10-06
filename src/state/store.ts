@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { systemClock } from '@/core/clock';
 import { contextFor } from '@/core/commands';
 import { emptyDatabase, purgeIds } from '@/core/db';
+import { calendarMigrationPatches, incomingCalendarPatches, syncableCalendarPatch } from '@/core/calendar-sync';
 import { today as todayOf, todayIn } from '@/core/dates';
 import { newDeviceId, newId } from '@/core/ids';
 import { applyPatches, inverseOf, type EntityPatch, type WriteContext } from '@/core/patches';
@@ -115,6 +116,8 @@ let indexCache: { db: Database; today: DateOnly; value: Indexes } | null = null;
 let syncTimer: ReturnType<typeof setInterval> | null = null;
 let clockTimer: ReturnType<typeof setInterval> | null = null;
 let syncInFlight = false;
+/** Invalidates asynchronous account work even if the same account signs back in. */
+let accountGeneration = 0;
 
 /**
  * Cross-tab propagation (R28). Tabs share one IndexedDB database, so a change only
@@ -141,17 +144,21 @@ function announce(message: TabMessage): void {
 }
 
 function opsFor(patches: EntityPatch[], deviceId: string, ownerId: string, now: string): SyncOperation[] {
-  return patches.map((patch) => ({
-    opId: newId('op_'),
-    deviceId,
-    ownerId,
-    table: patch.table,
-    entityId: patch.id,
-    baseRevision: 0,
-    patch: patch.remove ? { __removed: true, ...patch.patch } : patch.patch,
-    createdAt: now,
-    serverSeq: null,
-  }));
+  return patches.flatMap((original) => {
+    const patch = syncableCalendarPatch(original);
+    if (!patch) return [];
+    return [{
+      opId: newId('op_'),
+      deviceId,
+      ownerId,
+      table: patch.table,
+      entityId: patch.id,
+      baseRevision: 0,
+      patch: patch.remove ? { __removed: true, ...patch.patch } : patch.patch,
+      createdAt: now,
+      serverSeq: null,
+    }];
+  });
 }
 
 export const useApp = create<AppState>((set, get) => ({
@@ -265,7 +272,7 @@ export const useApp = create<AppState>((set, get) => ({
     void persistPatches(db, patches, ops)
       .then(() => {
         announce({ kind: 'patches', ownerId: state.ownerId, patches });
-        if (get().syncConfigured && get().signedIn) void get().syncNow();
+        if (ops.length > 0 && get().ownerId === state.ownerId && get().syncConfigured && get().signedIn) void get().syncNow();
       })
       .catch(() => {
         // A quota or storage failure must be visible rather than silently dropped (R33).
@@ -395,32 +402,37 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   async refreshSession() {
+    const generation = accountGeneration;
     const session = await fetchSession();
-    set({
-      syncConfigured: session.syncConfigured,
-      signedIn: session.signedIn,
-      email: session.email,
-      syncStatus: session.signedIn ? get().syncStatus : 'local',
-    });
+    if (generation !== accountGeneration) return;
     if (session.signedIn && session.ownerId) {
       if (session.ownerId !== get().ownerId) {
         // A different account signed in on this device: start from that account's data.
-        await resetLocal();
         const db = emptyDatabase(session.ownerId, new Date().toISOString(), get().db.settings.planningTimeZone);
         const deviceId = newDeviceId();
+        const switchedGeneration = ++accountGeneration;
+        set({ db, ownerId: session.ownerId, signedIn: false, deviceId, pending: [], cursor: 0, undoStack: [], redoStack: [] });
+        await resetLocal();
+        if (switchedGeneration !== accountGeneration) return;
         await setLocalIdentity(session.ownerId, deviceId);
-        set({ db, ownerId: session.ownerId, deviceId, pending: [], cursor: 0, undoStack: [], redoStack: [] });
+        if (switchedGeneration !== accountGeneration) return;
       }
+      set({ syncConfigured: session.syncConfigured, signedIn: true, email: session.email });
       await get().syncNow();
       if (syncTimer === null && typeof window !== 'undefined') {
         syncTimer = setInterval(() => void get().syncNow(), 20_000);
       }
+    } else {
+      if (get().signedIn) ++accountGeneration;
+      set({ syncConfigured: session.syncConfigured, signedIn: false, email: session.email, syncStatus: 'local' });
     }
   },
 
   async syncNow() {
     const state = get();
     if (!state.syncConfigured || !state.signedIn || syncInFlight) return;
+    const generation = accountGeneration;
+    let followUp = false;
     syncInFlight = true;
     set({ syncStatus: 'syncing' });
     try {
@@ -429,18 +441,35 @@ export const useApp = create<AppState>((set, get) => ({
         cursor: state.cursor,
         ops: state.pending.slice(0, 500),
       });
-      const db = applyPatches(get().db, response.changes);
+      if (generation !== accountGeneration || get().ownerId !== state.ownerId || !get().signedIn) return;
+      const incoming = incomingCalendarPatches(get().db, response.changes, state.ownerId);
+      const pulledDb = applyPatches(get().db, incoming.patches);
+      const hasMore = response.hasMore ?? response.changes.length >= 1000;
+      // Pull all existing account connections before backing up legacy local ones,
+      // so another device's newer settings and removals win over stale copies.
+      const migrations = hasMore ? [] : calendarMigrationPatches(pulledDb, state.ownerId);
+      const migrationOps = opsFor(migrations, state.deviceId, state.ownerId, new Date().toISOString());
+      const db = applyPatches(pulledDb, migrations);
       set({
         db,
         cursor: response.cursor,
-        pending: get().pending.filter((op) => !response.applied.includes(op.opId)),
+        pending: [...get().pending.filter((op) => !response.applied.includes(op.opId)), ...migrationOps],
         conflictCount: get().conflictCount + response.conflicts.length,
         lastSyncError: null,
       });
-      await persistIncoming(db, response.changes, response.cursor);
+      await persistIncoming(db, incoming.patches, response.cursor);
+      if (generation !== accountGeneration || get().ownerId !== state.ownerId || !get().signedIn) return;
+      if (migrations.length > 0) await persistPatches(db, migrations, migrationOps);
+      if (generation !== accountGeneration || get().ownerId !== state.ownerId || !get().signedIn) return;
       await acknowledgeOps(response.applied, response.cursor);
-      if (response.changes.length > 0) announce({ kind: 'patches', ownerId: state.ownerId, patches: response.changes });
+      if (generation !== accountGeneration || get().ownerId !== state.ownerId || !get().signedIn) return;
+      const changes = [...incoming.patches, ...migrations];
+      if (changes.length > 0) announce({ kind: 'patches', ownerId: state.ownerId, patches: changes });
       set({ syncStatus: get().pending.length > 0 ? 'savedOnDevice' : 'upToDate' });
+      if (incoming.refreshCalendars) void import('./calendar').then(({ refreshStaleCalendars }) => {
+        if (generation === accountGeneration && get().ownerId === state.ownerId && get().signedIn) return refreshStaleCalendars();
+      });
+      followUp = hasMore || migrationOps.length > 0;
       if (response.conflicts.length > 0) {
         get().pushToast({
           message: `${response.conflicts.length} conflicting edit${response.conflicts.length === 1 ? '' : 's'} kept for review in Settings.`,
@@ -448,6 +477,7 @@ export const useApp = create<AppState>((set, get) => ({
         });
       }
     } catch (error) {
+      if (generation !== accountGeneration || get().ownerId !== state.ownerId || !get().signedIn) return;
       if (error instanceof SyncAuthError) {
         set({ signedIn: false, syncStatus: 'local', lastSyncError: error.message });
       } else if (error instanceof SyncUnavailableError) {
@@ -458,27 +488,42 @@ export const useApp = create<AppState>((set, get) => ({
     } finally {
       syncInFlight = false;
     }
+    if (followUp && generation === accountGeneration && get().ownerId === state.ownerId && get().signedIn) void get().syncNow();
   },
 
   async replaceDatabase(db) {
+    // Task imports omit provider secrets. Preserve account-matching calendar
+    // connections instead of silently deleting them when replacing task records.
+    const current = get();
+    const generation = accountGeneration;
+    const calendarPending = current.pending.filter((op) => op.table === 'calendarSubscriptions' && op.ownerId === current.ownerId);
+    db = {
+      ...db,
+      calendarSubscriptions: { ...Object.fromEntries(Object.entries(current.db.calendarSubscriptions).filter(([, sub]) => sub.ownerId === current.ownerId)), ...db.calendarSubscriptions },
+      calendarEvents: { ...Object.fromEntries(Object.entries(current.db.calendarEvents).filter(([, event]) => event.ownerId === current.ownerId)), ...db.calendarEvents },
+    };
     set({ db, undoStack: [], redoStack: [] });
     await resetLocal();
+    if (generation !== accountGeneration || get().ownerId !== current.ownerId) return;
     const records: EntityPatch[] = [];
     for (const table of [
       'areas', 'projects', 'headings', 'tasks', 'checklistItems', 'tags', 'tagAssignments',
       'repeatTemplates', 'occurrenceLinks', 'reminders',
+      'calendarSubscriptions', 'calendarEvents',
     ] as const) {
       for (const id of Object.keys(db[table])) records.push({ table, id, patch: {} });
     }
     records.push({ table: 'settings', id: 'settings', patch: {} });
-    await setLocalIdentity(get().ownerId, get().deviceId);
-    await persistIncoming(db, records, 0);
-    set({ cursor: 0, pending: [] });
+    await setLocalIdentity(current.ownerId, current.deviceId);
+    if (generation !== accountGeneration || get().ownerId !== current.ownerId) return;
+    await persistPatches(db, records, calendarPending, { serverCursor: 0 });
+    if (generation !== accountGeneration || get().ownerId !== current.ownerId) return;
+    set({ cursor: 0, pending: calendarPending });
     announce({ kind: 'reload' });
   },
 
   async signOutLocal() {
-    await resetLocal();
+    ++accountGeneration;
     if (syncTimer) {
       clearInterval(syncTimer);
       syncTimer = null;
@@ -488,6 +533,7 @@ export const useApp = create<AppState>((set, get) => ({
       db, ownerId: LOCAL_OWNER, pending: [], cursor: 0, signedIn: false,
       email: null, syncStatus: 'local', undoStack: [], redoStack: [], view: 'today',
     });
+    await resetLocal();
     announce({ kind: 'reload' });
   },
 
