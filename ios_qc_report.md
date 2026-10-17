@@ -191,3 +191,17 @@ and viewport overrides reset. The test route is absent from the production build
 
 Release verification: TypeScript passed; 203 tests across 22 files passed; all eight
 light/dark palette contrast audits passed; the optimized production build passed.
+
+## October 17, 2026 — v0.7.8 checklist ordering
+
+Every checklist row now has a dedicated reorder handle. On touch screens the handle
+uses pointer capture and a touch-only drag surface so editing text, toggling a checkbox,
+and scrolling outside the handle remain independent. The nearest row shows an insertion
+line while dragging. Keyboard users can focus the same handle and press Up or Down.
+Moves update the row's fractional rank through the existing action pipeline, so the new
+order is undoable, persists after reload, and participates in cross-device sync.
+
+Automated coverage verifies moves between rows and to both list boundaries, plus the
+rendered touch and keyboard affordance. A physical Mobile Safari drag remains a device
+check. Release verification passed TypeScript, 206 tests across 24 files, all eight
+light/dark palette contrast audits, and the optimized production build.

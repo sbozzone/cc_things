@@ -40,6 +40,7 @@ const GROUPS: { title: string; rows: [string, string][] }[] = [
       ['Enter in a checklist row', 'Add the next row'],
       ['Backspace in an empty row', 'Delete that checklist row'],
       ['Paste multiple lines', 'One checklist row per line'],
+      ['Up/Down on a checklist handle', 'Move that row'],
     ],
   },
 ];

@@ -40,6 +40,16 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
   const [duplicating, setDuplicating] = useState(false);
   const [titleDraft, setTitleDraft] = useState(task.title);
   const titleRef = useRef<HTMLDivElement | null>(null);
+  const checklistRef = useRef<HTMLUListElement | null>(null);
+  const checklistDrag = useRef<{
+    sourceId: string;
+    startY: number;
+    targetId: string;
+    side: 'before' | 'after';
+    moved: boolean;
+  } | null>(null);
+  const [checklistDrop, setChecklistDrop] = useState<{ targetId: string; side: 'before' | 'after' } | null>(null);
+  const [checklistDragHint, setChecklistDragHint] = useState('');
 
   const checklist = Object.values(db.checklistItems)
     .filter((c) => c.taskId === task.id && c.deletedAt === null)
@@ -72,6 +82,38 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
 
   const commitTitle = () => {
     if (titleDraft !== task.title) actions.updateTask(task.id, { title: titleDraft }, 'edit title');
+  };
+
+  const moveChecklistItem = (id: string, direction: -1 | 1) => {
+    const ids = checklist.map((item) => item.id);
+    const from = ids.indexOf(id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= ids.length) return;
+    ids.splice(from, 1);
+    ids.splice(to, 0, id);
+    actions.reorderChecklistItem(id, ids[to - 1] ?? null, ids[to + 1] ?? null);
+  };
+
+  const finishChecklistDrag = (cancel = false) => {
+    const current = checklistDrag.current;
+    checklistDrag.current = null;
+    setChecklistDrop(null);
+    setChecklistDragHint('');
+    if (cancel || !current?.moved || current.targetId === current.sourceId) return;
+
+    const original = checklist.map((item) => item.id);
+    const reordered = original.filter((id) => id !== current.sourceId);
+    const targetIndex = reordered.indexOf(current.targetId);
+    if (targetIndex < 0) return;
+    reordered.splice(targetIndex + (current.side === 'after' ? 1 : 0), 0, current.sourceId);
+    if (reordered.every((id, index) => id === original[index])) return;
+
+    const nextIndex = reordered.indexOf(current.sourceId);
+    actions.reorderChecklistItem(
+      current.sourceId,
+      reordered[nextIndex - 1] ?? null,
+      reordered[nextIndex + 1] ?? null,
+    );
   };
 
   const openPopover = (kind: typeof popover) => (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -155,9 +197,83 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
       ) : null}
 
       {checklist.length > 0 || newChecklistText ? (
-        <ul className="mt-2.5 space-y-0.5 pl-[32px]">
+        <ul ref={checklistRef} className="mt-2.5 space-y-0.5 pl-[32px]">
           {checklist.map((item, index) => (
-            <li key={item.id} className="group flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-[color-mix(in_srgb,var(--text)_4.5%,transparent)]">
+            <li
+              key={item.id}
+              data-checklist-id={item.id}
+              className={`group relative flex min-h-10 items-center gap-2 rounded-md px-1 py-0.5 hover:bg-[color-mix(in_srgb,var(--text)_4.5%,transparent)] ${
+                checklistDrop?.targetId === item.id && checklistDrop.side === 'before'
+                  ? 'shadow-[inset_0_2px_0_0_var(--accent)]'
+                  : checklistDrop?.targetId === item.id && checklistDrop.side === 'after'
+                    ? 'shadow-[inset_0_-2px_0_0_var(--accent)]'
+                    : ''
+              }`}
+            >
+              <button
+                type="button"
+                aria-label={`Reorder checklist row ${index + 1}: ${item.text || 'Untitled row'}. Drag or use the up and down arrow keys.`}
+                title="Drag to reorder"
+                className="absolute -left-11 top-1/2 flex h-11 w-11 -translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-lg text-[18px] leading-none text-faint hover:bg-surface-2 active:cursor-grabbing"
+                onClick={(event) => event.stopPropagation()}
+                onDragStart={(event) => event.preventDefault()}
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  checklistDrag.current = {
+                    sourceId: item.id,
+                    startY: event.clientY,
+                    targetId: item.id,
+                    side: 'before',
+                    moved: false,
+                  };
+                }}
+                onPointerMove={(event) => {
+                  const current = checklistDrag.current;
+                  if (!current || current.sourceId !== item.id) return;
+                  current.moved ||= Math.abs(event.clientY - current.startY) > 6;
+                  if (!current.moved) return;
+                  event.preventDefault();
+
+                  const rows = Array.from(checklistRef.current?.querySelectorAll<HTMLElement>('[data-checklist-id]') ?? []);
+                  let target: HTMLElement | null = null;
+                  let nearest = Number.POSITIVE_INFINITY;
+                  for (const row of rows) {
+                    const rect = row.getBoundingClientRect();
+                    const distance = Math.abs(event.clientY - (rect.top + rect.height / 2));
+                    if (distance < nearest) {
+                      nearest = distance;
+                      target = row;
+                    }
+                  }
+                  if (!target) return;
+                  const rect = target.getBoundingClientRect();
+                  const targetId = target.dataset.checklistId;
+                  if (!targetId) return;
+                  const side = event.clientY > rect.top + rect.height / 2 ? 'after' : 'before';
+                  current.targetId = targetId;
+                  current.side = side;
+                  setChecklistDrop({ targetId, side });
+                  const targetItem = checklist.find((row) => row.id === targetId);
+                  setChecklistDragHint(`${side === 'after' ? 'After' : 'Before'} ${targetItem?.text || 'checklist row'}`);
+                  if (event.clientY < 90 || event.clientY > window.innerHeight - 100) {
+                    target.scrollIntoView({ block: 'center', behavior: 'auto' });
+                  }
+                }}
+                onPointerUp={() => finishChecklistDrag(false)}
+                onPointerCancel={() => finishChecklistDrag(true)}
+                onLostPointerCapture={() => finishChecklistDrag(true)}
+                onKeyDown={(event) => {
+                  event.stopPropagation();
+                  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+                  event.preventDefault();
+                  moveChecklistItem(item.id, event.key === 'ArrowUp' ? -1 : 1);
+                }}
+              >
+                <span aria-hidden="true">⠿</span>
+              </button>
               <button
                 type="button"
                 role="checkbox"
@@ -189,6 +305,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
               </IconButton>
             </li>
           ))}
+          <li className="sr-only" role="status" aria-live="polite">{checklistDragHint}</li>
         </ul>
       ) : null}
 
