@@ -243,3 +243,14 @@ paused and stopped templates are not auto-completed.
 
 Release verification passed TypeScript, 209 tests across 24 files, all eight light/dark
 palette contrast audits, and the optimized production build.
+
+## October 17, 2026 — v0.7.12 held-task recovery
+
+Tasks already held in Someday or scheduled for a future day now show a focused
+**Move to Anytime** action in the task editor. Using it clears the hidden planning date,
+evening state, and reminders while preserving the task's due date, list, tags, notes,
+checklist, and other content. Anytime tasks do not show the action, and the full task-level
+When field remains removed.
+
+Release verification passed TypeScript, 210 tests across 24 files, all eight light/dark
+palette contrast audits, and the optimized production build.

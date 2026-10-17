@@ -40,7 +40,7 @@ and — where something is not built — exactly what is missing and why.
 
 | | Requirement | Status | Where |
 | --- | --- | --- | --- |
-| R15 | Separate date concepts | ✅ | `core/commands.ts` (`setWhen`, `setDeadline`), `ui/DatePopover.tsx`. |
+| R15 | Separate date concepts | ✅ | `core/commands.ts` (`setWhen`, `setDeadline`), `ui/DatePopover.tsx`. The task editor keeps Due independent and offers a contextual **Move to Anytime** escape for held tasks without restoring the full When field. |
 | R16 | Natural language entry | ✅ | `core/natural-dates.ts`. English phrases, locale-sensitive numeric dates, preview before commit, no silent guessing. |
 
 All boundary policies in §6 are implemented in `core/dates.ts` and `core/membership.ts`

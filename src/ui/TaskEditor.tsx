@@ -343,6 +343,21 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
             {Object.entries(priorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
+        {task.planning !== 'anytime' ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            keepFocus
+            onClick={() => actions.applyWhen([task.id], {
+              planning: 'anytime',
+              startDate: null,
+              evening: false,
+              reminder: null,
+            })}
+          >
+            <MoveIcon size={14} />Move to Anytime
+          </Button>
+        ) : null}
         <Button size="sm" variant="ghost" keepFocus onClick={openPopover('deadline')}>
           <FlagIcon size={14} />
           {task.deadline ? `Due ${formatDateLabel(task.deadline, today)}` : 'Due'}

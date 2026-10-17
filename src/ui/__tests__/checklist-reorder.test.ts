@@ -44,5 +44,14 @@ describe('checklist reorder affordance', () => {
 
     expect(markup).toContain('>Due</button>');
     expect(markup).not.toContain('>When</button>');
+    expect(markup).not.toContain('Move to Anytime');
+  });
+
+  it('offers an Anytime escape for tasks held in Someday', () => {
+    const somedayTask: Task = { ...task, planning: 'someday' };
+    const markup = renderToStaticMarkup(createElement(TaskEditor, { task: somedayTask, onClose: () => undefined }));
+
+    expect(markup).toContain('Move to Anytime');
+    expect(markup).not.toContain('>When</button>');
   });
 });
