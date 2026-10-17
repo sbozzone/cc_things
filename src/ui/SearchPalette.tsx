@@ -93,7 +93,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
       <ul id="search-results" ref={listRef} role="listbox" aria-label="Search results" className="scroll-area max-h-[55vh] overflow-y-auto p-1.5">
         {query.trim() === '' ? (
           <li className="px-2 py-6 text-center text-[13px] text-muted">
-            Type to search. Tomorrow, Deadlines, Repeating, All Projects and Logged Projects are reachable by name.
+            Type to search. Tomorrow, Due, Repeating, All Projects and Logged Projects are reachable by name.
           </li>
         ) : results.length === 0 ? (
           <li className="px-2 py-6 text-center text-[13px] text-muted">

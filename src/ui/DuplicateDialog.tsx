@@ -36,7 +36,7 @@ export function DuplicateDialog({
           <span>
             Keep dates
             <span className="block text-[12.5px] text-muted">
-              Start dates, evening designations and deadlines come across. Clear them to file the copy under Anytime.
+              Start dates, evening designations and due dates come across. Clear them to file the copy under Anytime.
             </span>
           </span>
         </label>

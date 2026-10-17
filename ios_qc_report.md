@@ -205,3 +205,18 @@ Automated coverage verifies moves between rows and to both list boundaries, plus
 rendered touch and keyboard affordance. A physical Mobile Safari drag remains a device
 check. Release verification passed TypeScript, 206 tests across 24 files, all eight
 light/dark palette contrast audits, and the optimized production build.
+
+## October 17, 2026 — v0.7.9 print checklists and Due labels
+
+My Day and single-day Upcoming print controls now include an **Expand checklists**
+option. When selected, the paper layout includes every live checklist row in its saved
+order, with completed rows checked and struck through. Upcoming's existing paper-height
+measurement includes the expanded rows before choosing one or two columns.
+
+The task editor no longer shows the task-level **When** action. Existing scheduling
+data, scheduled-task behavior, repeat rules, and project scheduling remain unchanged.
+The user-facing **Deadline** label is now **Due** (or **due date** in prose) throughout
+the task, project, batch-action, date-picker, search, recurrence, and special-list UI.
+
+Release verification passed TypeScript, 208 tests across 24 files, all eight light/dark
+palette contrast audits, and the optimized production build.

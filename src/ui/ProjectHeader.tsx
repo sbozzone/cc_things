@@ -116,7 +116,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
           {project.planning === 'someday' ? 'Someday' : project.startDate ? `Scheduled ${formatDateLabel(project.startDate, today)}` : 'When'}
         </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={open('deadline')}>
-          <FlagIcon size={14} />{project.deadline ? `Due ${formatDateLabel(project.deadline, today)}` : 'Deadline'}
+          <FlagIcon size={14} />{project.deadline ? `Due ${formatDateLabel(project.deadline, today)}` : 'Due'}
         </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={open('area')}><MoveIcon size={14} />{area ? area.title : 'Area'}</Button>
         <Button size="sm" variant="ghost" keepFocus onClick={open('tags')}><TagIcon size={14} />Tags</Button>

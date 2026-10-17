@@ -37,7 +37,7 @@ export const VIEW_TITLES: Record<string, string> = {
   logbook: 'Logbook',
   trash: 'Trash',
   tomorrow: 'Tomorrow',
-  deadlines: 'Deadlines',
+  deadlines: 'Due',
   repeating: 'Repeating',
   allTasks: 'All Tasks',
   allProjects: 'All Projects',
@@ -822,8 +822,8 @@ function deadlinesView(db: Database, ix: Indexes, opts: QueryOptions): ListDocum
     }
     current.items.push({ kind: 'task', id: task.id, task, meta: taskMeta(db, ix, task, { deadlineMarker: true }) });
   }
-  return doc('deadlines', 'Deadlines', 'Everything with a finish date', sections, opts,
-    'No deadlines set.', inboxTarget());
+  return doc('deadlines', 'Due', 'Everything with a due date', sections, opts,
+    'No due dates set.', inboxTarget());
 }
 
 function repeatingView(db: Database, ix: Indexes, opts: QueryOptions): ListDocument {

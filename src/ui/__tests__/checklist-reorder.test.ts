@@ -38,4 +38,11 @@ describe('checklist reorder affordance', () => {
     expect(markup).toContain('aria-label="Reorder checklist row 1: Prime. Drag or use the up and down arrow keys."');
     expect(markup).toContain('touch-none');
   });
+
+  it('uses Due and omits the task-level When action', () => {
+    const markup = renderToStaticMarkup(createElement(TaskEditor, { task, onClose: () => undefined }));
+
+    expect(markup).toContain('>Due</button>');
+    expect(markup).not.toContain('>When</button>');
+  });
 });

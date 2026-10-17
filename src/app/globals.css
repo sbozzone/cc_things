@@ -578,6 +578,11 @@ kbd {
 .day-print-task-body { min-width: 0; }
 .day-print-task-title { overflow-wrap: anywhere; }
 .day-print-meta { color: #555; display: flex; flex-wrap: wrap; column-gap: 7pt; font-size: 8pt; margin-top: 1pt; }
+.print-checklist { list-style: none; margin: 4pt 0 0; padding: 0; }
+.print-checklist-row { display: flex; align-items: flex-start; gap: 5pt; padding: 2pt 0; font-size: 9pt; line-height: 1.25; break-inside: avoid; page-break-inside: avoid; }
+.print-checklist-checkbox { display: inline-flex; align-items: center; justify-content: center; border: 0.75pt solid #555; border-radius: 1.5pt; height: 9pt; width: 9pt; flex: none; margin-top: 0.5pt; font-size: 7pt; line-height: 1; }
+.print-checklist-text { min-width: 0; overflow-wrap: anywhere; }
+.print-checklist-row.is-checked .print-checklist-text { color: #666; text-decoration: line-through; }
 .day-print-event, .day-print-project { justify-content: space-between; border-left: 2px solid #555; padding-left: 6pt; }
 .day-print-event > :first-child, .day-print-project > :first-child { min-width: 0; overflow-wrap: anywhere; }
 .day-print-event > :last-child, .day-print-project > :last-child { color: #555; flex: none; font-size: 9pt; }
@@ -605,6 +610,7 @@ kbd {
   .my-day-print-section ul { list-style: none; margin: 0; padding: 0; }
   .my-day-print-row { display: flex; align-items: baseline; gap: 9pt; padding: 7pt 2pt; break-inside: avoid; }
   .my-day-print-checkbox { align-self: center; border: 1px solid #444; border-radius: 2px; height: 11pt; width: 11pt; flex: none; }
+  .my-day-print-task-body { min-width: 0; }
   .my-day-print-task-title { overflow-wrap: anywhere; }
   .my-day-print-meta { color: #555; display: flex; flex-wrap: wrap; column-gap: 9pt; font-size: 8.5pt; margin-top: 1pt; }
   .my-day-print-event, .my-day-print-project { justify-content: space-between; }

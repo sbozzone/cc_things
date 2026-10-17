@@ -274,7 +274,7 @@ export function DeadlinePopover({
   };
 
   return (
-    <Popover anchor={anchor} onClose={onClose} label="Deadline" width={320}>
+    <Popover anchor={anchor} onClose={onClose} label="Due" width={320}>
       <div className="mb-1 px-1">
         <input
           type="text"
@@ -287,7 +287,7 @@ export function DeadlinePopover({
             }
           }}
           placeholder="friday, sep 15, in 2 weeks…"
-          aria-label="Type a deadline"
+          aria-label="Type a due date"
           className="h-10 w-full rounded-md border border-line px-2.5 text-[14px] outline-none focus:border-accent"
         />
         {text.trim() ? (
@@ -310,13 +310,13 @@ export function DeadlinePopover({
 
       {conflict(value) ? (
         <p className="mx-1 mb-1 rounded-md bg-danger-soft px-2 py-1.5 text-[12px] text-danger" role="status">
-          This start date is after the deadline. The reached deadline will still bring the task into Today.
+          This start date is after the due date. Reaching the due date will still bring the task into Today.
         </p>
       ) : null}
 
       {value ? (
         <div className="border-t border-line px-1 pt-2">
-          <Button variant="ghost" size="sm" full onClick={() => commit(null)}>Clear deadline</Button>
+          <Button variant="ghost" size="sm" full onClick={() => commit(null)}>Clear due date</Button>
         </div>
       ) : null}
     </Popover>

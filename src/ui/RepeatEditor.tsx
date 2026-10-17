@@ -225,7 +225,7 @@ export function RepeatEditor({ anchor, onClose, subject }: { anchor: HTMLElement
 
         <label className="flex items-center gap-2 text-[13px]">
           <input type="checkbox" checked={useDeadline} onChange={(event) => setUseDeadline(event.target.checked)} className="h-4 w-4" />
-          The occurrence date is a deadline
+          Use the occurrence date as the due date
         </label>
         {useDeadline ? (
           <label className="block text-[13px]">

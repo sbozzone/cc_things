@@ -38,7 +38,7 @@ describe('search (R23)', () => {
 
   it('finds the built-in and special lists by name', () => {
     const h = seeded();
-    for (const name of ['Tomorrow', 'Deadlines', 'Repeating', 'All Projects', 'Logged Projects', 'Upcoming']) {
+    for (const name of ['Tomorrow', 'Due', 'Repeating', 'All Projects', 'Logged Projects', 'Upcoming']) {
       expect(search(h.db, name).some((r) => r.kind === 'view')).toBe(true);
     }
   });

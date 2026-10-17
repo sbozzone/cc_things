@@ -182,7 +182,7 @@ Stable links: `/?view=today`, `/?view=project:<id>`, `/?task=<id>`.
 
 The sidebar leads with a Quick find field (⌘K), then the six built-in lists, then your
 areas and tags as separate sections with their own add buttons. The special views —
-Tomorrow, Deadlines, Repeating, All Projects, Logged Projects and Trash — sit behind
+Tomorrow, Due, Repeating, All Projects, Logged Projects and Trash — sit behind
 "More lists" so they stay reachable without crowding the navigation. The account and
 sync status live along the bottom edge, with a coloured dot for the sync state.
 
@@ -190,7 +190,7 @@ Each list carries its own hue — amber for Today, coral for Upcoming, teal for 
 used for its sidebar icon, its page badge, a faint wash across the top of its page and
 the hairline along the top of an open task card, so a glance at the header tells you
 where you are. The active row takes a soft fill of the accent while its glyph keeps its
-own colour. Dates render as tinted pills rather than grey text, and an overdue deadline
+own colour. Dates render as tinted pills rather than grey text, and an overdue due date
 is the only red on the page.
 
 Surfaces follow one scale: controls are 8px-rounded, cards 12px, dialogs 16px and phone

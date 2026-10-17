@@ -1,10 +1,10 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTask } from '@/core/commands';
+import { appendChecklist, createTask, updateChecklistItem } from '@/core/commands';
 import { buildIndexes, runView, type ViewKey } from '@/core/selectors';
 import { Harness } from '@/core/testing';
-import { ListView } from '../ListView';
+import { ListView, PrintChecklist } from '../ListView';
 
 const mocks = vi.hoisted(() => ({ getState: vi.fn(), phone: false }));
 vi.mock('@/state/store', () => ({
@@ -39,6 +39,7 @@ function render(view: ViewKey) {
 describe('errands screen and paper integration', () => {
   it('shows the saved route first in My Day and its paper layout', () => {
     const markup = render('today');
+    expect(markup).toContain('Expand checklists');
     expect(markup.indexOf(`data-id="${first}"`)).toBeLessThan(markup.indexOf(`data-id="${second}"`));
     expect(markup.indexOf(`data-id="${second}"`)).toBeLessThan(markup.indexOf(`data-id="${ordinary}"`));
     const paper = markup.slice(markup.indexOf('<article data-print-my-day'));
@@ -46,6 +47,20 @@ describe('errands screen and paper integration', () => {
     expect(paper.indexOf('Return clamps')).toBeLessThan(paper.indexOf('Buy fertilizer'));
     expect(paper.indexOf('Buy fertilizer')).toBeLessThan(paper.indexOf('Clean pool'));
     expect(markup).not.toContain('Add a task to Other tasks');
+  });
+
+  it('prints checklist rows in saved order when expansion is enabled', () => {
+    h.apply(appendChecklist(h.db, h.ctx(), first, ['Gather supplies', 'Prime surface']));
+    const rows = Object.values(h.db.checklistItems).filter((row) => row.taskId === first);
+    h.apply(updateChecklistItem(h.db, h.ctx(), rows[1]!.id, { checked: true }));
+
+    const collapsed = renderToStaticMarkup(createElement(PrintChecklist, { taskId: first, expanded: false }));
+    const expanded = renderToStaticMarkup(createElement(PrintChecklist, { taskId: first, expanded: true }));
+
+    expect(collapsed).toBe('');
+    expect(expanded.indexOf('Gather supplies')).toBeLessThan(expanded.indexOf('Prime surface'));
+    expect(expanded).toContain('print-checklist-row is-checked');
+    expect(expanded).toContain('✓');
   });
 
   it('keeps route controls available under alphabetical sort on desktop and phone', () => {

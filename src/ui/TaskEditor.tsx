@@ -11,10 +11,10 @@ import { useApp } from '@/state/store';
 import * as actions from '@/state/actions';
 import { AutoTextarea, Button, Chip, IconButton, StatusControl } from './primitives';
 import { Markdown } from './Markdown';
-import { WhenPopover, DeadlinePopover, type WhenValue } from './DatePopover';
+import { DeadlinePopover } from './DatePopover';
 import { MovePicker, TagPicker } from './Pickers';
 import {
-  CalendarIcon, ChecklistIcon, CloseIcon, CopyIcon, FlagIcon, MoveIcon, NoteIcon,
+  ChecklistIcon, CloseIcon, CopyIcon, FlagIcon, MoveIcon, NoteIcon,
   PromoteIcon, RepeatIcon, TagIcon, TrashIcon,
   SunIcon,
 } from './icons';
@@ -32,7 +32,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
   const today = useApp((s) => s.today);
   const settings = useApp((s) => s.db.settings);
   const setView = useApp((s) => s.setView);
-  const [popover, setPopover] = useState<'when' | 'deadline' | 'move' | 'tags' | 'repeat' | null>(null);
+  const [popover, setPopover] = useState<'deadline' | 'move' | 'tags' | 'repeat' | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [showNotes, setShowNotes] = useState(task.notes.trim().length > 0);
   const [notesFocused, setNotesFocused] = useState(false);
@@ -59,18 +59,10 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
   const automaticErrands = isErrandTitle(titleDraft);
   const errandsTag = getErrandsTag(db);
   const tagCount = directTags.length + inherited.length + (automaticErrands ? 1 : 0);
-  const reminder = Object.values(db.reminders).find((r) => r.taskId === task.id && r.deletedAt === null && r.canceledAt === null);
   const template = Object.values(db.occurrenceLinks)
     .filter((l) => l.deletedAt === null && l.materializedId === task.id)
     .map((l) => db.repeatTemplates[l.templateId])
     .find(Boolean);
-
-  const whenValue: WhenValue = {
-    planning: task.planning,
-    startDate: task.startDate,
-    evening: task.eveningDate !== null && task.eveningDate === task.startDate,
-    reminder: reminder?.wallTime ?? null,
-  };
 
   useEffect(() => {
     titleRef.current?.querySelector('textarea')?.focus();
@@ -351,17 +343,9 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
             {Object.entries(priorities).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
-        <Button size="sm" variant="ghost" keepFocus onClick={openPopover('when')}>
-          <CalendarIcon size={14} />
-          {task.planning === 'someday'
-            ? 'Someday'
-            : task.startDate
-              ? `Scheduled ${formatDateLabel(task.startDate, today)}${whenValue.evening ? ' evening' : ''}`
-              : 'When'}
-        </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={openPopover('deadline')}>
           <FlagIcon size={14} />
-          {task.deadline ? `Due ${formatDateLabel(task.deadline, today)}` : 'Deadline'}
+          {task.deadline ? `Due ${formatDateLabel(task.deadline, today)}` : 'Due'}
         </Button>
         <Button size="sm" variant="ghost" keepFocus onClick={openPopover('tags')}>
           <TagIcon size={14} />
@@ -429,17 +413,6 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
         </div>
       ) : null}
 
-      {popover === 'when' ? (
-        <WhenPopover
-          anchor={anchor}
-          onClose={() => setPopover(null)}
-          today={today}
-          locale={settings.locale}
-          timeZone={settings.planningTimeZone}
-          value={whenValue}
-          onChange={(value) => actions.applyWhen([task.id], value)}
-        />
-      ) : null}
       {popover === 'deadline' ? (
         <DeadlinePopover
           anchor={anchor}

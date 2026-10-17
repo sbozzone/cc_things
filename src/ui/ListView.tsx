@@ -26,6 +26,7 @@ import { OrderHandle } from './OrderHandle';
 import { TagDot } from './TagColor';
 import { priorities, sortDocument, type ListSort } from '@/core/list-order';
 import { balancedColumnSplit, needsBalancedColumns, upcomingItemsForDate } from '@/core/upcoming-print';
+import { byRank } from '@/core/rank';
 
 /** Row currently being dragged. Drag is an accelerator; every move has a menu equivalent (R26). */
 let dragSource: { id: string; sectionId: string } | null = null;
@@ -270,7 +271,7 @@ function TaskRow({
             {meta.contextLabel ? <span className="text-[12px] text-faint">{meta.contextLabel}</span> : null}
             {meta.heldContextLabel ? (
               <span className="inline-flex items-center gap-1 text-[12px] text-[var(--someday)]">
-                <AlertIcon size={12} />Deadline reached in held “{meta.heldContextLabel}”
+                <AlertIcon size={12} />Due date reached in held “{meta.heldContextLabel}”
               </span>
             ) : null}
             {[...meta.tagIds].sort((a, b) => Number(b === ERRANDS_TAG_ID) - Number(a === ERRANDS_TAG_ID)).slice(0, 3).map((tagId) => (
@@ -429,7 +430,13 @@ function InlineComposer({ target, onDone }: { target: AddTarget; onDone: () => v
   );
 }
 
-function TaskTagFilter({ view }: { view: 'today' | 'allTasks' }) {
+function TaskTagFilter({
+  view, expandPrintChecklists, onExpandPrintChecklistsChange,
+}: {
+  view: 'today' | 'allTasks';
+  expandPrintChecklists: boolean;
+  onExpandPrintChecklistsChange: (expanded: boolean) => void;
+}) {
   const db = useApp((s) => s.db);
   const tagFilter = useApp((s) => s.tagFilter);
   const setTagFilter = useApp((s) => s.setTagFilter);
@@ -460,9 +467,20 @@ function TaskTagFilter({ view }: { view: 'today' | 'allTasks' }) {
       </Button>
       {active ? <Button size="sm" variant="ghost" onClick={() => setTagFilter(emptyTagFilter())}>Clear</Button> : null}
       {view === 'today' ? (
-        <Button size="sm" variant="ghost" onClick={() => window.print()}>
-          <PrintIcon size={15} /> Print
-        </Button>
+        <>
+          <label className="flex min-h-9 items-center gap-1.5 px-2 text-[12.5px] text-muted">
+            <input
+              type="checkbox"
+              checked={expandPrintChecklists}
+              onChange={(event) => onExpandPrintChecklistsChange(event.target.checked)}
+              className="h-4 w-4"
+            />
+            Expand checklists
+          </label>
+          <Button size="sm" variant="ghost" onClick={() => window.print()}>
+            <PrintIcon size={15} /> Print
+          </Button>
+        </>
       ) : null}
       {anchor ? (
         <Popover anchor={anchor} onClose={() => setAnchor(null)} label={`Filter ${viewLabel} by tags`} width={280}>
@@ -673,7 +691,7 @@ function SelectionBar({ ids }: { ids: string[] }) {
     >
       <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[12.5px] font-semibold tabular-nums text-accent" aria-live="polite">{ids.length} selected</span>
       <Button size="sm" variant="ghost" onClick={open('when')}><CalendarIcon size={14} />When</Button>
-      <Button size="sm" variant="ghost" onClick={open('deadline')}><FlagIcon size={14} />Deadline</Button>
+      <Button size="sm" variant="ghost" onClick={open('deadline')}><FlagIcon size={14} />Due</Button>
       <Button size="sm" variant="ghost" onClick={open('move')}><MoveIcon size={14} />Move</Button>
       <Button size="sm" variant="ghost" onClick={() => { actions.setStatus(ids, 'completed'); clearSelection(); }}>Complete</Button>
       <Button size="sm" variant="ghost" onClick={() => { actions.setStatus(ids, 'canceled'); clearSelection(); }}>Cancel</Button>
@@ -708,7 +726,27 @@ function SelectionBar({ ids }: { ids: string[] }) {
 }
 
 /** A read-only paper layout of the same filtered and sorted My Day document. */
-function MyDayPrint({ doc }: { doc: ListDocument }) {
+function PrintChecklist({ taskId, expanded }: { taskId: string; expanded: boolean }) {
+  const checklistItems = useApp((s) => s.db.checklistItems);
+  if (!expanded) return null;
+  const rows = Object.values(checklistItems)
+    .filter((row) => row.taskId === taskId && row.deletedAt === null)
+    .sort(byRank);
+  if (rows.length === 0) return null;
+
+  return (
+    <ul className="print-checklist" aria-label="Checklist">
+      {rows.map((row) => (
+        <li key={row.id} className={`print-checklist-row${row.checked ? ' is-checked' : ''}`}>
+          <span className="print-checklist-checkbox" aria-hidden="true">{row.checked ? '✓' : ''}</span>
+          <span className="print-checklist-text">{row.text || 'Untitled row'}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function MyDayPrint({ doc, expandChecklists }: { doc: ListDocument; expandChecklists: boolean }) {
   const db = useApp((s) => s.db);
   const today = useApp((s) => s.today);
   const sections = doc.sections.filter((section) => section.items.length > 0);
@@ -736,7 +774,7 @@ function MyDayPrint({ doc }: { doc: ListDocument }) {
               return (
                 <li key={item.id} className="my-day-print-row">
                   <span className="my-day-print-checkbox" aria-hidden="true" />
-                  <div>
+                  <div className="my-day-print-task-body">
                     <div className="my-day-print-task-title">{item.task.title || 'Untitled'}</div>
                     {item.task.deadline || item.meta.contextLabel || item.task.priority || item.meta.tagIds.length > 0 ? (
                       <div className="my-day-print-meta">
@@ -746,6 +784,7 @@ function MyDayPrint({ doc }: { doc: ListDocument }) {
                         {item.meta.tagIds.map((tagId) => <span key={tagId}>#{tagPath(db, tagId)}</span>)}
                       </div>
                     ) : null}
+                    <PrintChecklist taskId={item.task.id} expanded={expandChecklists} />
                   </div>
                 </li>
               );
@@ -759,13 +798,14 @@ function MyDayPrint({ doc }: { doc: ListDocument }) {
 
 /** Paper layout for exactly one Upcoming date, including its calendar events. */
 function UpcomingDayPrint({
-  date, items, twoColumns, splitIndex, printRef,
+  date, items, twoColumns, splitIndex, printRef, expandChecklists,
 }: {
   date: string;
   items: ListItem[];
   twoColumns: boolean;
   splitIndex: number;
   printRef: React.RefObject<HTMLElement | null>;
+  expandChecklists: boolean;
 }) {
   const db = useApp((s) => s.db);
   const settings = db.settings;
@@ -801,6 +841,7 @@ function UpcomingDayPrint({
               {item.meta.tagIds.map((tagId) => <span key={tagId}>#{tagPath(db, tagId)}</span>)}
             </div>
           ) : null}
+          <PrintChecklist taskId={item.task.id} expanded={expandChecklists} />
         </div>
       </li>
     );
@@ -838,6 +879,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
       ?? sourceDoc.sections.find((s) => s.id.startsWith('day:'))?.date ?? '');
   const [twoPrintColumns, setTwoPrintColumns] = useState(false);
   const [printSplitIndex, setPrintSplitIndex] = useState(0);
+  const [expandPrintChecklists, setExpandPrintChecklists] = useState(false);
   const printRef = useRef<HTMLElement | null>(null);
   const selectedPrintItems = useMemo(() => chosenPrintDate ? upcomingItemsForDate(doc, chosenPrintDate) : [], [doc, chosenPrintDate]);
 
@@ -926,13 +968,28 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
               onChange={(event) => setChosenPrintDate(event.target.value)}
               className="h-9 rounded-md border border-line bg-surface px-2 text-ink"
             />
+            <label className="flex min-h-9 items-center gap-1.5 px-1">
+              <input
+                type="checkbox"
+                checked={expandPrintChecklists}
+                onChange={(event) => setExpandPrintChecklists(event.target.checked)}
+                className="h-4 w-4"
+              />
+              Expand checklists
+            </label>
             <Button size="sm" variant="ghost" disabled={selectedPrintItems.length === 0} onClick={() => printUpcomingDate(chosenPrintDate)}>
               <PrintIcon size={15} /> Print
             </Button>
           </div>
         ) : null}
         <div className="mb-2 flex flex-wrap items-center justify-end gap-x-1 gap-y-1 px-1">
-          {doc.view === 'today' || doc.view === 'allTasks' ? <TaskTagFilter view={doc.view} /> : null}
+          {doc.view === 'today' || doc.view === 'allTasks' ? (
+            <TaskTagFilter
+              view={doc.view}
+              expandPrintChecklists={expandPrintChecklists}
+              onExpandPrintChecklistsChange={setExpandPrintChecklists}
+            />
+          ) : null}
           {!['logbook', 'trash'].includes(doc.view) ? <label className="flex items-center gap-1.5 text-[12.5px] text-muted">
             <span className="sr-only sm:not-sr-only">Sort</span>
             <select aria-label="Sort items" className="h-8 max-w-[200px] rounded-md border border-line bg-surface px-2 text-[12.5px] text-ink shadow-[var(--shadow-card)]" value={sort}
@@ -1071,9 +1128,16 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
         })}
       </div>
 
-      {doc.view === 'today' ? <MyDayPrint doc={doc} /> : null}
+      {doc.view === 'today' ? <MyDayPrint doc={doc} expandChecklists={expandPrintChecklists} /> : null}
       {doc.view === 'upcoming' && chosenPrintDate ? (
-        <UpcomingDayPrint date={chosenPrintDate} items={selectedPrintItems} twoColumns={twoPrintColumns} splitIndex={printSplitIndex} printRef={printRef} />
+        <UpcomingDayPrint
+          date={chosenPrintDate}
+          items={selectedPrintItems}
+          twoColumns={twoPrintColumns}
+          splitIndex={printSplitIndex}
+          printRef={printRef}
+          expandChecklists={expandPrintChecklists}
+        />
       ) : null}
 
       {selection.length > 0 ? <SelectionBar ids={selection} /> : null}
@@ -1087,5 +1151,5 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   );
 }
 
-export { SelectionBar };
+export { PrintChecklist, SelectionBar };
 export type { Project };

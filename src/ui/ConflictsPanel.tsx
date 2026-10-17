@@ -10,7 +10,7 @@ import { AlertIcon } from './icons';
 type Conflict = Omit<ConflictRecord, 'ownerId'>;
 
 const FIELD_LABELS: Record<string, string> = {
-  title: 'Title', notes: 'Notes', deadline: 'Deadline', startDate: 'Start date', status: 'Status',
+  title: 'Title', notes: 'Notes', deadline: 'Due', startDate: 'Start date', status: 'Status',
   planning: 'When', text: 'Checklist text', checked: 'Checked', name: 'Name', parentId: 'Location',
   headingId: 'Heading', deletedAt: 'Deleted',
 };
