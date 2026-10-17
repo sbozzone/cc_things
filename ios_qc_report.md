@@ -220,3 +220,13 @@ the task, project, batch-action, date-picker, search, recurrence, and special-li
 
 Release verification passed TypeScript, 208 tests across 24 files, all eight light/dark
 palette contrast audits, and the optimized production build.
+
+## October 17, 2026 — v0.7.10 My Day due-date rollover
+
+Creating a task in My Day or adding an existing open task to My Day now sets its due
+date to the current planning day. At the next planning-day rollover, any still-open task
+that remains explicitly selected in My Day advances to the new current due date.
+Completed, canceled, deleted, and unselected tasks retain their existing dates.
+
+Release verification passed TypeScript, 209 tests across 24 files, all eight light/dark
+palette contrast audits, and the optimized production build.

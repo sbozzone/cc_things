@@ -33,7 +33,7 @@ and — where something is not built — exactly what is missing and why.
 | --- | --- | --- | --- |
 | R11 | Built-in lists | ✅ | `core/selectors.ts`. All eight views are queries over one record set; names and order fixed. |
 | R12 | Counts and selection | ✅ | `core/selectors.ts` (`sidebarCounts`). Open tasks only; a task with both markers counts once. |
-| R13 | Today rollover | ✅ | `core/membership.ts` (`inToday`, `inEvening`), `state/store.ts` (30-second tick plus a focus check). Works while open and after an overnight restart. |
+| R13 | Today rollover | ✅ | `core/membership.ts` (`inToday`, `inEvening`), `core/my-day.ts`, `state/store.ts` (30-second tick plus a focus check). Adding an open task to My Day sets its due date to the planning day; incomplete explicit selections roll that date forward while open and after an overnight restart. |
 | R14 | Upcoming interactions | ✅ | `core/selectors.ts` (`upcomingView`), `ui/ListView.tsx`. Same-day start and deadline markers coalesce into one row. |
 
 ## 6. Date and planning rules

@@ -12,7 +12,12 @@ describe('My Day suggestions', () => {
       title: 'Plan the day',
       target: { parentType: 'inbox', parentId: null, headingId: null, planning: 'anytime', myDay: true },
     })).id;
-    expect(h.db.tasks[id]).toMatchObject({ isInToday: true, processed: true, startDate: null });
+    expect(h.db.tasks[id]).toMatchObject({
+      isInToday: true,
+      processed: true,
+      startDate: null,
+      deadline: h.today,
+    });
   });
 
   it('ranks due today, overdue and recent Inbox tasks while excluding selected work', () => {

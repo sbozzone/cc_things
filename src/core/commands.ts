@@ -100,7 +100,7 @@ export function createTask(db: Database, ctx: WriteContext, input: NewTaskInput)
     planning,
     startDate,
     eveningDate: target.evening ? (startDate ?? (target.myDay ? ctx.today : null)) : null,
-    deadline: input.deadline ?? target.deadline ?? null,
+    deadline: target.myDay === true ? ctx.today : input.deadline ?? target.deadline ?? null,
     isInToday: target.myDay ?? false,
     rank: input.atTop ? rankAtStart(siblings) : rankAtEnd(siblings),
     todayRank: todayRankAtStart(db),
@@ -125,7 +125,7 @@ export function updateTask(db: Database, ctx: WriteContext, id: string, fields: 
   return [update('tasks', id, { ...fields, processed: computeProcessed(merged) }, ctx)];
 }
 
-/** Selects or removes a task from the current My Day without changing its dates. */
+/** Selects or removes a task from My Day. A selection is due on the planning day. */
 export function setTaskInToday(db: Database, ctx: WriteContext, id: string, isInToday: boolean): EntityPatch[] {
   const task = db.tasks[id];
   if (!task || task.deletedAt !== null || task.status !== 'open') return [];
@@ -134,6 +134,7 @@ export function setTaskInToday(db: Database, ctx: WriteContext, id: string, isIn
     // Choosing an Inbox suggestion is a planning decision, so it should leave Inbox.
     processed: isInToday ? true : task.processed,
     todayRank: isInToday ? todayRankAtStart(db) : task.todayRank,
+    deadline: isInToday ? ctx.today : task.deadline,
   }, ctx)];
 }
 

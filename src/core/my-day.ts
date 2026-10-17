@@ -1,4 +1,4 @@
-import type { EntityPatch, WriteContext } from './patches';
+import { update, type EntityPatch, type WriteContext } from './patches';
 import type { Database } from './types';
 
 /**
@@ -10,7 +10,18 @@ export function dailyResetPatches(db: Database, ctx: WriteContext): EntityPatch[
   const last = db.settings.lastTodayResetDate;
   if (last === ctx.today) return [];
 
-  // Open selections intentionally remain selected. Completed, canceled and deleted
-  // tasks are already excluded by My Day membership, so no task rows need mutation.
-  return [{ table: 'settings', id: 'settings', patch: { lastTodayResetDate: ctx.today, updatedAt: ctx.now } }];
+  const patches: EntityPatch[] = [];
+  for (const task of Object.values(db.tasks)) {
+    if (
+      task.deletedAt === null &&
+      task.status === 'open' &&
+      task.isInToday === true &&
+      task.deadline !== ctx.today
+    ) {
+      patches.push(update('tasks', task.id, { deadline: ctx.today }, ctx));
+    }
+  }
+
+  patches.push(update('settings', 'settings', { lastTodayResetDate: ctx.today }, ctx));
+  return patches;
 }

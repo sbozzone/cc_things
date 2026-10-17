@@ -106,11 +106,15 @@ describe('One record, many views (R11)', () => {
 });
 
 describe('My Day rollover', () => {
-  it('carries incomplete selections forward after a missed midnight without changing their schedule', () => {
+  it('carries incomplete selections forward and advances their due date after a missed midnight', () => {
     const h = new Harness('2026-09-08T20:00:00Z');
     const { id } = h.run(createTask(h.db, h.ctx(), { title: 'Water plants', target: { parentType: 'inbox', parentId: null, headingId: null } }));
+    const completed = h.run(createTask(h.db, h.ctx(), { title: 'Already finished', target: { parentType: 'inbox', parentId: null, headingId: null } }));
+    const unselected = h.run(createTask(h.db, h.ctx(), { title: 'Not in My Day', target: { parentType: 'inbox', parentId: null, headingId: null }, deadline: h.today }));
     h.apply(setWhen(h.db, h.ctx(), id, { planning: 'scheduled', startDate: h.today, evening: true }));
     h.apply(setTaskInToday(h.db, h.ctx(), id, true));
+    h.apply(setTaskInToday(h.db, h.ctx(), completed.id, true));
+    h.apply(setTaskStatus(h.db, h.ctx(), completed.id, 'completed'));
     expect(titlesIn(h, 'today', 'evening')).toEqual(['Water plants']);
 
     h.advanceDays(1); // simulates opening after a missed overnight trigger
@@ -118,9 +122,25 @@ describe('My Day rollover', () => {
     expect(titlesIn(h, 'today')).toContain('Water plants');
     expect(titlesIn(h, 'today', 'evening')).toEqual([]);
     expect(h.db.tasks[id]?.startDate).toBe('2026-09-08'); // original start date retained
+    expect(h.db.tasks[id]?.deadline).toBe('2026-09-09');
     expect(h.db.tasks[id]?.isInToday).toBe(true);
+    expect(h.db.tasks[completed.id]?.deadline).toBe('2026-09-08');
+    expect(h.db.tasks[unselected.id]?.deadline).toBe('2026-09-08');
     expect(h.db.settings.lastTodayResetDate).toBe(h.today);
     expect(dailyResetPatches(h.db, h.ctx())).toEqual([]);
+  });
+
+  it('sets the due date when an existing task is added to My Day', () => {
+    const h = new Harness();
+    const { id } = h.run(createTask(h.db, h.ctx(), {
+      title: 'Call the plumber',
+      target: { parentType: 'inbox', parentId: null, headingId: null },
+      deadline: '2026-10-01',
+    }));
+
+    h.apply(setTaskInToday(h.db, h.ctx(), id, true));
+
+    expect(h.db.tasks[id]).toMatchObject({ isInToday: true, deadline: h.today });
   });
 });
 
