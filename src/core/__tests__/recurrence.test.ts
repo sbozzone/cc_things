@@ -21,7 +21,10 @@ function makeTemplate(h: Harness, rule: RepeatRule, anchor: string, extra: Parti
 }
 
 const openTitles = (h: Harness) =>
-  Object.values(h.db.tasks).filter((t) => t.deletedAt === null).map((t) => t.startDate).sort();
+  Object.values(h.db.tasks)
+    .filter((t) => t.deletedAt === null && t.status === 'open')
+    .map((t) => t.startDate)
+    .sort();
 
 describe('rule dates', () => {
   it('walks fixed weekly schedules', () => {
@@ -55,7 +58,7 @@ describe('rule dates', () => {
 });
 
 describe('generation (R17, R18, scenario A06)', () => {
-  it('keeps producing Monday copies even while a prior copy is still open', () => {
+  it('completes the prior copy when the current occurrence is created', () => {
     const h = new Harness('2026-09-07T09:00:00Z'); // a Monday
     makeTemplate(h, { type: 'everyNWeeks', interval: 1, weekdays: [1] }, '2026-09-07');
     h.apply(generateDueOccurrences(h.db, h.ctx()));
@@ -63,21 +66,25 @@ describe('generation (R17, R18, scenario A06)', () => {
 
     h.advanceDays(7); // next Monday, prior copy still open
     h.apply(generateDueOccurrences(h.db, h.ctx()));
-    expect(openTitles(h)).toEqual(['2026-09-07', '2026-09-14']);
+    expect(openTitles(h)).toEqual(['2026-09-14']);
+    expect(Object.values(h.db.tasks).find((task) => task.startDate === '2026-09-07')?.status).toBe('completed');
   });
 
-  it('creates every missed occurrence once after several days away', () => {
+  it('skips missed dates and creates only the occurrence active today', () => {
     const h = new Harness('2026-09-08T09:00:00Z');
     makeTemplate(h, { type: 'everyNDays', interval: 1 }, '2026-09-08');
     h.apply(generateDueOccurrences(h.db, h.ctx()));
 
     h.advanceDays(4); // the app was closed for four days
     h.apply(generateDueOccurrences(h.db, h.ctx()));
-    expect(openTitles(h)).toEqual(['2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12']);
+    expect(openTitles(h)).toEqual(['2026-09-12']);
+    expect(Object.values(h.db.tasks).map((task) => task.startDate).sort()).toEqual(['2026-09-08', '2026-09-12']);
+    expect(Object.values(h.db.tasks).find((task) => task.startDate === '2026-09-08')?.status).toBe('completed');
 
     // Running generation again changes nothing.
     h.apply(generateDueOccurrences(h.db, h.ctx()));
-    expect(openTitles(h)).toHaveLength(5);
+    expect(openTitles(h)).toEqual(['2026-09-12']);
+    expect(Object.values(h.db.tasks)).toHaveLength(2);
   });
 
   it('skips paused intervals and resumes at the next eligible occurrence', () => {
@@ -93,7 +100,7 @@ describe('generation (R17, R18, scenario A06)', () => {
     h.apply(resumeTemplate(h.db, h.ctx(), id));
     h.advanceDays(1);
     h.apply(generateDueOccurrences(h.db, h.ctx()));
-    expect(openTitles(h)).toEqual(['2026-09-08', '2026-09-14']); // no back-fill
+    expect(openTitles(h)).toEqual(['2026-09-14']); // no back-fill; the old copy closes
   });
 
   it('does not regenerate an occurrence created early', () => {
@@ -105,7 +112,7 @@ describe('generation (R17, R18, scenario A06)', () => {
 
     h.advanceDays(7); // its scheduled date arrives
     h.apply(generateDueOccurrences(h.db, h.ctx()));
-    expect(openTitles(h)).toEqual(['2026-09-08', '2026-09-15']);
+    expect(openTitles(h)).toEqual(['2026-09-15']);
   });
 
   it('skipping one fixed copy affects only that occurrence', () => {
@@ -243,7 +250,7 @@ describe('templates and copies (R18)', () => {
 
     h.advanceDays(7);
     h.apply(generateDueOccurrences(h.db, h.ctx()));
-    expect(openTitles(h)).toEqual(['2026-09-08', '2026-09-15']);
+    expect(openTitles(h)).toEqual(['2026-09-15']);
   });
 
   it('snapshots a project with heading structure and child dates as offsets, then materializes it', () => {

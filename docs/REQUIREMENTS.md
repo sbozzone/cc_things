@@ -55,8 +55,9 @@ reminder, evening carryover, and time-zone changes leaving date-only values fixe
 | R17 | Repeat patterns | ✅ | `core/recurrence.ts`. Fixed and completion-relative; every-N days/weeks/months/years, selected weekdays, day-of-month, ordinal weekday, end date. |
 | R18 | Templates and occurrences | ✅ | `core/recurrence.ts`, `ui/RepeatEditor.tsx`. Separate template and occurrences, pause/resume/stop/skip/create-early, three-date preview. |
 
-The full §7 contract is implemented and tested: occurrence keys, missed-date generation,
-day-31 and February-29 fallbacks, deadline lead time, project copies as date offsets,
+The full §7 contract is implemented and tested: occurrence keys, current-day task
+generation, automatic completion of older task copies, day-31 and February-29 fallbacks,
+deadline lead time, project copies as date offsets,
 completion reversal (retract if untouched, flag for review if edited), and cancel/stop.
 
 Repeating **projects** are modelled, materialize correctly (`RepeatSnapshot.headings`)

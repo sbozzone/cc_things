@@ -5,6 +5,7 @@ import { newId } from './ids';
 import { byRank, FIRST_RANK, keyBetween } from './rank';
 import { create, update, type EntityPatch, type WriteContext } from './patches';
 import { ERRANDS_TAG_ID } from './errands';
+import { setTaskStatus } from './commands';
 import type {
   Database, DateOnly, OccurrenceLink, Project, RepeatRule, RepeatSnapshot, RepeatTemplate, Task,
 } from './types';
@@ -282,29 +283,68 @@ function maxKey(a: string | null, b: string): string {
 }
 
 /**
- * Creates every missed occurrence once, up to today. Paused intervals are skipped, and
- * an occurrence created early is not generated again on its scheduled date (§7).
+ * Keeps fixed task recurrences to one current open occurrence: older linked copies are
+ * completed, missed dates are advanced without back-filling, and only the occurrence
+ * that becomes active today is materialized. Repeating projects retain historical
+ * back-fill because their child work cannot be safely auto-completed as one unit.
  */
 export function generateDueOccurrences(db: Database, ctx: WriteContext): EntityPatch[] {
   const patches: EntityPatch[] = [];
   let working = db;
 
+  for (const link of Object.values(db.occurrenceLinks)) {
+    if (link.deletedAt !== null || link.skipped || !/^\d{4}-\d{2}-\d{2}$/.test(link.occurrenceKey)) continue;
+    const template = db.repeatTemplates[link.templateId];
+    if (
+      !template ||
+      template.entityKind !== 'task' ||
+      template.rule.type === 'afterCompletion' ||
+      template.deletedAt !== null ||
+      template.stoppedAt !== null ||
+      template.pausedAt !== null ||
+      link.occurrenceKey >= ctx.today
+    ) continue;
+    const task = db.tasks[link.materializedId];
+    if (task?.deletedAt === null && task.status === 'open') {
+      patches.push(...setTaskStatus(db, ctx, task.id, 'completed'));
+    }
+  }
+
   for (const template of Object.values(db.repeatTemplates)) {
     if (template.deletedAt !== null || template.stoppedAt !== null || template.pausedAt !== null) continue;
     if (template.rule.type === 'afterCompletion') continue;
 
+    let consideredThrough = template.lastGeneratedKey;
     for (const occurrenceDate of ruleDates(template.rule, template.anchorDate)) {
       if (template.endDate !== null && occurrenceDate > template.endDate) break;
       const { startDate } = occurrenceDates(template, occurrenceDate);
       // Generation is driven by the start date, so a lead-time occurrence appears early.
       if (startDate > ctx.today) break;
       if (template.lastGeneratedKey !== null && occurrenceDate <= template.lastGeneratedKey) continue;
-      if (hasOccurrence(working, template.id, occurrenceDate)) continue;
+
+      // Task templates no longer create a stack of missed open copies. Advancing the
+      // template key records those elapsed dates without materializing them.
+      if (template.entityKind === 'task' && startDate < ctx.today) {
+        consideredThrough = maxKey(consideredThrough, occurrenceDate);
+        continue;
+      }
+      if (hasOccurrence(working, template.id, occurrenceDate)) {
+        consideredThrough = maxKey(consideredThrough, occurrenceDate);
+        continue;
+      }
 
       const result = materialize(working, ctx, template, occurrenceDate);
       if (result.patches.length === 0) continue;
       patches.push(...result.patches);
       working = applyLocal(working, result.patches);
+      consideredThrough = maxKey(consideredThrough, occurrenceDate);
+    }
+
+    const generatedThrough = working.repeatTemplates[template.id]?.lastGeneratedKey ?? template.lastGeneratedKey;
+    if (consideredThrough !== null && (generatedThrough === null || consideredThrough > generatedThrough)) {
+      const advance = update('repeatTemplates', template.id, { lastGeneratedKey: consideredThrough }, ctx);
+      patches.push(advance);
+      working = applyLocal(working, [advance]);
     }
   }
   return patches;

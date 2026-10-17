@@ -230,3 +230,16 @@ Completed, canceled, deleted, and unselected tasks retain their existing dates.
 
 Release verification passed TypeScript, 209 tests across 24 files, all eight light/dark
 palette contrast audits, and the optimized production build.
+
+## October 17, 2026 — v0.7.11 current recurring tasks
+
+Fixed-date recurring task templates now materialize only the occurrence that becomes
+active on the current planning day. Missed dates are advanced without creating a stack
+of open copies. During maintenance, older open copies linked to active fixed task
+templates are marked completed, so All Tasks retains only the current occurrence.
+
+Completion-relative recurrence and repeating projects retain their existing behavior;
+paused and stopped templates are not auto-completed.
+
+Release verification passed TypeScript, 209 tests across 24 files, all eight light/dark
+palette contrast audits, and the optimized production build.
