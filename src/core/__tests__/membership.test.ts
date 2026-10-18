@@ -5,7 +5,7 @@ import {
   moveTasks, reorderTask, restoreProject, setDeadline, setProjectStatus, setProjectWhen,
   setTaskStatus, setWhen, assignTag, createTag, restoreTask, orderItems, updateTask, updateTag, setTaskInToday,
 } from '../commands';
-import { buildIndexes, runView, sidebarCounts } from '../selectors';
+import { BUILT_IN_ORDER, buildIndexes, runView, sidebarCounts } from '../selectors';
 import { sortDocument } from '../list-order';
 import { dailyResetPatches } from '../my-day';
 import { holdOf, projectProgress } from '../membership';
@@ -21,6 +21,12 @@ function titlesIn(h: Harness, key: Parameters<typeof runView>[2], sectionId?: st
     .filter((s) => (sectionId ? s.id === sectionId : true))
     .flatMap((s) => s.items.map((i) => (i.kind === 'task' ? i.task.title : i.kind === 'project' ? i.project.title : '')));
 }
+
+describe('Primary navigation (R11)', () => {
+  it('keeps Anytime and Someday as task states without standalone sidebar views', () => {
+    expect(BUILT_IN_ORDER).toEqual(['inbox', 'today', 'upcoming', 'logbook']);
+  });
+});
 
 describe('Inbox and processing (R11)', () => {
   it('holds unprocessed capture and releases it once filed', () => {

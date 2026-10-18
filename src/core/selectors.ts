@@ -26,7 +26,8 @@ export type ViewKey =
   | 'smart:overdue' | 'smart:priority'
   | `project:${string}` | `area:${string}` | `tag:${string}`;
 
-export const BUILT_IN_ORDER: ViewKey[] = ['inbox', 'today', 'upcoming', 'anytime', 'someday', 'logbook'];
+/** Primary navigation. Anytime and Someday remain data states, but are not standalone destinations. */
+export const BUILT_IN_ORDER: ViewKey[] = ['inbox', 'today', 'upcoming', 'logbook'];
 
 export const VIEW_TITLES: Record<string, string> = {
   inbox: 'Inbox',

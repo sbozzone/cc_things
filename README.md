@@ -180,13 +180,15 @@ Stable links: `/?view=today`, `/?view=project:<id>`, `/?task=<id>`.
 
 ## Appearance
 
-The sidebar leads with a Quick find field (⌘K), then the six built-in lists, then your
-areas and tags as separate sections with their own add buttons. The special views —
+The sidebar leads with a Quick find field (⌘K), then Inbox, My Day, Upcoming and
+Logbook, followed by your areas and tags as separate sections with their own add buttons.
+Anytime and Someday remain internal planning states rather than standalone views; their
+tasks remain available in All Tasks. The special views —
 Tomorrow, Due, Repeating, All Projects, Logged Projects and Trash — sit behind
 "More lists" so they stay reachable without crowding the navigation. The account and
 sync status live along the bottom edge, with a coloured dot for the sync state.
 
-Each list carries its own hue — amber for Today, coral for Upcoming, teal for Anytime —
+Each list carries its own hue — amber for Today, coral for Upcoming, green for Logbook —
 used for its sidebar icon, its page badge, a faint wash across the top of its page and
 the hairline along the top of an open task card, so a glance at the header tells you
 where you are. The active row takes a soft fill of the accent while its glyph keeps its

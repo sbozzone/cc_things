@@ -31,7 +31,7 @@ and — where something is not built — exactly what is missing and why.
 
 | | Requirement | Status | Where |
 | --- | --- | --- | --- |
-| R11 | Built-in lists | ✅ | `core/selectors.ts`. All eight views are queries over one record set; names and order fixed. |
+| R11 | Built-in lists | ✅ | `core/selectors.ts`. The primary navigation shows Inbox, My Day, Upcoming, and Logbook. Anytime and Someday remain non-destructive planning states accessible through All Tasks rather than standalone sidebar views. |
 | R12 | Counts and selection | ✅ | `core/selectors.ts` (`sidebarCounts`). Open tasks only; a task with both markers counts once. |
 | R13 | Today rollover | ✅ | `core/membership.ts` (`inToday`, `inEvening`), `core/my-day.ts`, `state/store.ts` (30-second tick plus a focus check). Adding an open task to My Day sets its due date to the planning day; incomplete explicit selections roll that date forward while open and after an overnight restart. |
 | R14 | Upcoming interactions | ✅ | `core/selectors.ts` (`upcomingView`), `ui/ListView.tsx`. Same-day start and deadline markers coalesce into one row. |

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { VIEW_TITLES, type ViewKey } from '@/core/selectors';
+import { BUILT_IN_ORDER, VIEW_TITLES, type ViewKey } from '@/core/selectors';
 import { emptyTagFilter, tagFilterActive } from '@/core/tags';
 import { useApp, useListDocument } from '@/state/store';
 import { refreshStaleCalendars } from '@/state/calendar';
@@ -20,9 +20,9 @@ import { InboxIcon, LayersIcon, PlusIcon, SearchIcon, UndoIcon } from './icons';
 import { usePhone } from './useMediaQuery';
 import { viewStyle } from './view-style';
 
-const JUMP_KEYS: Record<string, ViewKey> = {
-  '1': 'inbox', '2': 'today', '3': 'upcoming', '4': 'anytime', '5': 'someday', '6': 'logbook',
-};
+const JUMP_KEYS = Object.fromEntries(
+  BUILT_IN_ORDER.map((key, index) => [String(index + 1), key]),
+) as Record<string, ViewKey>;
 
 function isTypingTarget(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;

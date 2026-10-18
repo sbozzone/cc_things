@@ -254,3 +254,13 @@ When field remains removed.
 
 Release verification passed TypeScript, 210 tests across 24 files, all eight light/dark
 palette contrast audits, and the optimized production build.
+
+## October 17, 2026 — v0.7.13 simplified primary navigation
+
+Removed the standalone Anytime and Someday destinations from the sidebar and numbered
+navigation shortcuts. Their task data and planning states remain intact and searchable
+through All Tasks. The four primary destinations are now Inbox, My Day, Upcoming, and
+Logbook; shortcuts 1–4 follow that same order.
+
+Release verification passed TypeScript, 211 tests across 24 files, all eight light/dark
+palette contrast audits, and the optimized production build.
