@@ -2,13 +2,14 @@
 
 import * as commands from '@/core/commands';
 import { effectiveTaskTags } from '@/core/tags';
+import { newId } from '@/core/ids';
 import {
   onOccurrenceCanceled, onOccurrenceCompleted, onOccurrenceReopened,
 } from '@/core/recurrence';
 import type { EntityPatch } from '@/core/patches';
 import { isEntityTable } from '@/core/patches';
 import type { AddTarget } from '@/core/commands';
-import type { DateOnly, ItemOrderScope, LifecycleStatus, Task } from '@/core/types';
+import type { DateOnly, ItemOrderScope, LifecycleStatus, SavedViewDefinition, Task } from '@/core/types';
 import {
   duplicateHeading, duplicateProject, duplicateTask, headingToProject, taskToProject,
   type DuplicateOptions,
@@ -335,6 +336,56 @@ export function snoozeReminder(reminderId: string, minutes: 10 | 30 | 60): void 
 export function updateSettings(fields: Partial<import('@/core/types').Settings>): void {
   const state = app();
   state.dispatch([{ table: 'settings', id: 'settings', patch: { ...fields, updatedAt: state.ctx().now } }]);
+}
+
+export function createSavedView(
+  fields: Pick<SavedViewDefinition, 'name' | 'query' | 'searchAll' | 'tagFilter'>,
+): string {
+  const state = app();
+  const now = state.ctx().now;
+  const id = newId('view_');
+  const saved: SavedViewDefinition = {
+    id,
+    name: fields.name.trim(),
+    query: fields.query.trim(),
+    searchAll: fields.searchAll,
+    tagFilter: { ...fields.tagFilter, tagIds: [...fields.tagFilter.tagIds] },
+    pinned: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+  state.dispatch([{
+    table: 'settings', id: 'settings',
+    patch: { savedViews: [...(state.db.settings.savedViews ?? []), saved], updatedAt: now },
+  }], {
+    undoLabel: 'save view',
+    toast: { message: `Saved “${saved.name}” in More lists`, tone: 'info', actionLabel: 'Undo', action: () => app().undo() },
+  });
+  return id;
+}
+
+export function setSavedViewPinned(id: string, pinned: boolean): void {
+  const state = app();
+  const now = state.ctx().now;
+  const savedViews = (state.db.settings.savedViews ?? []).map((saved) =>
+    saved.id === id ? { ...saved, pinned, updatedAt: now } : saved);
+  state.dispatch([{
+    table: 'settings', id: 'settings', patch: { savedViews, updatedAt: now },
+  }], { undoLabel: pinned ? 'pin saved view' : 'unpin saved view' });
+}
+
+export function deleteSavedView(id: string): void {
+  const state = app();
+  const saved = (state.db.settings.savedViews ?? []).find((candidate) => candidate.id === id);
+  if (!saved) return;
+  const now = state.ctx().now;
+  state.dispatch([{
+    table: 'settings', id: 'settings',
+    patch: { savedViews: (state.db.settings.savedViews ?? []).filter((candidate) => candidate.id !== id), updatedAt: now },
+  }], {
+    undoLabel: 'delete saved view',
+    toast: { message: `Deleted “${saved.name}”`, tone: 'info', actionLabel: 'Undo', action: () => app().undo() },
+  });
 }
 
 /* -------------------------------------------------------------- conflicts */

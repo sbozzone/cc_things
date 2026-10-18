@@ -28,5 +28,5 @@ task.
 
 ## Phase 5 — reusable views
 
-- [ ] Save the current search and filters as an optional named view
-- [ ] Keep saved views under More lists unless explicitly pinned
+- [x] Save the current search and filters as an optional named view
+- [x] Keep saved views under More lists unless explicitly pinned

@@ -289,3 +289,16 @@ adds them automatically. Weekly Review can also be pinned to Favorite Views.
 
 Release verification passed TypeScript, 214 tests across 24 files, all eight light/dark
 palette contrast audits, and the optimized production build.
+
+## October 17, 2026 — v0.7.16 reusable saved views
+
+Quick find searches and active tag filters can now be saved under a user-chosen name.
+The saved definition is a live, non-destructive task query: newly matching tasks appear
+automatically, Search All can include notes, checklist rows, and Logbook tasks, and Trash
+is always excluded.
+
+Saved views appear under **More lists** by default. Each can be pinned independently to
+Favorite Views or deleted without affecting any matching tasks.
+
+Release verification passed TypeScript, 217 tests across 24 files, all eight light/dark
+palette contrast audits, and the optimized production build.

@@ -119,10 +119,14 @@ export function AppShell() {
   }, [ready, ownerId, runMaintenance]);
 
   const addHere = useCallback(() => {
+    if (view.startsWith('saved:')) {
+      setOverlay('capture');
+      return;
+    }
     setComposerOpen(true);
     openItem(null);
     window.setTimeout(() => composerRef.current?.focus(), 0);
-  }, [openItem]);
+  }, [openItem, view]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -189,6 +193,7 @@ export function AppShell() {
 
   const isProject = view.startsWith('project:');
   const isArea = view.startsWith('area:');
+  const isSavedView = view.startsWith('saved:');
   const { icon, accent } = viewStyle(view);
 
   return (
@@ -257,20 +262,22 @@ export function AppShell() {
             {!isPhone ? (
               <IconButton label="Quick capture to Inbox" onClick={() => setOverlay('capture')}><InboxIcon /></IconButton>
             ) : null}
-            <button
-              type="button"
-              aria-label={`Add a task to ${doc.title}`}
-              title={`Add a task to ${doc.title}`}
-              onClick={addHere}
-              className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent-fill text-accent-fill-contrast shadow-[var(--shadow-sm),inset_0_1px_0_rgb(255_255_255_/_18%)] transition-[filter,transform] hover:brightness-[1.04]"
-            >
-              <PlusIcon size={17} strokeWidth={2.4} />
-            </button>
+            {!isSavedView ? (
+              <button
+                type="button"
+                aria-label={`Add a task to ${doc.title}`}
+                title={`Add a task to ${doc.title}`}
+                onClick={addHere}
+                className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent-fill text-accent-fill-contrast shadow-[var(--shadow-sm),inset_0_1px_0_rgb(255_255_255_/_18%)] transition-[filter,transform] hover:brightness-[1.04]"
+              >
+                <PlusIcon size={17} strokeWidth={2.4} />
+              </button>
+            ) : null}
           </div>
         </header>
 
         <div className="mx-auto w-full max-w-[800px] px-3 sm:px-7">
-          {tagFilterActive(tagFilter) ? (
+          {!isSavedView && tagFilterActive(tagFilter) ? (
             <div className="fade-in mb-2 flex items-center gap-2 rounded-md bg-accent-soft px-3 py-2 text-[12.5px] text-accent">
               <span>{tagFilter.mode === 'exclude'
                 ? tagFilter.untagged && tagFilter.tagIds.length === 0

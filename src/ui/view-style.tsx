@@ -1,7 +1,7 @@
 import type { ViewKey } from '@/core/selectors';
 import {
   AlertIcon, ArchiveBoxIcon, BookIcon, CalendarIcon, ChecklistIcon, FlagIcon, FolderIcon, InboxIcon, LayersIcon,
-  LogbookIcon, RepeatIcon, SunIcon, TagIcon, TrashIcon,
+  LogbookIcon, RepeatIcon, SearchIcon, SunIcon, TagIcon, TrashIcon,
 } from './icons';
 
 /**
@@ -37,6 +37,7 @@ export function viewStyle(view: ViewKey): ViewStyle {
   if (view.startsWith('project:')) return { icon: <FolderIcon size={17} />, accent: 'var(--accent)' };
   if (view.startsWith('area:')) return { icon: <LayersIcon size={17} />, accent: 'var(--accent)' };
   if (view.startsWith('tag:')) return { icon: <TagIcon size={17} />, accent: 'var(--accent)' };
+  if (view.startsWith('saved:')) return { icon: <SearchIcon size={17} />, accent: 'var(--accent)' };
   return BUILT_IN[view] ?? { icon: <InboxIcon size={17} />, accent: 'var(--accent)' };
 }
 

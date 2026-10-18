@@ -83,6 +83,60 @@ describe('Weekly Review and My Day suggestions', () => {
   });
 });
 
+describe('saved views', () => {
+  it('re-runs a named search and its saved tag filter without mutating tasks', () => {
+    const h = new Harness();
+    const home = h.run(createTag(h.db, h.ctx(), 'Home')).id;
+    const matching = h.run(createTask(h.db, h.ctx(), {
+      title: 'Paint the porch', notes: 'Bring the tall ladder',
+      target: { parentType: 'inbox', parentId: null, headingId: null },
+      checklist: ['Buy ladder feet'],
+    })).id;
+    const wrongTag = h.run(createTask(h.db, h.ctx(), {
+      title: 'Paint the office', target: { parentType: 'inbox', parentId: null, headingId: null },
+    })).id;
+    h.apply(assignTag(h.db, h.ctx(), home, 'task', matching));
+    h.db.settings.savedViews = [{
+      id: 'paint-home', name: 'Home painting', query: 'paint', searchAll: false,
+      tagFilter: { mode: 'include', tagIds: [home], untagged: false }, pinned: false,
+      createdAt: h.ctx().now, updatedAt: h.ctx().now,
+    }];
+
+    const before = JSON.stringify(h.db.tasks);
+    const saved = runView(h.db, buildIndexes(h.db, h.today), 'saved:paint-home', {
+      tagFilter: { mode: 'include', tagIds: [], untagged: true },
+    });
+    const ids = saved.sections.flatMap((section) => section.items)
+      .flatMap((item) => item.kind === 'task' ? [item.id] : []);
+    expect(ids).toEqual([matching]);
+    expect(ids).not.toContain(wrongTag);
+    expect(saved.title).toBe('Home painting');
+    expect(saved.filtered).toBe(true);
+    expect(JSON.stringify(h.db.tasks)).toBe(before);
+  });
+
+  it('uses Search All for notes, checklists, and Logbook matches', () => {
+    const h = new Harness();
+    const notes = h.run(createTask(h.db, h.ctx(), {
+      title: 'Porch prep', notes: 'Bring the ladder',
+      target: { parentType: 'inbox', parentId: null, headingId: null },
+    })).id;
+    const logged = h.run(createTask(h.db, h.ctx(), {
+      title: 'Garage prep', target: { parentType: 'inbox', parentId: null, headingId: null }, checklist: ['Store ladder'],
+    })).id;
+    h.apply(setTaskStatus(h.db, h.ctx(), logged, 'completed'));
+    h.db.settings.savedViews = [{
+      id: 'ladder', name: 'Ladder work', query: 'ladder', searchAll: true,
+      tagFilter: { mode: 'include', tagIds: [], untagged: false }, pinned: true,
+      createdAt: h.ctx().now, updatedAt: h.ctx().now,
+    }];
+
+    const saved = view(h, 'saved:ladder');
+    expect(saved.sections.find((section) => section.title === 'Open')?.items[0]?.id).toBe(notes);
+    expect(saved.sections.find((section) => section.title === 'Logbook')?.items[0]?.id).toBe(logged);
+  });
+});
+
 describe('Inbox and processing (R11)', () => {
   it('holds unprocessed capture and releases it once filed', () => {
     const h = new Harness();

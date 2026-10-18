@@ -233,6 +233,24 @@ export type SidebarFavoriteView =
   | 'smart:overdue' | 'smart:priority'
   | 'tomorrow' | 'deadlines' | 'repeating' | 'review'
   | 'allTasks' | 'allProjects' | 'loggedProjects' | 'trash';
+
+/** A reusable, account-synced task query created from Quick find and tag filters. */
+export interface SavedViewDefinition {
+  id: string;
+  name: string;
+  query: string;
+  /** Matches notes/checklists and includes Logbook tasks, like Search All. */
+  searchAll: boolean;
+  tagFilter: {
+    mode: 'include' | 'exclude';
+    tagIds: string[];
+    untagged: boolean;
+  };
+  /** Saved views start in More lists and appear in Favorite Views only when pinned. */
+  pinned: boolean;
+  createdAt: Instant;
+  updatedAt: Instant;
+}
 export type ListSort =
   | 'manual'
   | 'alphabetical' | 'alphabeticalDesc'
@@ -263,6 +281,8 @@ export interface Settings extends BaseEntity {
   sidebarPinnedViews?: SidebarFavoriteView[];
   /** Per-section disclosure state; omitted keys default to expanded. */
   sidebarSections?: Partial<Record<SidebarSection, boolean>>;
+  /** Named dynamic searches; stored in Settings so they follow the signed-in account. */
+  savedViews?: SavedViewDefinition[];
 }
 
 /** Read-only provider events, cached separately from tasks and never synced as tasks (R20, R21). */

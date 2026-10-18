@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { search, type SearchResult } from '@/core/search';
+import { tagFilterActive } from '@/core/tags';
 import { useApp } from '@/state/store';
-import { Modal } from './primitives';
+import * as actions from '@/state/actions';
+import { Button, Modal } from './primitives';
 import { BookIcon, FolderIcon, LayersIcon, NoteIcon, SearchIcon, TagIcon } from './icons';
 
 const KIND_ICONS = {
@@ -24,10 +26,13 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
   const db = useApp((s) => s.db);
   const setView = useApp((s) => s.setView);
   const openItem = useApp((s) => s.openItem);
+  const tagFilter = useApp((s) => s.tagFilter);
   const [query, setQuery] = useState('');
   const [searchAll, setSearchAll] = useState(false);
   const [includeTrash, setIncludeTrash] = useState(false);
   const [active, setActive] = useState(0);
+  const [namingView, setNamingView] = useState(false);
+  const [viewName, setViewName] = useState('');
   const listRef = useRef<HTMLUListElement | null>(null);
 
   const results = useMemo(
@@ -44,6 +49,18 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
   const choose = (result: SearchResult) => {
     setView(result.target.view);
     if (result.target.openId && db.tasks[result.target.openId]) openItem(result.target.openId);
+    onClose();
+  };
+  const hasSavableCriteria = query.trim().length > 0 || tagFilterActive(tagFilter);
+  const beginSave = () => {
+    setViewName(query.trim() || 'Filtered tasks');
+    setNamingView(true);
+  };
+  const saveView = () => {
+    const name = viewName.trim();
+    if (!name || !hasSavableCriteria || includeTrash) return;
+    const id = actions.createSavedView({ name, query, searchAll, tagFilter });
+    setView(`saved:${id}`);
     onClose();
   };
 
@@ -88,12 +105,34 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
         <span className="ml-auto text-faint" aria-live="polite">
           {query.trim() ? `${results.length} result${results.length === 1 ? '' : 's'}` : ''}
         </span>
+        <Button size="sm" variant="ghost" disabled={!hasSavableCriteria || includeTrash} onClick={beginSave}>
+          Save as view
+        </Button>
       </div>
+
+      {namingView ? (
+        <form
+          className="flex flex-wrap items-center gap-2 border-b border-line bg-surface-2 px-3 py-2"
+          onSubmit={(event) => { event.preventDefault(); saveView(); }}
+        >
+          <label htmlFor="saved-view-name" className="text-[12.5px] font-medium">View name</label>
+          <input
+            id="saved-view-name" type="text" autoFocus value={viewName}
+            onChange={(event) => setViewName(event.target.value)}
+            className="h-9 min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 text-[14px] outline-none focus:border-accent"
+          />
+          <Button size="sm" type="submit" disabled={!viewName.trim()}>Save</Button>
+          <Button size="sm" variant="ghost" type="button" onClick={() => setNamingView(false)}>Cancel</Button>
+        </form>
+      ) : null}
+      {includeTrash && hasSavableCriteria ? (
+        <p className="border-b border-line px-3 py-1.5 text-[12px] text-faint">Saved views exclude Trash. Turn off Include Trash to save this search.</p>
+      ) : null}
 
       <ul id="search-results" ref={listRef} role="listbox" aria-label="Search results" className="scroll-area max-h-[55vh] overflow-y-auto p-1.5">
         {query.trim() === '' ? (
           <li className="px-2 py-6 text-center text-[13px] text-muted">
-            Type to search. Tomorrow, Due, Repeating, All Projects and Logged Projects are reachable by name.
+            Type to search. Searches and active tag filters can be saved as reusable views.
           </li>
         ) : results.length === 0 ? (
           <li className="px-2 py-6 text-center text-[13px] text-muted">

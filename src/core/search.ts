@@ -63,6 +63,16 @@ export function search(db: Database, rawQuery: string, options: SearchOptions = 
     }
   }
 
+  for (const saved of db.settings.savedViews ?? []) {
+    const score = scoreOf(saved.name, query);
+    if (score > 0) {
+      results.push({
+        kind: 'view', id: saved.id, title: saved.name, detail: 'Saved view',
+        target: { view: `saved:${saved.id}` }, score: score + 5, logged: false,
+      });
+    }
+  }
+
   for (const area of Object.values(db.areas)) {
     if (area.deletedAt !== null && !includeTrash) continue;
     const score = scoreOf(area.title, query);

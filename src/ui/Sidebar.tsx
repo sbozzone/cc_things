@@ -9,7 +9,7 @@ import type { SidebarFavoriteView, SidebarSection } from '@/core/types';
 import { useApp, useCounts, useIndexes } from '@/state/store';
 import * as actions from '@/state/actions';
 import { IconButton, Popover, ProgressRing } from './primitives';
-import { ChevronIcon, CloudIcon, FolderIcon, MoreIcon, PlusIcon, SearchIcon, SettingsIcon, StarIcon, TagIcon, UserIcon } from './icons';
+import { ChevronIcon, CloudIcon, FolderIcon, MoreIcon, PlusIcon, SearchIcon, SettingsIcon, StarIcon, TagIcon, TrashIcon, UserIcon } from './icons';
 import { sidebarIcon, viewStyle } from './view-style';
 import { tagColors } from './TagColor';
 
@@ -133,6 +133,8 @@ export function Sidebar({
 
   const pinnedViews = (db.settings.sidebarPinnedViews ?? ['allTasks'])
     .filter((key): key is SidebarFavoriteView => OVERFLOW_VIEWS.includes(key as SidebarFavoriteView));
+  const savedViews = db.settings.savedViews ?? [];
+  const pinnedSavedViews = savedViews.filter((saved) => saved.pinned);
   const toggleSidebarTag = (tagId: string) => {
     const included = tagFilter.mode === 'include' ? tagFilter.tagIds : [];
     const active = included.includes(tagId);
@@ -159,6 +161,12 @@ export function Sidebar({
         ? pinnedViews.filter((item) => item !== key)
         : [...pinnedViews, key],
     });
+  };
+
+  const removeSavedView = (id: string, name: string) => {
+    if (!window.confirm(`Delete the saved view “${name}”? Tasks matching it will not be changed.`)) return;
+    if (view === `saved:${id}`) setView('allTasks');
+    actions.deleteSavedView(id);
   };
 
   const select = (next: ViewKey) => {
@@ -263,7 +271,7 @@ export function Sidebar({
         />
         {!sectionCollapsed('favoriteViews') ? (
           <div id="sidebar-favorite-views">
-            {pinnedViews.length > 0 ? (
+            {pinnedViews.length > 0 || pinnedSavedViews.length > 0 ? (
               <ul className="space-y-0.5 px-3">
                 {pinnedViews.map((key) => (
                   <NavItem
@@ -273,6 +281,16 @@ export function Sidebar({
                     color={viewStyle(key).accent}
                     active={view === key}
                     onSelect={() => select(key)}
+                  />
+                ))}
+                {pinnedSavedViews.map((saved) => (
+                  <NavItem
+                    key={saved.id}
+                    label={saved.name}
+                    icon={viewStyle(`saved:${saved.id}`).icon}
+                    color={viewStyle(`saved:${saved.id}`).accent}
+                    active={view === `saved:${saved.id}`}
+                    onSelect={() => select(`saved:${saved.id}`)}
                   />
                 ))}
               </ul>
@@ -397,7 +415,7 @@ export function Sidebar({
           More lists
         </button>
         {moreAnchor ? (
-          <Popover anchor={moreAnchor} onClose={() => setMoreAnchor(null)} label="More lists" width={240}>
+          <Popover anchor={moreAnchor} onClose={() => setMoreAnchor(null)} label="More lists" width={300}>
             <p className="px-2 pb-1 text-[12px] text-faint">Select a view, or use the star to keep it in Favorite Views.</p>
             <ul className="space-y-0.5">
               {OVERFLOW_VIEWS.map((key) => {
@@ -423,6 +441,38 @@ export function Sidebar({
                 </li>
               })}
             </ul>
+            <div className="mx-2 my-2 border-t border-line" />
+            <p className="px-2 pb-1 text-[11.5px] font-bold uppercase tracking-[0.08em] text-faint">Saved views</p>
+            {savedViews.length > 0 ? (
+              <ul className="space-y-0.5">
+                {savedViews.map((saved) => (
+                  <li key={saved.id} className="flex min-h-11 items-center gap-0.5 rounded-md hover:bg-surface-2">
+                    <button
+                      type="button"
+                      onClick={() => { select(`saved:${saved.id}`); setMoreAnchor(null); }}
+                      className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 text-left text-[14px]"
+                    >
+                      <span className="flex h-5 w-5 items-center justify-center text-accent" aria-hidden="true">
+                        {viewStyle(`saved:${saved.id}`).icon}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{saved.name}</span>
+                    </button>
+                    <IconButton
+                      className="h-11 min-w-10"
+                      label={`${saved.pinned ? 'Remove' : 'Add'} ${saved.name} ${saved.pinned ? 'from' : 'to'} Favorite Views`}
+                      onClick={() => actions.setSavedViewPinned(saved.id, !saved.pinned)}
+                    >
+                      <StarIcon size={16} fill={saved.pinned ? 'currentColor' : 'none'} />
+                    </IconButton>
+                    <IconButton className="h-11 min-w-10" label={`Delete saved view ${saved.name}`} tone="danger" onClick={() => removeSavedView(saved.id, saved.name)}>
+                      <TrashIcon size={15} />
+                    </IconButton>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-2 py-2 text-[12.5px] text-faint">Save a Quick find search or active tag filter to create one.</p>
+            )}
           </Popover>
         ) : null}
       </div>

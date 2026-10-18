@@ -43,6 +43,17 @@ describe('search (R23)', () => {
     }
   });
 
+  it('finds saved views by name', () => {
+    const h = seeded();
+    h.db.settings.savedViews = [{
+      id: 'hardware', name: 'Hardware shopping', query: 'drawer', searchAll: false,
+      tagFilter: { mode: 'include', tagIds: [], untagged: false }, pinned: false,
+      createdAt: h.ctx().now, updatedAt: h.ctx().now,
+    }];
+    const result = search(h.db, 'hardware');
+    expect(result[0]).toMatchObject({ kind: 'view', title: 'Hardware shopping', target: { view: 'saved:hardware' } });
+  });
+
   it('returns a checklist match only in the extended scope, and opens the task', () => {
     const h = seeded();
     expect(search(h.db, 'runners')).toHaveLength(0);

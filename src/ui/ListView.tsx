@@ -868,9 +868,9 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const db = useApp((s) => s.db);
   const indexes = useIndexes();
   const tagFilter = useApp((s) => s.tagFilter);
-  const sort = db.settings.listSorts?.[sourceDoc.view] ?? 'manual';
+  const sort = db.settings.listSorts?.[sourceDoc.view] ?? (sourceDoc.view.startsWith('saved:') ? 'alphabetical' : 'manual');
   const doc = useMemo(() => groupErrandsDocument(sortDocument(sourceDoc, sort, (tagId) => tagPath(db, tagId))), [sourceDoc, sort, db]);
-  const canOrder = sort === 'manual' && !['upcoming', 'logbook', 'trash', 'review', 'allTasks'].includes(doc.view);
+  const canOrder = sort === 'manual' && !doc.view.startsWith('saved:') && !['upcoming', 'logbook', 'trash', 'review', 'allTasks'].includes(doc.view);
   const errandsView = isErrandsOrderingView(doc.view);
   const hasErrands = errandsView && doc.sections.some((section) => section.items.some((item) => item.kind === 'task' && isErrandTask(item.task)));
   const isPhone = usePhone();

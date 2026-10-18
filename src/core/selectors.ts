@@ -11,7 +11,7 @@ import { resolveSectionDate } from './quick-add';
 import { evaluateSmartList, SMART_LISTS } from './smart-lists';
 import type {
   Area, CalendarEvent, ChecklistItem, Database, DateOnly, Heading, Project,
-  RepeatTemplate, Task,
+  RepeatTemplate, SavedViewDefinition, Task,
 } from './types';
 
 /**
@@ -24,7 +24,7 @@ export type ViewKey =
   | 'inbox' | 'today' | 'upcoming' | 'anytime' | 'someday' | 'logbook' | 'trash'
   | 'tomorrow' | 'deadlines' | 'repeating' | 'review' | 'allTasks' | 'allProjects' | 'loggedProjects'
   | 'smart:overdue' | 'smart:priority'
-  | `project:${string}` | `area:${string}` | `tag:${string}`;
+  | `project:${string}` | `area:${string}` | `tag:${string}` | `saved:${string}`;
 
 /** Primary navigation. Anytime and Someday remain data states, but are not standalone destinations. */
 export const BUILT_IN_ORDER: ViewKey[] = ['inbox', 'today', 'upcoming', 'logbook'];
@@ -983,6 +983,61 @@ function reviewView(db: Database, ix: Indexes, opts: QueryOptions): ListDocument
   );
 }
 
+function matchesSavedSearch(task: Task, ix: Indexes, saved: SavedViewDefinition): boolean {
+  const query = saved.query.trim().toLocaleLowerCase();
+  if (query.length === 0) return true;
+  if (task.title.toLocaleLowerCase().includes(query)) return true;
+  if (!saved.searchAll) return false;
+  if (task.notes.toLocaleLowerCase().includes(query)) return true;
+  return (ix.checklistByTask.get(task.id) ?? []).some((item) => item.text.toLocaleLowerCase().includes(query));
+}
+
+/** A saved view is a live query; opening it never copies or mutates its matching tasks. */
+function savedView(db: Database, ix: Indexes, id: string): ListDocument {
+  const key = `saved:${id}` as ViewKey;
+  const saved = (db.settings.savedViews ?? []).find((candidate) => candidate.id === id);
+  if (!saved) {
+    return doc(key, 'Saved view unavailable', null, [], {}, 'This saved view no longer exists.', inboxTarget());
+  }
+
+  const opts: QueryOptions = { tagFilter: saved.tagFilter };
+  const matches = liveTasks(db)
+    .filter((task) => (saved.searchAll || task.status === 'open') && passesFilter(db, ix, opts, task))
+    .filter((task) => matchesSavedSearch(task, ix, saved))
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'open' ? -1 : b.status === 'open' ? 1 : 0;
+      return byRank(a, b);
+    });
+  const open = matches.filter((task) => task.status === 'open');
+  const logged = matches.filter((task) => task.status !== 'open');
+  const sections: ListSection[] = [];
+  if (open.length > 0 || logged.length === 0) {
+    sections.push({
+      id: `${key}:open`, title: saved.searchAll && logged.length > 0 ? 'Open' : null,
+      subtitle: null, date: null, addTarget: null,
+      items: open.map((task) => ({ kind: 'task' as const, id: task.id, task, meta: taskMeta(db, ix, task) })),
+    });
+  }
+  if (logged.length > 0) {
+    sections.push({
+      id: `${key}:logged`, title: 'Logbook', subtitle: null, date: null, addTarget: null,
+      items: logged.map((task) => ({ kind: 'task' as const, id: task.id, task, meta: taskMeta(db, ix, task) })),
+    });
+  }
+
+  const criteria = [
+    saved.query.trim() ? `Search “${saved.query.trim()}”` : null,
+    tagFilterActive(saved.tagFilter)
+      ? `${saved.tagFilter.tagIds.length + Number(saved.tagFilter.untagged)} tag filter${saved.tagFilter.tagIds.length + Number(saved.tagFilter.untagged) === 1 ? '' : 's'}`
+      : null,
+    saved.searchAll ? 'includes notes, checklists, and Logbook' : null,
+  ].filter(Boolean).join(' · ');
+  return {
+    ...doc(key, saved.name, criteria || 'Saved task view', sections, opts, 'No tasks match this saved view.', inboxTarget()),
+    filtered: true,
+  };
+}
+
 /** Optional, non-destructive candidates for My Day. Nothing is added automatically. */
 export function suggestionsForMyDay(db: Database, ix: Indexes, opts: QueryOptions = {}, limit = 6): Task[] {
   const priorityScore: Record<NonNullable<Task['priority']>, number> = {
@@ -1024,6 +1079,7 @@ export function runView(db: Database, ix: Indexes, view: ViewKey, opts: QueryOpt
   if (view.startsWith('project:')) return projectView(db, ix, view.slice(8), opts);
   if (view.startsWith('area:')) return areaView(db, ix, view.slice(5), opts);
   if (view.startsWith('tag:')) return tagView(db, ix, view.slice(4), opts);
+  if (view.startsWith('saved:')) return savedView(db, ix, view.slice(6));
   switch (view) {
     case 'inbox': return inboxView(db, ix, opts);
     case 'today': return todayView(db, ix, opts);
