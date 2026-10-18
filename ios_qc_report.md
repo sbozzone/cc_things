@@ -275,3 +275,17 @@ remains unchanged.
 
 Release verification passed TypeScript, 212 tests across 24 files, all eight light/dark
 palette contrast audits, and the optimized production build.
+
+## October 17, 2026 — v0.7.15 Weekly Review and My Day suggestions
+
+Added a non-destructive **Weekly Review** under More lists. It groups Inbox captures,
+overdue tasks, paused repeats, held Someday or future-scheduled work, projects without
+a next task, and otherwise-uncategorized tasks untouched for 30 days. A task appears in
+at most one review section, and opening the review changes nothing automatically.
+
+My Day now offers an optional **Suggestions** panel when important or soon-due available
+tasks exist. Suggested tasks can be opened or added to My Day individually; ToDone never
+adds them automatically. Weekly Review can also be pinned to Favorite Views.
+
+Release verification passed TypeScript, 214 tests across 24 files, all eight light/dark
+palette contrast audits, and the optimized production build.

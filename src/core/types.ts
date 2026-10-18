@@ -231,7 +231,7 @@ export type TodayGrouping = 'flat' | 'byProject';
 export type SidebarSection = 'favoriteViews' | 'areas' | 'tags';
 export type SidebarFavoriteView =
   | 'smart:overdue' | 'smart:priority'
-  | 'tomorrow' | 'deadlines' | 'repeating'
+  | 'tomorrow' | 'deadlines' | 'repeating' | 'review'
   | 'allTasks' | 'allProjects' | 'loggedProjects' | 'trash';
 export type ListSort =
   | 'manual'

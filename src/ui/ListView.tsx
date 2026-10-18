@@ -7,9 +7,9 @@ import { emptyTagFilter, getSelectableTags, getTag, tagFilterActive, tagPath } f
 import { ERRANDS_TAG_ID, isErrandTask } from '@/core/errands';
 import { groupErrandsDocument, isErrandsOrderingView } from '@/core/errand-order';
 import { inToday } from '@/core/membership';
-import type { AddTarget, ListDocument, ListItem, ListSection } from '@/core/selectors';
+import { contextLabelFor, suggestionsForMyDay, type AddTarget, type ListDocument, type ListItem, type ListSection } from '@/core/selectors';
 import type { CalendarEvent, ItemOrderScope, Project, Task } from '@/core/types';
-import { useApp } from '@/state/store';
+import { useApp, useIndexes } from '@/state/store';
 import * as actions from '@/state/actions';
 import { TaskEditor } from './TaskEditor';
 import { Button, Chip, IconButton, Modal, Popover, ProgressRing, StatusControl } from './primitives';
@@ -866,6 +866,8 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const openItemId = useApp((s) => s.openItemId);
   const openItem = useApp((s) => s.openItem);
   const db = useApp((s) => s.db);
+  const indexes = useIndexes();
+  const tagFilter = useApp((s) => s.tagFilter);
   const sort = db.settings.listSorts?.[sourceDoc.view] ?? 'manual';
   const doc = useMemo(() => groupErrandsDocument(sortDocument(sourceDoc, sort, (tagId) => tagPath(db, tagId))), [sourceDoc, sort, db]);
   const canOrder = sort === 'manual' && !['upcoming', 'logbook', 'trash', 'review', 'allTasks'].includes(doc.view);
@@ -881,8 +883,13 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const [printSplitIndex, setPrintSplitIndex] = useState(0);
   const [expandPrintChecklists, setExpandPrintChecklists] = useState(false);
   const [confirmEmptyTrash, setConfirmEmptyTrash] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const printRef = useRef<HTMLElement | null>(null);
   const selectedPrintItems = useMemo(() => chosenPrintDate ? upcomingItemsForDate(doc, chosenPrintDate) : [], [doc, chosenPrintDate]);
+  const myDaySuggestions = useMemo(
+    () => doc.view === 'today' ? suggestionsForMyDay(db, indexes, { tagFilter }) : [],
+    [db, doc.view, indexes, tagFilter],
+  );
 
   useEffect(() => {
     if (doc.view !== 'upcoming') return;
@@ -987,6 +994,11 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
           </div>
         ) : null}
         <div className="mb-2 flex flex-wrap items-center justify-end gap-x-1 gap-y-1 px-1">
+          {doc.view === 'today' && myDaySuggestions.length > 0 ? (
+            <Button size="sm" variant={showSuggestions ? 'secondary' : 'ghost'} onClick={() => setShowSuggestions((value) => !value)}>
+              <SunIcon size={14} />Suggestions ({myDaySuggestions.length})
+            </Button>
+          ) : null}
           {doc.view === 'today' || doc.view === 'allTasks' ? (
             <TaskTagFilter
               view={doc.view}
@@ -1017,6 +1029,36 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
             </select>
           </label> : null}
         </div>
+        {doc.view === 'today' && showSuggestions && myDaySuggestions.length > 0 ? (
+          <section aria-label="My Day suggestions" className="mx-1 mb-3 rounded-xl border border-line bg-surface p-2 shadow-[var(--shadow-card)]">
+            <div className="flex items-start justify-between gap-3 px-1 pb-1.5">
+              <div>
+                <h2 className="text-[14px] font-semibold">Suggested for My Day</h2>
+                <p className="text-[12px] text-faint">Due soon or important. Nothing is added automatically.</p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setShowSuggestions(false)}>Hide</Button>
+            </div>
+            <ul className="divide-y divide-line">
+              {myDaySuggestions.map((task) => {
+                const context = contextLabelFor(db, task);
+                return (
+                  <li key={task.id} className="flex min-h-11 items-center gap-2 px-1 py-1.5">
+                    <button type="button" onClick={() => openItem(task.id)} className="min-w-0 flex-1 text-left">
+                      <span className="block truncate text-[14px] text-ink">{task.title || 'Untitled'}</span>
+                      <span className="block truncate text-[11.5px] text-faint">
+                        {[task.deadline ? `Due ${formatDateLabel(task.deadline, indexes.today)}` : null,
+                          task.priority ? priorities[task.priority] : null, context].filter(Boolean).join(' · ')}
+                      </span>
+                    </button>
+                    <Button size="sm" variant="ghost" onClick={() => actions.setInToday(task.id, true)}>
+                      <PlusIcon size={13} />My Day
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
         {hasErrands ? <p className="mb-2 px-3 text-[12px] text-faint">Errands first · drag the handles to arrange your stops. Sort applies to other tasks.</p> : null}
         {doc.view === 'allProjects' && allProjectIds.length > 0 ? (
           <div role="group" aria-label="Project display" className="mb-1 flex justify-end gap-1 px-1">

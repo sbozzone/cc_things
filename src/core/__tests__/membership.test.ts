@@ -6,7 +6,7 @@ import {
   setTaskStatus, setWhen, assignTag, createTag, restoreTask, orderItems, updateTask, updateTag, setTaskInToday,
   appendChecklist, deleteTask, emptyTrash,
 } from '../commands';
-import { BUILT_IN_ORDER, buildIndexes, runView, sidebarCounts } from '../selectors';
+import { BUILT_IN_ORDER, buildIndexes, runView, sidebarCounts, suggestionsForMyDay } from '../selectors';
 import { sortDocument } from '../list-order';
 import { dailyResetPatches } from '../my-day';
 import { holdOf, projectProgress } from '../membership';
@@ -26,6 +26,60 @@ function titlesIn(h: Harness, key: Parameters<typeof runView>[2], sectionId?: st
 describe('Primary navigation (R11)', () => {
   it('keeps Anytime and Someday as task states without standalone sidebar views', () => {
     expect(BUILT_IN_ORDER).toEqual(['inbox', 'today', 'upcoming', 'logbook']);
+  });
+});
+
+describe('Weekly Review and My Day suggestions', () => {
+  it('groups review decisions without duplicating tasks', () => {
+    const h = new Harness();
+    const areaId = h.run(createArea(h.db, h.ctx(), 'Home')).id;
+    const inboxId = h.run(createTask(h.db, h.ctx(), {
+      title: 'Process me', target: { parentType: 'inbox', parentId: null, headingId: null },
+    })).id;
+    const overdueId = h.run(createTask(h.db, h.ctx(), {
+      title: 'Late', target: { parentType: 'area', parentId: areaId, headingId: null },
+      deadline: '2026-09-07',
+    })).id;
+    const heldId = h.run(createTask(h.db, h.ctx(), {
+      title: 'Later', target: { parentType: 'area', parentId: areaId, headingId: null, planning: 'someday' },
+    })).id;
+    const projectId = h.run(createProject(h.db, h.ctx(), { title: 'Needs a next action' })).id;
+
+    const review = view(h, 'review');
+    expect(review.sections.map((section) => section.id)).toEqual([
+      'review:inbox', 'review:overdue', 'review:held', 'review:projects',
+    ]);
+    const taskIds = review.sections.flatMap((section) => section.items)
+      .flatMap((item) => item.kind === 'task' ? [item.task.id] : []);
+    expect(taskIds).toEqual([inboxId, overdueId, heldId]);
+    expect(new Set(taskIds).size).toBe(taskIds.length);
+    expect(review.sections.find((section) => section.id === 'review:projects')?.items[0]?.id).toBe(projectId);
+  });
+
+  it('suggests important or soon-due available work without changing My Day', () => {
+    const h = new Harness();
+    const areaId = h.run(createArea(h.db, h.ctx(), 'Work')).id;
+    const importantId = h.run(createTask(h.db, h.ctx(), {
+      title: 'Important', target: { parentType: 'area', parentId: areaId, headingId: null },
+    })).id;
+    const dueSoonId = h.run(createTask(h.db, h.ctx(), {
+      title: 'Due soon', target: { parentType: 'area', parentId: areaId, headingId: null },
+      deadline: '2026-09-10',
+    })).id;
+    const heldId = h.run(createTask(h.db, h.ctx(), {
+      title: 'Held', target: { parentType: 'area', parentId: areaId, headingId: null, planning: 'someday' },
+    })).id;
+    const alreadyTodayId = h.run(createTask(h.db, h.ctx(), {
+      title: 'Already today', target: { parentType: 'area', parentId: areaId, headingId: null, myDay: true },
+    })).id;
+    h.apply(updateTask(h.db, h.ctx(), importantId, { priority: 'urgent' }));
+    h.apply(updateTask(h.db, h.ctx(), heldId, { priority: 'urgent' }));
+
+    const ids = suggestionsForMyDay(h.db, buildIndexes(h.db, h.today)).map((task) => task.id);
+    expect(ids).toEqual([dueSoonId, importantId]);
+    expect(ids).not.toContain(heldId);
+    expect(ids).not.toContain(alreadyTodayId);
+    expect(h.db.tasks[importantId]?.isInToday).not.toBe(true);
   });
 });
 

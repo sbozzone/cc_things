@@ -183,8 +183,10 @@ Stable links: `/?view=today`, `/?view=project:<id>`, `/?task=<id>`.
 The sidebar leads with a Quick find field (⌘K), then Inbox, My Day, Upcoming and
 Logbook, followed by your areas and tags as separate sections with their own add buttons.
 Anytime and Someday remain internal planning states rather than standalone views; their
-tasks remain available in All Tasks. The special views —
-Tomorrow, Due, Repeating, All Projects, Logged Projects and Trash — sit behind
+tasks remain available in All Tasks. Weekly Review guides decisions about Inbox,
+overdue, held, paused, stalled, and stale work. My Day offers an optional, non-destructive
+Suggestions panel for important and soon-due tasks. The special views —
+Weekly Review, Tomorrow, Due, Repeating, All Projects, Logged Projects and Trash — sit behind
 "More lists" so they stay reachable without crowding the navigation. The account and
 sync status live along the bottom edge, with a coloured dot for the sync state.
 

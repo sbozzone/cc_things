@@ -1,6 +1,6 @@
 import type { ViewKey } from '@/core/selectors';
 import {
-  AlertIcon, ArchiveBoxIcon, BookIcon, CalendarIcon, FlagIcon, FolderIcon, InboxIcon, LayersIcon,
+  AlertIcon, ArchiveBoxIcon, BookIcon, CalendarIcon, ChecklistIcon, FlagIcon, FolderIcon, InboxIcon, LayersIcon,
   LogbookIcon, RepeatIcon, SunIcon, TagIcon, TrashIcon,
 } from './icons';
 
@@ -25,6 +25,7 @@ const BUILT_IN: Record<string, ViewStyle> = {
   tomorrow: { icon: <CalendarIcon size={17} />, accent: 'var(--upcoming)' },
   deadlines: { icon: <FlagIcon size={17} />, accent: 'var(--danger)' },
   repeating: { icon: <RepeatIcon size={17} />, accent: 'var(--anytime)' },
+  review: { icon: <ChecklistIcon size={17} />, accent: 'var(--accent)' },
   allTasks: { icon: <LayersIcon size={17} />, accent: 'var(--accent)' },
   allProjects: { icon: <FolderIcon size={17} />, accent: 'var(--accent)' },
   loggedProjects: { icon: <BookIcon size={17} />, accent: 'var(--logbook)' },

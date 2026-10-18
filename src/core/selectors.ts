@@ -22,7 +22,7 @@ import type {
 
 export type ViewKey =
   | 'inbox' | 'today' | 'upcoming' | 'anytime' | 'someday' | 'logbook' | 'trash'
-  | 'tomorrow' | 'deadlines' | 'repeating' | 'allTasks' | 'allProjects' | 'loggedProjects'
+  | 'tomorrow' | 'deadlines' | 'repeating' | 'review' | 'allTasks' | 'allProjects' | 'loggedProjects'
   | 'smart:overdue' | 'smart:priority'
   | `project:${string}` | `area:${string}` | `tag:${string}`;
 
@@ -40,6 +40,7 @@ export const VIEW_TITLES: Record<string, string> = {
   tomorrow: 'Tomorrow',
   deadlines: 'Due',
   repeating: 'Repeating',
+  review: 'Weekly Review',
   allTasks: 'All Tasks',
   allProjects: 'All Projects',
   loggedProjects: 'Logged Projects',
@@ -389,7 +390,7 @@ function todayView(db: Database, ix: Indexes, opts: QueryOptions): ListDocument 
   });
 
   return doc('today', 'My Day', `${weekdayName(ix.today)}, ${monthName(ix.today)} ${Number(ix.today.slice(8, 10))}`, sections, opts,
-    'Nothing planned. Pull something in from Anytime, or capture a new task.', todayTarget);
+    'Nothing planned. Capture a new task or choose one from All Tasks.', todayTarget);
 }
 
 function groupByParent(db: Database, ix: Indexes, items: ListItem[]): ListSection[] {
@@ -916,6 +917,95 @@ function smartListView(db: Database, ix: Indexes, key: 'overdue' | 'priority', o
   }], opts, `No tasks in ${definition.title.toLocaleLowerCase()}.`, inboxTarget());
 }
 
+/**
+ * A calm review queue: each open task appears in at most one section, ordered from
+ * most actionable to least. Opening this view never changes a task automatically.
+ */
+function reviewView(db: Database, ix: Indexes, opts: QueryOptions): ListDocument {
+  const seen = new Set<string>();
+  const openTasks = liveTasks(db).filter((task) => task.status === 'open' && passesFilter(db, ix, opts, task));
+  const sections: ListSection[] = [];
+  const addTaskSection = (
+    id: string, title: string, subtitle: string,
+    predicate: (task: Task) => boolean,
+    compare: (a: Task, b: Task) => number = byRank,
+  ) => {
+    const tasks = openTasks.filter((task) => !seen.has(task.id) && predicate(task)).sort(compare);
+    if (tasks.length === 0) return;
+    for (const task of tasks) seen.add(task.id);
+    sections.push({
+      id, title, subtitle, date: null, addTarget: null,
+      items: tasks.map((task) => ({ kind: 'task' as const, id: task.id, task, meta: taskMeta(db, ix, task) })),
+    });
+  };
+
+  addTaskSection('review:inbox', 'Process Inbox', 'Decide where each captured item belongs.', (task) => inInbox(task));
+  addTaskSection(
+    'review:overdue', 'Overdue', 'Reschedule, complete, or remove work that has slipped.',
+    (task) => isOverdue(task, ix.today),
+    (a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? '') || byRank(a, b),
+  );
+  addTaskSection(
+    'review:paused', 'Paused repeats', 'Resume, revise, or stop recurring work that is waiting.',
+    (task) => ix.templateOf.get(task.id)?.pausedAt !== null && ix.templateOf.get(task.id)?.pausedAt !== undefined,
+  );
+  addTaskSection(
+    'review:held', 'Held for later', 'Check Someday and future-scheduled work before it disappears from attention.',
+    (task) => holdOf(task, projectOf(db, task), ix.today).hold !== null,
+  );
+
+  const stalledProjects = Object.values(db.projects)
+    .filter((project) => project.deletedAt === null && project.status === 'open' && projectPassesFilter(db, ix, opts, project))
+    .filter((project) => !(ix.tasksByProject.get(project.id) ?? []).some((task) => task.deletedAt === null && task.status === 'open'))
+    .sort(byRank);
+  if (stalledProjects.length > 0) {
+    sections.push({
+      id: 'review:projects', title: 'Projects without a next task',
+      subtitle: 'Add a concrete next action or complete the project.', date: null, addTarget: null,
+      items: stalledProjects.map((project) => ({
+        kind: 'project' as const, id: project.id, project,
+        progress: projectProgress(ix.tasksByProject.get(project.id) ?? []),
+        meta: projectMeta(db, ix, project),
+      })),
+    });
+  }
+
+  const staleCutoff = addDays(ix.today, -30);
+  addTaskSection(
+    'review:stale', 'Untouched for 30 days', 'Confirm these still matter.',
+    (task) => task.updatedAt.slice(0, 10) <= staleCutoff,
+    (a, b) => a.updatedAt.localeCompare(b.updatedAt) || byRank(a, b),
+  );
+
+  return doc(
+    'review', 'Weekly Review', 'A guided check of work that may need a decision.', sections, opts,
+    'Review complete — nothing needs attention right now.', inboxTarget(),
+  );
+}
+
+/** Optional, non-destructive candidates for My Day. Nothing is added automatically. */
+export function suggestionsForMyDay(db: Database, ix: Indexes, opts: QueryOptions = {}, limit = 6): Task[] {
+  const priorityScore: Record<NonNullable<Task['priority']>, number> = {
+    urgent: 90, timeSensitive: 75, high: 55, low: 0,
+  };
+  const soon = addDays(ix.today, 7);
+  return liveTasks(db)
+    .filter((task) => task.status === 'open' && task.processed && !inInbox(task))
+    .filter((task) => !inToday(task, projectOf(db, task), ix.today))
+    .filter((task) => isAvailable(task, projectOf(db, task), ix.today) && passesFilter(db, ix, opts, task))
+    .map((task) => {
+      const dueSoon = task.deadline !== null && task.deadline > ix.today && task.deadline <= soon;
+      const score = (task.priority ? priorityScore[task.priority] : 0) + (dueSoon ? 100 : 0);
+      return { task, score };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score
+      || (a.task.deadline ?? '9999-12-31').localeCompare(b.task.deadline ?? '9999-12-31')
+      || byRank(a.task, b.task))
+    .slice(0, Math.max(0, limit))
+    .map(({ task }) => task);
+}
+
 /* ------------------------------------------------------------------ Entry */
 
 function doc(
@@ -946,6 +1036,7 @@ export function runView(db: Database, ix: Indexes, view: ViewKey, opts: QueryOpt
     case 'tomorrow': return tomorrowView(db, ix, opts);
     case 'deadlines': return deadlinesView(db, ix, opts);
     case 'repeating': return repeatingView(db, ix, opts);
+    case 'review': return reviewView(db, ix, opts);
     case 'allTasks': return allTasksView(db, ix, opts);
     case 'allProjects': return allProjectsView(db, ix, opts);
     case 'smart:overdue': return smartListView(db, ix, 'overdue', opts);

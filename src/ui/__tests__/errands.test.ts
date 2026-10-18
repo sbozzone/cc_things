@@ -9,6 +9,7 @@ import { ListView, PrintChecklist } from '../ListView';
 const mocks = vi.hoisted(() => ({ getState: vi.fn(), phone: false }));
 vi.mock('@/state/store', () => ({
   useApp: (selector: (state: ReturnType<typeof mocks.getState>) => unknown) => selector(mocks.getState()),
+  useIndexes: () => buildIndexes(mocks.getState().db, mocks.getState().today),
 }));
 vi.mock('../useMediaQuery', () => ({ usePhone: () => mocks.phone }));
 
