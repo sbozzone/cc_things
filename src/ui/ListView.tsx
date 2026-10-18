@@ -441,6 +441,8 @@ function TaskTagFilter({
   const tagFilter = useApp((s) => s.tagFilter);
   const setTagFilter = useApp((s) => s.setTagFilter);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [namingView, setNamingView] = useState(false);
+  const [viewName, setViewName] = useState('');
   const viewLabel = view === 'today' ? 'My Day' : 'All Tasks';
   const tags = useMemo(
     () => getSelectableTags(db)
@@ -449,6 +451,12 @@ function TaskTagFilter({
   );
   const filterCount = tagFilter.tagIds.length + Number(tagFilter.untagged);
   const active = tagFilterActive(tagFilter);
+  const suggestedViewName = useMemo(() => {
+    const names = tagFilter.tagIds.map((id) => tagPath(db, id));
+    if (tagFilter.untagged) names.unshift('Untagged');
+    if (names.length === 0) return `${viewLabel} view`;
+    return `${tagFilter.mode === 'exclude' ? 'Without ' : ''}${names.join(' + ')}`;
+  }, [db, tagFilter, viewLabel]);
 
   const toggle = (tagId: string) => {
     const selected = tagFilter.tagIds.includes(tagId);
@@ -462,7 +470,7 @@ function TaskTagFilter({
 
   return (
     <div className="flex items-center gap-1">
-      <Button size="sm" variant={active ? 'secondary' : 'ghost'} onClick={(event) => setAnchor(event.currentTarget)}>
+      <Button size="sm" variant={active ? 'secondary' : 'ghost'} onClick={(event) => { setNamingView(false); setAnchor(event.currentTarget); }}>
         <TagIcon size={14} /> Tags{active ? ` (${filterCount}${tagFilter.mode === 'exclude' ? ' excluded' : ''})` : ''}
       </Button>
       {active ? <Button size="sm" variant="ghost" onClick={() => setTagFilter(emptyTagFilter())}>Clear</Button> : null}
@@ -483,7 +491,7 @@ function TaskTagFilter({
         </>
       ) : null}
       {anchor ? (
-        <Popover anchor={anchor} onClose={() => setAnchor(null)} label={`Filter ${viewLabel} by tags`} width={280}>
+        <Popover anchor={anchor} onClose={() => { setNamingView(false); setAnchor(null); }} label={`Filter ${viewLabel} by tags`} width={300}>
           <div className="flex items-center justify-between gap-2 px-2 pb-1">
             <p className="text-[12px] text-faint">
               {tagFilter.mode === 'exclude'
@@ -521,6 +529,37 @@ function TaskTagFilter({
               </li>
             ))}
           </ul>
+          <div className="mt-1 border-t border-line px-2 pt-2">
+            {namingView ? (
+              <form
+                className="flex flex-wrap items-center gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const name = viewName.trim();
+                  if (!name || !active) return;
+                  actions.createSavedView({ name, query: '', searchAll: false, tagFilter });
+                  setNamingView(false);
+                  setAnchor(null);
+                }}
+              >
+                <label htmlFor="tag-view-name" className="w-full text-[12px] font-medium text-muted">View name</label>
+                <input
+                  id="tag-view-name" type="text" autoFocus value={viewName}
+                  onChange={(event) => setViewName(event.target.value)}
+                  className="h-9 min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 text-[13.5px] outline-none focus:border-accent"
+                />
+                <Button size="sm" type="submit" disabled={!viewName.trim()}>Save</Button>
+                <Button size="sm" variant="ghost" type="button" onClick={() => setNamingView(false)}>Cancel</Button>
+              </form>
+            ) : (
+              <Button
+                size="sm" variant="secondary" full disabled={!active}
+                onClick={() => { setViewName(suggestedViewName); setNamingView(true); }}
+              >
+                Save combination as view
+              </Button>
+            )}
+          </div>
         </Popover>
       ) : null}
     </div>

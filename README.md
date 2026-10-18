@@ -186,8 +186,8 @@ Anytime and Someday remain internal planning states rather than standalone views
 tasks remain available in All Tasks. Weekly Review guides decisions about Inbox,
 overdue, held, paused, stalled, and stale work. My Day offers an optional, non-destructive
 Suggestions panel for important and soon-due tasks. Quick find searches and active tag
-filters can be saved as named, live task views. Saved views stay under More lists by
-default and can be pinned individually to Favorite Views. The special views —
+filters can be saved as named, live task views from either Quick find or the Tags menu.
+Saved views stay under More lists by default and can be pinned individually to Favorite Views. The special views —
 Weekly Review, Tomorrow, Due, Repeating, All Projects, Logged Projects and Trash — sit behind
 "More lists" so they stay reachable without crowding the navigation. The account and
 sync status live along the bottom edge, with a coloured dot for the sync state.

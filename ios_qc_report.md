@@ -302,3 +302,13 @@ Favorite Views or deleted without affecting any matching tasks.
 
 Release verification passed TypeScript, 217 tests across 24 files, all eight light/dark
 palette contrast audits, and the optimized production build.
+
+## October 17, 2026 — v0.7.17 save a tag combination in place
+
+The My Day and All Tasks tag menus now provide **Save combination as view** whenever a
+filter is active. The name field starts with the selected tag names—including Untagged—
+and remains editable before saving. The resulting dynamic view uses the same saved-view
+behavior introduced in v0.7.16 and appears under More lists until explicitly pinned.
+
+Release verification passed TypeScript, 217 tests across 24 files, all eight light/dark
+palette contrast audits, and the optimized production build.
