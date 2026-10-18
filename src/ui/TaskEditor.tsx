@@ -37,6 +37,8 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
   const [showNotes, setShowNotes] = useState(task.notes.trim().length > 0);
   const [notesFocused, setNotesFocused] = useState(false);
   const [newChecklistText, setNewChecklistText] = useState('');
+  const newChecklistDraft = useRef('');
+  const newChecklistInput = useRef<HTMLInputElement | null>(null);
   const [duplicating, setDuplicating] = useState(false);
   const [titleDraft, setTitleDraft] = useState(task.title);
   const titleRef = useRef<HTMLDivElement | null>(null);
@@ -78,8 +80,16 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
     if (titleDraft !== task.title) actions.updateTask(task.id, { title: titleDraft }, 'edit title');
   };
 
+  const commitChecklistRow = () => {
+    const text = newChecklistDraft.current.trim();
+    newChecklistDraft.current = '';
+    setNewChecklistText('');
+    if (text) actions.addChecklistLines(task.id, [text]);
+  };
+
   const closeEditor = () => {
     commitTitle();
+    commitChecklistRow();
     onClose();
   };
 
@@ -339,31 +349,43 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
       ) : null}
 
       {checklist.length > 0 || newChecklistText ? (
-        <div className="task-editor-add-checklist mt-1 pl-[52px]">
+        <div className="task-editor-add-checklist mt-1 flex items-center gap-2 pl-[52px]">
           <input
+            ref={newChecklistInput}
             type="text"
+            enterKeyHint="done"
             value={newChecklistText}
             spellCheck={true}
             placeholder="Add a row"
             aria-label="Add a checklist row"
-            onChange={(event) => setNewChecklistText(event.target.value)}
+            onChange={(event) => {
+              newChecklistDraft.current = event.target.value;
+              setNewChecklistText(event.target.value);
+            }}
+            onBlur={commitChecklistRow}
             onPaste={(event) => {
               const text = event.clipboardData.getData('text');
               if (!text.includes('\n')) return;
               // Pasting several lines offers one row per non-blank line (R03).
               event.preventDefault();
               actions.addChecklistLines(task.id, text.split('\n'));
+              newChecklistDraft.current = '';
               setNewChecklistText('');
             }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && newChecklistText.trim()) {
+              if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
                 event.preventDefault();
-                actions.addChecklistLines(task.id, [newChecklistText]);
-                setNewChecklistText('');
+                commitChecklistRow();
               }
             }}
-            className="h-8 w-full bg-transparent text-[14px] outline-none placeholder:text-faint"
+            className="min-h-11 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint"
           />
+          <button type="button" aria-label="Add checklist item"
+            className="min-h-11 min-w-11 shrink-0 rounded-md px-2 text-sm font-medium text-accent"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => { commitChecklistRow(); newChecklistInput.current?.focus(); }}>
+            Add
+          </button>
         </div>
       ) : null}
 
