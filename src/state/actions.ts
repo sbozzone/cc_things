@@ -134,6 +134,22 @@ export function restoreItem(id: string): void {
   state.dispatch(patches, { undoLabel: 'restore' });
 }
 
+export function emptyTrash(): void {
+  const state = app();
+  const result = commands.emptyTrash(state.db);
+  state.dispatch(result.patches, {
+    toast: {
+      message: result.purgedCount === 1 ? '1 item permanently deleted' : `${result.purgedCount} items permanently deleted`,
+      tone: 'info',
+    },
+  });
+  state.openItem(null);
+  state.clearSelection();
+  // A permanent purge must not leave an older Undo entry capable of recreating a
+  // partial version of an entity that no longer exists.
+  useApp.setState({ undoStack: [], redoStack: [] });
+}
+
 /** Batch move (R24): the selection's relative order survives, and the whole set moves or none does. */
 export function moveTasks(ids: string[], target: AddTarget): void {
   const state = app();

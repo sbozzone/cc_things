@@ -16,7 +16,7 @@ and — where something is not built — exactly what is missing and why.
 | R03 | Checklists | ✅ | `core/commands.ts` (`appendChecklist`, `reorderChecklistItem`), `ui/TaskEditor.tsx`, `ui/ListView.tsx`. Multi-line paste creates one row per non-blank line. Touch drag handles and keyboard Up/Down reorder rows with persisted fractional ranks. Rows have no dates or project membership; completing a task leaves unchecked rows intact. My Day and single-day Upcoming print layouts can optionally expand checklist rows. |
 | R04 | Contextual insertion | ✅ | `core/selectors.ts` (`AddTarget` per section). Upcoming day sections carry their date; Logbook and Trash route capture to Inbox. |
 | R05 | Complete, cancel, reopen | ✅ | `core/commands.ts` (`setTaskStatus`), `core/patches.ts` (`inverseOf`). Cancel is distinct from complete; Undo is immediate; pending reminders are cancelled. |
-| R06 | Delete and restore | ✅ | `core/commands.ts` (`deleteTask`, `restoreProject`, `purgeExpiredTrash`). 30-day Trash, then purge; restore offers a home when the parent is gone. |
+| R06 | Delete and restore | ✅ | `core/commands.ts` (`deleteTask`, `restoreProject`, `purgeExpiredTrash`, `emptyTrash`). Trash can be emptied immediately after a permanent-action confirmation; otherwise items remain recoverable for 30 days before automatic purge. Restore offers a home when the parent is gone. |
 
 ## 4. Organise responsibilities and projects
 

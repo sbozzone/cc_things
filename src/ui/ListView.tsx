@@ -880,6 +880,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const [twoPrintColumns, setTwoPrintColumns] = useState(false);
   const [printSplitIndex, setPrintSplitIndex] = useState(0);
   const [expandPrintChecklists, setExpandPrintChecklists] = useState(false);
+  const [confirmEmptyTrash, setConfirmEmptyTrash] = useState(false);
   const printRef = useRef<HTMLElement | null>(null);
   const selectedPrintItems = useMemo(() => chosenPrintDate ? upcomingItemsForDate(doc, chosenPrintDate) : [], [doc, chosenPrintDate]);
 
@@ -942,6 +943,9 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const openTask: Task | undefined = openItemId ? db.tasks[openItemId] : undefined;
 
   const isEmpty = doc.sections.every((s) => s.items.length === 0);
+  const trashItemCount = doc.view === 'trash'
+    ? doc.sections.reduce((count, section) => count + section.items.length, 0)
+    : 0;
 
   const addTo = useCallback((section: ListSection) => {
     setComposerSection(section.id);
@@ -989,6 +993,11 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
               expandPrintChecklists={expandPrintChecklists}
               onExpandPrintChecklistsChange={setExpandPrintChecklists}
             />
+          ) : null}
+          {doc.view === 'trash' ? (
+            <Button size="sm" variant="danger" disabled={isEmpty} onClick={() => setConfirmEmptyTrash(true)}>
+              <TrashIcon size={14} />Empty Trash
+            </Button>
           ) : null}
           {!['logbook', 'trash'].includes(doc.view) ? <label className="flex items-center gap-1.5 text-[12.5px] text-muted">
             <span className="sr-only sm:not-sr-only">Sort</span>
@@ -1145,6 +1154,23 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
       {isPhone && openTask ? (
         <Modal label="Edit task" onClose={() => openItem(null)}>
           <TaskEditor task={openTask} onClose={() => openItem(null)} embedded />
+        </Modal>
+      ) : null}
+
+      {confirmEmptyTrash ? (
+        <Modal label="Empty Trash" onClose={() => setConfirmEmptyTrash(false)}>
+          <div className="p-4">
+            <h2 className="text-[16px] font-semibold">Permanently delete everything in Trash?</h2>
+            <p className="mt-1.5 text-[14px] text-muted">
+              This will permanently delete {trashItemCount} {trashItemCount === 1 ? 'item' : 'items'} and cannot be undone.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setConfirmEmptyTrash(false)}>Cancel</Button>
+              <Button size="sm" variant="danger" onClick={() => { actions.emptyTrash(); setConfirmEmptyTrash(false); }}>
+                Empty Trash
+              </Button>
+            </div>
+          </div>
         </Modal>
       ) : null}
     </>

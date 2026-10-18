@@ -264,3 +264,14 @@ Logbook; shortcuts 1–4 follow that same order.
 
 Release verification passed TypeScript, 211 tests across 24 files, all eight light/dark
 palette contrast audits, and the optimized production build.
+
+## October 17, 2026 — v0.7.14 empty Trash
+
+The Trash view now has an **Empty Trash** button. A confirmation states the number of
+items and that deletion is permanent before removing trashed tasks, projects, and their
+private child data. Emptying Trash also clears stale Undo history so a permanently
+removed record cannot be partially recreated. The existing 30-day automatic cleanup
+remains unchanged.
+
+Release verification passed TypeScript, 212 tests across 24 files, all eight light/dark
+palette contrast audits, and the optimized production build.

@@ -4,6 +4,7 @@ import {
   createArea, createHeading, createProject, createTask, deleteProject, moveHeading,
   moveTasks, reorderTask, restoreProject, setDeadline, setProjectStatus, setProjectWhen,
   setTaskStatus, setWhen, assignTag, createTag, restoreTask, orderItems, updateTask, updateTag, setTaskInToday,
+  appendChecklist, deleteTask, emptyTrash,
 } from '../commands';
 import { BUILT_IN_ORDER, buildIndexes, runView, sidebarCounts } from '../selectors';
 import { sortDocument } from '../list-order';
@@ -322,6 +323,30 @@ describe('Deletion and restore (R06, scenario A09)', () => {
     h.apply(restoreTask(h.db, h.ctx(), taskId));
     expect(h.db.tasks[taskId]?.parentType).toBe('inbox');
     expect(titlesIn(h, 'inbox')).toContain('Orphan');
+  });
+
+  it('permanently empties trashed items and their private child data', () => {
+    const h = new Harness();
+    const tagId = h.run(createTag(h.db, h.ctx(), 'Home')).id;
+    const taskId = h.run(createTask(h.db, h.ctx(), {
+      title: 'Discard me',
+      target: { parentType: 'inbox', parentId: null, headingId: null },
+    })).id;
+    h.apply(appendChecklist(h.db, h.ctx(), taskId, ['Private detail']));
+    h.apply(assignTag(h.db, h.ctx(), tagId, 'task', taskId));
+    const checklistId = Object.values(h.db.checklistItems).find((item) => item.taskId === taskId)?.id as string;
+    const assignmentId = Object.values(h.db.tagAssignments).find((item) => item.targetId === taskId)?.id as string;
+    h.apply(deleteTask(h.db, h.ctx(), taskId));
+
+    const result = emptyTrash(h.db);
+    expect(result.purgedCount).toBe(1);
+    h.apply(result.patches);
+
+    expect(h.db.tasks[taskId]).toBeUndefined();
+    expect(h.db.checklistItems[checklistId]).toBeUndefined();
+    expect(h.db.tagAssignments[assignmentId]).toBeUndefined();
+    expect(h.db.tags[tagId]).toBeDefined();
+    expect(view(h, 'trash').sections[0]?.items).toHaveLength(0);
   });
 });
 

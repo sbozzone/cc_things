@@ -8,7 +8,7 @@ import { ERRANDS_TAG_ID, isErrandTask } from './errands';
 import { byErrandRank } from './errand-order';
 import { create, update, type EntityPatch, type WriteContext } from './patches';
 import type {
-  Area, ChecklistItem, Database, DateOnly, Heading, ItemOrderScope, LifecycleStatus, PlanningState,
+  Area, ChecklistItem, Database, DateOnly, EntityTable, Heading, ItemOrderScope, LifecycleStatus, PlanningState,
   Project, Tag, TagTargetType, Task, TaskParentType,
 } from './types';
 import type { Clock } from './clock';
@@ -720,6 +720,44 @@ export function snoozeReminder(db: Database, ctx: WriteContext, reminderId: stri
 }
 
 /* ---------------------------------------------------------------- purge */
+
+/**
+ * Permanently removes everything currently represented in Trash, together with
+ * private child data that would otherwise be orphaned. Repeat links stay in place so
+ * an intentionally deleted occurrence is not generated again.
+ */
+export function emptyTrash(db: Database): { patches: EntityPatch[]; purgedCount: number } {
+  const projectIds = new Set(
+    Object.values(db.projects).filter((project) => project.deletedAt !== null).map((project) => project.id),
+  );
+  const taskIds = new Set(
+    Object.values(db.tasks)
+      .filter((task) => task.deletedAt !== null || (task.parentType === 'project' && task.parentId !== null && projectIds.has(task.parentId)))
+      .map((task) => task.id),
+  );
+  const patches: EntityPatch[] = [];
+  const remove = (table: EntityTable, id: string) => patches.push({ table, id, patch: {}, remove: true });
+
+  for (const id of projectIds) remove('projects', id);
+  for (const id of taskIds) remove('tasks', id);
+  for (const heading of Object.values(db.headings)) {
+    if (heading.deletedAt !== null || projectIds.has(heading.projectId)) remove('headings', heading.id);
+  }
+  for (const item of Object.values(db.checklistItems)) {
+    if (taskIds.has(item.taskId)) remove('checklistItems', item.id);
+  }
+  for (const assignment of Object.values(db.tagAssignments)) {
+    if ((assignment.targetType === 'task' && taskIds.has(assignment.targetId))
+      || (assignment.targetType === 'project' && projectIds.has(assignment.targetId))) {
+      remove('tagAssignments', assignment.id);
+    }
+  }
+  for (const reminder of Object.values(db.reminders)) {
+    if (taskIds.has(reminder.taskId)) remove('reminders', reminder.id);
+  }
+
+  return { patches, purgedCount: projectIds.size + taskIds.size };
+}
 
 /** Purges Trash entries past the retention window; purged ids must never reappear. */
 export function purgeExpiredTrash(db: Database, ctx: WriteContext): { patches: EntityPatch[]; purgedIds: string[] } {
