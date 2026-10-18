@@ -30,12 +30,12 @@ export function AreaHeader({ areaId }: { areaId: string }) {
   void effectiveProjectTags;
 
   return (
-    <header className="mb-3 border-b border-line pb-3">
+    <header className="entity-header mb-3 border-b border-line pb-3">
       <AutoTextarea
         value={area.title}
         ariaLabel="Area name"
         placeholder="Area name"
-        className="text-[22px] font-semibold leading-tight"
+        className="entity-title text-[22px] font-semibold leading-tight"
         onChange={(value) => actions.renameArea(areaId, value)}
       />
       <p className="mt-0.5 text-[12.5px] text-muted">

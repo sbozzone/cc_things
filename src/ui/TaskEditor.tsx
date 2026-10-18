@@ -65,8 +65,10 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
     .find(Boolean);
 
   useEffect(() => {
-    titleRef.current?.querySelector('textarea')?.focus();
-  }, [task.id]);
+    // Opening the mobile sheet is also how a person reads a task or its checklist.
+    // Editing starts when they tap a field, so inspection does not open the keyboard.
+    if (!embedded) titleRef.current?.querySelector('textarea')?.focus();
+  }, [task.id, embedded]);
 
   useEffect(() => {
     setTitleDraft(task.title);
@@ -74,6 +76,11 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
 
   const commitTitle = () => {
     if (titleDraft !== task.title) actions.updateTask(task.id, { title: titleDraft }, 'edit title');
+  };
+
+  const closeEditor = () => {
+    commitTitle();
+    onClose();
   };
 
   const moveChecklistItem = (id: string, direction: -1 | 1) => {
@@ -109,6 +116,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
   };
 
   const openPopover = (kind: typeof popover) => (event: React.MouseEvent<HTMLButtonElement>) => {
+    commitTitle();
     setAnchor(event.currentTarget);
     setPopover(kind);
   };
@@ -120,18 +128,30 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
       : 'Inbox';
 
   return (
-    <div className={embedded ? 'relative overflow-hidden rounded-xl p-3.5' : 'card relative overflow-hidden p-3.5 shadow-[var(--shadow-pop)]'}>
+    <div className={`task-editor ${embedded ? 'task-editor-embedded relative overflow-hidden rounded-xl p-3.5' : 'card relative overflow-hidden p-3.5 shadow-[var(--shadow-pop)]'}`}>
       {/* A hairline of the page's hue along the top ties the open card to the list it sits in. */}
-      <span aria-hidden="true" className="view-accent-bg absolute inset-x-0 top-0 h-[3px] opacity-80" />
-      <div className="flex items-start gap-3">
+      <span aria-hidden="true" className="task-editor-accent view-accent-bg absolute inset-x-0 top-0 h-[3px] opacity-80" />
+      {embedded ? (
+        <div className="task-editor-sheet-header">
+          <span aria-hidden="true" className="task-editor-grabber" />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[15px] font-semibold text-muted">Task details</span>
+            <button type="button" data-autofocus aria-label="Close editor" onClick={closeEditor} className="mobile-sheet-done rounded-md px-2 font-semibold text-accent">Done</button>
+          </div>
+        </div>
+      ) : null}
+      <div className="task-editor-content">
+      <div className="task-editor-title-row flex items-start gap-3">
         <StatusControl
           status={task.status}
           label={task.title || 'Untitled task'}
           onComplete={() => {
+            commitTitle();
             actions.setStatus([task.id], 'completed');
             onClose();
           }}
           onCancel={() => {
+            commitTitle();
             actions.setStatus([task.id], 'canceled');
             onClose();
           }}
@@ -142,24 +162,23 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
             value={titleDraft}
             ariaLabel="Task title"
             placeholder="New task"
-            autoFocus
-            className="text-[16px] font-semibold leading-snug tracking-[-0.01em]"
+            autoFocus={!embedded}
+            className="task-editor-title text-[16px] font-semibold leading-snug tracking-[-0.01em]"
             onChange={setTitleDraft}
             onBlur={commitTitle}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
-                commitTitle();
-                onClose();
+                closeEditor();
               }
             }}
           />
         </div>
-        <IconButton label="Close editor" onClick={onClose}><CloseIcon /></IconButton>
+        {!embedded ? <IconButton label="Close editor" onClick={closeEditor}><CloseIcon /></IconButton> : null}
       </div>
 
       {showNotes || task.notes.trim() ? (
-        <div className="mt-2 pl-[36px]">
+        <div className="task-editor-notes mt-2 pl-[36px]">
           {notesFocused ? (
             <AutoTextarea
               value={task.notes}
@@ -189,12 +208,12 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
       ) : null}
 
       {checklist.length > 0 || newChecklistText ? (
-        <ul ref={checklistRef} className="mt-2.5 space-y-0.5 pl-[32px]">
+        <ul ref={checklistRef} className="task-editor-checklist mt-2.5 space-y-0.5 pl-[32px]">
           {checklist.map((item, index) => (
             <li
               key={item.id}
               data-checklist-id={item.id}
-              className={`group relative flex min-h-10 items-center gap-2 rounded-md px-1 py-0.5 hover:bg-[color-mix(in_srgb,var(--text)_4.5%,transparent)] ${
+              className={`checklist-row group relative flex min-h-10 items-center gap-2 rounded-md px-1 py-0.5 hover:bg-[color-mix(in_srgb,var(--text)_4.5%,transparent)] ${
                 checklistDrop?.targetId === item.id && checklistDrop.side === 'before'
                   ? 'shadow-[inset_0_2px_0_0_var(--accent)]'
                   : checklistDrop?.targetId === item.id && checklistDrop.side === 'after'
@@ -206,7 +225,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
                 type="button"
                 aria-label={`Reorder checklist row ${index + 1}: ${item.text || 'Untitled row'}. Drag or use the up and down arrow keys.`}
                 title="Drag to reorder"
-                className="absolute -left-11 top-1/2 flex h-11 w-11 -translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-lg text-[18px] leading-none text-faint hover:bg-surface-2 active:cursor-grabbing"
+                className="checklist-reorder-handle absolute -left-11 top-1/2 flex h-11 w-11 min-[620px]:-translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-lg text-[18px] leading-none text-faint hover:bg-surface-2 active:cursor-grabbing"
                 onClick={(event) => event.stopPropagation()}
                 onDragStart={(event) => event.preventDefault()}
                 onPointerDown={(event) => {
@@ -272,13 +291,31 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
                 aria-checked={item.checked}
                 aria-label={item.text || 'Checklist row'}
                 onClick={() => actions.updateChecklistItem(item.id, { checked: !item.checked })}
-                className={`check-box flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] text-[10px] ${
-                  item.checked ? 'border-accent bg-accent-fill text-accent-fill-contrast' : 'border-control hover:border-accent'
-                }`}
+                className="checklist-toggle flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md"
               >
-                {item.checked ? '✓' : ''}
+                <span aria-hidden="true" data-status={item.checked ? 'completed' : 'open'} className={`checklist-glyph check-box flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] text-[10px] ${
+                  item.checked ? 'border-accent bg-accent-fill text-accent-fill-contrast' : 'border-control hover:border-accent'
+                }`}>
+                  {item.checked ? '✓' : ''}
+                </span>
               </button>
-              <input
+              {embedded ? (
+                <AutoTextarea
+                  value={item.text}
+                  ariaLabel={`Checklist row ${index + 1}`}
+                  onChange={(text) => actions.updateChecklistItem(item.id, { text: text.replace(/[\r\n]/g, '') })}
+                  onKeyDown={(event) => {
+                    // Rows wrap visually, while Enter retains the existing single-row
+                    // editing behavior. The Add a row field creates the next item.
+                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) event.preventDefault();
+                    if (event.key === 'Backspace' && item.text === '') {
+                      event.preventDefault();
+                      actions.deleteChecklistItem(item.id);
+                    }
+                  }}
+                  className={`checklist-text min-w-0 flex-1 bg-transparent text-[14px] outline-none ${item.checked ? 'text-muted line-through' : ''}`}
+                />
+              ) : <input
                 type="text"
                 value={item.text}
                 spellCheck={true}
@@ -290,9 +327,9 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
                     actions.deleteChecklistItem(item.id);
                   }
                 }}
-                className={`flex-1 bg-transparent text-[14px] outline-none ${item.checked ? 'text-muted line-through' : ''}`}
-              />
-              <IconButton label={`Delete checklist row ${index + 1}`} onClick={() => actions.deleteChecklistItem(item.id)}>
+                className={`checklist-text min-w-0 flex-1 bg-transparent text-[14px] outline-none ${item.checked ? 'text-muted line-through' : ''}`}
+              />}
+              <IconButton label={`Delete checklist row ${index + 1}`} className="checklist-delete" onClick={() => actions.deleteChecklistItem(item.id)}>
                 <CloseIcon size={13} />
               </IconButton>
             </li>
@@ -302,7 +339,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
       ) : null}
 
       {checklist.length > 0 || newChecklistText ? (
-        <div className="mt-1 pl-[52px]">
+        <div className="task-editor-add-checklist mt-1 pl-[52px]">
           <input
             type="text"
             value={newChecklistText}
@@ -330,7 +367,8 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
         </div>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-line pt-3">
+      <div className="task-editor-actions mt-3 flex flex-wrap items-center gap-1 border-t border-line pt-3">
+        <div className="task-editor-properties contents">
         <Button size="sm" variant={task.isInToday ? 'secondary' : 'ghost'} keepFocus onClick={() => actions.setInToday(task.id, !task.isInToday)}>
           <SunIcon size={14} />{task.isInToday ? 'Remove from My Day' : 'Add to My Day'}
         </Button>
@@ -369,6 +407,11 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
         <Button size="sm" variant="ghost" keepFocus onClick={openPopover('move')}>
           <MoveIcon size={14} />{contextLabel ? `Move · ${contextLabel}` : 'Move'}
         </Button>
+        <Button size="sm" variant="ghost" keepFocus onClick={openPopover('repeat')}>
+          <RepeatIcon size={14} />{template ? describeRule(template.rule) : 'Repeat'}
+        </Button>
+        </div>
+        <div className="task-editor-secondary contents">
         {!showNotes && !task.notes.trim() ? (
           <Button size="sm" variant="ghost" keepFocus onClick={() => { setShowNotes(true); setNotesFocused(true); }}>
             <NoteIcon size={14} />Notes
@@ -379,10 +422,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
             <ChecklistIcon size={14} />Checklist
           </Button>
         ) : null}
-        <Button size="sm" variant="ghost" keepFocus onClick={openPopover('repeat')}>
-          <RepeatIcon size={14} />{template ? describeRule(template.rule) : 'Repeat'}
-        </Button>
-        <Button size="sm" variant="ghost" keepFocus onClick={() => setDuplicating(true)}>
+        <Button size="sm" variant="ghost" keepFocus onClick={() => { commitTitle(); setDuplicating(true); }}>
           <CopyIcon size={14} />Duplicate
         </Button>
         <Button
@@ -390,6 +430,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
           variant="ghost"
           keepFocus
           onClick={() => {
+            commitTitle();
             const projectId = actions.promoteToProject('task', task.id);
             onClose();
             if (projectId) setView(`project:${projectId}`);
@@ -398,13 +439,14 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
           <PromoteIcon size={14} />Make project
         </Button>
         <span className="flex-1" />
-        <IconButton label="Move to Trash" tone="danger" keepFocus onClick={() => { actions.deleteTasks([task.id]); onClose(); }}>
+        <IconButton label="Move to Trash" tone="danger" keepFocus onClick={() => { commitTitle(); actions.deleteTasks([task.id]); onClose(); }}>
           <TrashIcon />
         </IconButton>
+        </div>
       </div>
 
       {tagCount > 0 ? (
-        <div className="mt-2.5 flex flex-wrap gap-1 pl-[36px]">
+        <div className="task-editor-tags mt-2.5 flex flex-wrap gap-1 pl-[36px]">
           {automaticErrands ? (
             <Chip tone="accent">
               <TagDot color={errandsTag.color} />
@@ -427,6 +469,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
           ))}
         </div>
       ) : null}
+      </div>
 
       {popover === 'deadline' ? (
         <DeadlinePopover

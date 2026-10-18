@@ -53,7 +53,7 @@ function NavItem({
         type="button"
         aria-current={active ? 'page' : undefined}
         onClick={onSelect}
-        className={`press flex min-h-[40px] w-full items-center gap-3 rounded-[10px] pr-2.5 text-left text-[14.5px] transition-[background-color,color] duration-150 ${
+        className={`sidebar-nav-item press flex min-h-[40px] w-full items-center gap-3 rounded-[10px] pr-2.5 text-left text-[14.5px] transition-[background-color,color] duration-150 ${
           active
             ? 'bg-accent-soft font-semibold text-accent shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_12%,transparent)]'
             : 'text-ink hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
@@ -213,8 +213,8 @@ export function Sidebar({
   const initial = (signedIn && email ? email[0] : '')?.toUpperCase();
 
   return (
-    <nav aria-label="Lists" className="flex h-full flex-col bg-sidebar">
-      <div className="flex items-center gap-3 px-4 pb-3 pt-5">
+    <nav aria-label="Lists" className="lists-navigation flex h-full flex-col bg-sidebar">
+      <div className="sidebar-brand flex items-center gap-3 px-4 pb-3 pt-5">
         <span
           aria-hidden="true"
           className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-accent-fill text-accent-fill-contrast shadow-[var(--shadow-sm),inset_0_1px_0_rgb(255_255_255_/_18%)]"
@@ -224,6 +224,7 @@ export function Sidebar({
           </svg>
         </span>
         <span className="min-w-0 flex-1 text-[19px] font-bold tracking-[-0.025em]">ToDone</span>
+        {onClose ? <button type="button" onClick={onClose} className="px-2 font-semibold text-accent">Done</button> : null}
         {onCollapse ? (
           <IconButton label="Collapse sidebar" onClick={onCollapse}>
             <ChevronIcon size={17} className="rotate-180" />
@@ -240,7 +241,7 @@ export function Sidebar({
         >
           <SearchIcon size={16} />
           <span className="flex-1">Quick find</span>
-          <kbd>{shortcut} K</kbd>
+          <kbd className="sidebar-shortcut">{shortcut} K</kbd>
         </button>
       </div>
 
@@ -477,7 +478,7 @@ export function Sidebar({
         ) : null}
       </div>
 
-      <div className="border-t border-line px-3 py-3">
+      <div className="sidebar-account border-t border-line px-3 py-3">
         <div className="flex items-center gap-2.5">
           <span
             aria-hidden="true"

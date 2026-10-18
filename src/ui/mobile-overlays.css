@@ -1,0 +1,213 @@
+/* Phone sheets share one geometry; desktop dialogs retain their existing layout. */
+@media (max-width: 619px) {
+  .mobile-modal-root {
+    inset: auto 0;
+    top: var(--overlay-offset-top, 0px);
+    height: var(--overlay-visible-height, 100dvh);
+    align-items: flex-end;
+    overflow: hidden;
+    padding: max(12px, env(safe-area-inset-top)) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+    overscroll-behavior: contain;
+  }
+
+  .mobile-modal-root .mobile-modal-panel {
+    max-width: none;
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-radius: 26px 26px 0 0;
+    border-width: 1px 0 0;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    overscroll-behavior-y: contain;
+    scroll-padding: 76px 0 24px;
+    -webkit-overflow-scrolling: touch;
+    animation: sheet-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .mobile-modal-panel:has(.task-editor-embedded) {
+    min-height: min(560px, 100%);
+    padding-bottom: 0;
+  }
+
+  .mobile-popover-scrim {
+    background: color-mix(in srgb, var(--text) 18%, transparent);
+    touch-action: none;
+  }
+
+  .mobile-popover {
+    margin-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+    padding-inline: 20px;
+    border-radius: 26px 26px 0 0;
+    overscroll-behavior-y: contain;
+    scroll-padding-top: 80px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-popover-header {
+    position: sticky;
+    top: -8px;
+    z-index: 2;
+    margin: -8px -20px 8px;
+    padding: 10px 20px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .mobile-sheet-done {
+    min-width: 64px;
+    min-height: 44px;
+    font-size: 17px;
+  }
+
+  .task-editor-embedded {
+    overflow: visible;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .task-editor-embedded .task-editor-accent { display: none; }
+
+  .task-editor-sheet-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding: 10px 20px 5px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .task-editor-grabber {
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 0 auto 5px;
+    border-radius: 99px;
+    background: var(--border-strong);
+  }
+
+  .task-editor-embedded .task-editor-content {
+    padding: 20px 16px max(24px, env(safe-area-inset-bottom));
+  }
+
+  .task-editor-title-row { gap: 8px; }
+
+  .task-editor-title {
+    padding-top: 6px;
+    font-size: 22px;
+    font-weight: 650;
+    line-height: 1.35;
+    letter-spacing: -0.022em;
+  }
+
+  .task-editor-notes {
+    margin-top: 16px;
+    padding: 0 8px 0 52px;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .task-editor-checklist {
+    margin-top: 20px;
+    padding-left: 0;
+  }
+
+  .checklist-row {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+    min-height: 52px;
+    gap: 0;
+    padding: 0;
+    border-radius: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  }
+
+  .checklist-reorder-handle {
+    position: static;
+    grid-column: 3;
+    grid-row: 1;
+    transform: none;
+    translate: none;
+  }
+
+  .checklist-toggle {
+    grid-column: 1;
+    grid-row: 1;
+    width: 44px;
+    height: 44px;
+  }
+
+  .checklist-glyph {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    font-size: 13px;
+  }
+
+  .checklist-text { grid-column: 2; grid-row: 1; width: 100%; }
+  textarea.checklist-text { padding-block: 12px; line-height: 1.4; overflow: hidden; }
+  .checklist-delete { grid-column: 4; grid-row: 1; color: var(--text-faint); }
+  .task-editor-add-checklist { padding-left: 44px; margin-top: 4px; }
+
+  .task-editor-actions {
+    display: block;
+    margin-top: 24px;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .task-editor-properties {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1px;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--surface-2) 65%, var(--surface));
+  }
+
+  .task-editor-properties > button,
+  .task-editor-properties > label {
+    justify-content: flex-start;
+    min-width: 0;
+    min-height: 50px;
+    height: auto;
+    gap: 9px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 12px;
+    box-shadow: none;
+    text-align: left;
+    font-size: 15px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .task-editor-properties > button:first-child {
+    grid-column: 1 / -1;
+    margin-bottom: 3px;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .task-editor-properties svg { flex: none; width: 18px; height: 18px; }
+  .task-editor-properties select { min-width: 0; width: 100%; background: transparent; }
+
+  .task-editor-secondary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 12px;
+    padding-top: 8px;
+  }
+
+  .task-editor-secondary > button {
+    min-height: 44px;
+    gap: 7px;
+    padding-inline: 10px;
+    font-size: 14px;
+  }
+
+  .task-editor-tags { gap: 6px; padding-left: 0; margin-top: 16px; }
+  .removable-chip { height: 44px; padding-right: 0; }
+  .chip-remove { display: inline-flex; align-items: center; justify-content: center; }
+}

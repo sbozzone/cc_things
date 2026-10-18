@@ -15,8 +15,8 @@ import { QuickCapture } from './QuickCapture';
 import { SettingsPanel } from './SettingsPanel';
 import { Toasts } from './Toasts';
 import { DueReminders } from './DueReminders';
-import { IconButton } from './primitives';
-import { InboxIcon, LayersIcon, PlusIcon, SearchIcon, UndoIcon } from './icons';
+import { IconButton, Modal } from './primitives';
+import { CalendarIcon, InboxIcon, LayersIcon, PlusIcon, SearchIcon, SunIcon, UndoIcon } from './icons';
 import { usePhone } from './useMediaQuery';
 import { viewStyle } from './view-style';
 
@@ -54,6 +54,7 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [stuck, setStuck] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const composerRef = useRef<HTMLInputElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const isPhone = usePhone();
@@ -61,6 +62,30 @@ export function AppShell() {
   useEffect(() => {
     void initialize();
   }, [initialize]);
+
+  // Safari's chrome follows the selected palette, including explicit Dark mode.
+  useEffect(() => {
+    const root = document.documentElement;
+    const update = () => {
+      const color = getComputedStyle(root).getPropertyValue('--bg').trim();
+      if (color) document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute('content', color));
+    };
+    const observer = new MutationObserver(update);
+    observer.observe(root, { attributes: true, attributeFilter: ['data-theme', 'data-palette'] });
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    media.addEventListener('change', update);
+    update();
+    return () => { observer.disconnect(); media.removeEventListener('change', update); };
+  }, []);
+
+  // Keep navigation out of the software keyboard's way without disabling zoom.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const update = () => setKeyboardVisible(Boolean(viewport && viewport.scale === 1 && window.innerHeight - viewport.height > 150));
+    viewport?.addEventListener('resize', update);
+    update();
+    return () => viewport?.removeEventListener('resize', update);
+  }, []);
 
   // The header only draws its hairline once content has scrolled beneath it.
   useEffect(() => {
@@ -197,7 +222,7 @@ export function AppShell() {
   const { icon, accent } = viewStyle(view);
 
   return (
-    <div className={`app-shell flex h-dvh overflow-hidden ${view === 'today' ? 'printing-my-day' : ''}`}>
+    <div data-keyboard={keyboardVisible || undefined} className={`app-shell flex h-dvh overflow-hidden ${view === 'today' ? 'printing-my-day' : ''}`}>
       <a href="#main" className="skip-link">Skip to list</a>
 
       {!isPhone && !settings.sidebarCollapsed ? (
@@ -211,25 +236,35 @@ export function AppShell() {
       ) : null}
 
       {isPhone && sidebarOpen ? (
-        <div className="fixed inset-0 z-40 flex">
-          <div className="scrim absolute inset-0" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
-          <aside className="pop-in relative z-10 w-[86vw] max-w-[330px] rounded-r-xl border-r border-line shadow-[var(--shadow-pop)]">
+        <Modal label="Lists" onClose={() => setSidebarOpen(false)}>
+          <div className="mobile-lists-sheet">
             <Sidebar
               onOpenSearch={() => { setOverlay('search'); setSidebarOpen(false); }}
               onOpenSettings={() => { setOverlay('settings'); setSidebarOpen(false); }}
               onClose={() => setSidebarOpen(false)}
             />
-          </aside>
-        </div>
+          </div>
+        </Modal>
       ) : null}
 
-      <main id="main" className="scroll-area min-w-0 flex-1 overflow-y-auto" style={{ '--view-accent': accent } as React.CSSProperties}>
+      <main id="main" className="app-main scroll-area min-w-0 flex-1 overflow-y-auto" style={{ '--view-accent': accent } as React.CSSProperties}>
         <div ref={sentinelRef} aria-hidden="true" className="h-px" />
         <header data-stuck={stuck} className="page-header sticky top-0 z-20">
-          <div className="mx-auto flex w-full max-w-[800px] items-center gap-3 px-3 pb-3 pt-3 sm:px-7 sm:pt-6">
-            {isPhone ? (
-              <IconButton label="Open lists" onClick={() => setSidebarOpen(true)}><LayersIcon /></IconButton>
-            ) : null}
+          {isPhone ? (
+            <div className="phone-page-heading">
+              <div className="phone-page-tools">
+                <span className="phone-wordmark"><span className="view-accent">{icon}</span>ToDone</span>
+                <div className="flex items-center gap-1">
+                  {undoDepth > 0 ? <IconButton label="Undo" onClick={undo}><UndoIcon size={19} /></IconButton> : null}
+                  <IconButton label="Search" onClick={() => setOverlay('search')}><SearchIcon size={21} /></IconButton>
+                </div>
+              </div>
+              {!isProject && !isArea ? <>
+                <h1>{doc.title}</h1>
+                <p className="phone-page-subtitle">{doc.subtitle || `${doc.openCount} open task${doc.openCount === 1 ? '' : 's'}`}</p>
+              </> : null}
+            </div>
+          ) : <div className="mx-auto flex w-full max-w-[800px] items-center gap-3 px-3 pb-3 pt-3 sm:px-7 sm:pt-6">
             {!isPhone && settings.sidebarCollapsed ? (
               <IconButton
                 label="Expand sidebar"
@@ -257,7 +292,6 @@ export function AppShell() {
                 ? `${doc.openCount} open${doc.filtered ? ', filtered' : ''}`
                 : doc.filtered ? 'Filtered' : ''}
             </span>
-            {isPhone ? <IconButton label="Search" onClick={() => setOverlay('search')}><SearchIcon /></IconButton> : null}
             {undoDepth > 0 ? <IconButton label="Undo" onClick={undo}><UndoIcon /></IconButton> : null}
             {!isPhone ? (
               <IconButton label="Quick capture to Inbox" onClick={() => setOverlay('capture')}><InboxIcon /></IconButton>
@@ -273,12 +307,12 @@ export function AppShell() {
                 <PlusIcon size={17} strokeWidth={2.4} />
               </button>
             ) : null}
-          </div>
+          </div>}
         </header>
 
-        <div className="mx-auto w-full max-w-[800px] px-3 sm:px-7">
+        <div className="app-list-content mx-auto w-full max-w-[800px] px-3 sm:px-7">
           {!isSavedView && tagFilterActive(tagFilter) ? (
-            <div className="fade-in mb-2 flex items-center gap-2 rounded-md bg-accent-soft px-3 py-2 text-[12.5px] text-accent">
+            <div className="active-filter-note fade-in mb-2 flex items-center gap-2 rounded-md bg-accent-soft px-3 py-2 text-[12.5px] text-accent">
               <span>{tagFilter.mode === 'exclude'
                 ? tagFilter.untagged && tagFilter.tagIds.length === 0
                   ? 'Showing items that have a tag.'
@@ -333,15 +367,14 @@ export function AppShell() {
         </div>
       </main>
 
-      {isPhone && selection.length === 0 && !openItemId && !overlay ? (
-        <button
-          type="button"
-          aria-label="Quick capture"
-          onClick={() => setOverlay('capture')}
-          className="press fixed bottom-[max(16px,env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent-fill text-accent-fill-contrast shadow-[var(--shadow-pop),inset_0_1px_0_rgb(255_255_255_/_18%)]"
-        >
-          <PlusIcon size={24} strokeWidth={2.4} />
-        </button>
+      {isPhone && !keyboardVisible && !openItemId && !overlay && !sidebarOpen ? (
+        <nav className="phone-tab-bar" aria-label="Main navigation">
+          <button type="button" aria-current={view === 'today' ? 'page' : undefined} onClick={() => setView('today')} className="phone-tab press"><SunIcon size={22} /><span>My Day</span></button>
+          <button type="button" aria-current={view === 'inbox' ? 'page' : undefined} onClick={() => setView('inbox')} className="phone-tab press"><InboxIcon size={22} /><span>Inbox</span></button>
+          <button type="button" aria-label="Quick capture to Inbox" onClick={() => setOverlay('capture')} className="phone-capture press"><PlusIcon size={25} strokeWidth={2.3} /><span className="sr-only">New task</span></button>
+          <button type="button" aria-current={view === 'upcoming' ? 'page' : undefined} onClick={() => setView('upcoming')} className="phone-tab press"><CalendarIcon size={22} /><span>Upcoming</span></button>
+          <button type="button" aria-label="Open lists" aria-current={!['today', 'inbox', 'upcoming'].includes(view) ? 'page' : undefined} onClick={() => setSidebarOpen(true)} className="phone-tab press"><LayersIcon size={22} /><span>Lists</span></button>
+        </nav>
       ) : null}
 
       {overlay === 'search' ? <SearchPalette onClose={() => setOverlay(null)} /> : null}

@@ -31,6 +31,8 @@ import { byRank } from '@/core/rank';
 /** Row currently being dragged. Drag is an accelerator; every move has a menu equivalent (R26). */
 let dragSource: { id: string; sectionId: string } | null = null;
 
+type MobileListMode = 'browse' | 'select' | 'arrange';
+
 /** A small tinted pill. Colour is paired with its own foreground so contrast holds. */
 function Pill({
   tone, icon, children,
@@ -46,7 +48,7 @@ function Pill({
     neutral: 'bg-chip-neutral text-chip-neutral-fg',
   } as const;
   return (
-    <span className={`inline-flex h-[20px] items-center gap-1 rounded-full px-1.5 text-[11.5px] font-medium leading-none ${tones[tone]}`}>
+    <span className={`task-pill inline-flex h-[20px] items-center gap-1 rounded-full px-1.5 text-[11.5px] font-medium leading-none ${tones[tone]}`}>
       {icon}
       {children}
     </span>
@@ -87,7 +89,7 @@ function DateChip({ task, today, hideStart }: { task: Task; today: string; hideS
 }
 
 function TaskRow({
-  item, sectionId, orderedIds, orderIds = orderedIds, scope, isPhone, nested = false, canOrder = true, myDayView = scope === 'today',
+  item, sectionId, orderedIds, orderIds = orderedIds, scope, isPhone, nested = false, canOrder = true, myDayView = scope === 'today', mobileMode = 'browse',
 }: {
   item: Extract<ListItem, { kind: 'task' }>;
   sectionId: string;
@@ -98,6 +100,7 @@ function TaskRow({
   nested?: boolean;
   canOrder?: boolean;
   myDayView?: boolean;
+  mobileMode?: MobileListMode;
 }) {
   const { task, meta } = item;
   const db = useApp((s) => s.db);
@@ -112,6 +115,7 @@ function TaskRow({
   const rowRef = useRef<HTMLLIElement | null>(null);
 
   const selected = selection.includes(task.id);
+  const selecting = isPhone && (mobileMode === 'select' || selection.length > 0);
   const isEditing = openItemId === task.id;
   const project = task.parentType === 'project' && task.parentId ? db.projects[task.parentId] ?? null : null;
   const isInMyDay = inToday(task, project, today);
@@ -226,11 +230,12 @@ function TaskRow({
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey) toggleSelected(task.id);
         else if (event.shiftKey) extendSelection(task.id, orderedIds);
-        else if (selection.length > 0 && isPhone) toggleSelected(task.id);
+        else if (selecting) toggleSelected(task.id);
+        else if (isPhone && mobileMode === 'arrange') return;
         else if (selection.length > 0) setSelection([]);
         else openItem(task.id);
       }}
-      className={`row group relative flex cursor-default items-start gap-3 px-3 py-2.5 ${
+      className={`task-row row group relative flex cursor-default items-start gap-3 px-3 py-2.5 ${
         nested ? 'ml-5 border-l border-line pl-3' : ''
       } ${
         dropSide === 'above' ? 'shadow-[inset_0_2px_0_0_var(--accent)]' : dropSide === 'below' ? 'shadow-[inset_0_-2px_0_0_var(--accent)]' : ''
@@ -239,21 +244,33 @@ function TaskRow({
       {selected ? (
         <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-accent-fill" />
       ) : null}
-      <StatusControl
+      {selecting ? (
+        <button
+          type="button"
+          aria-label={`${selected ? 'Remove' : 'Add'} ${task.title || 'untitled task'} ${selected ? 'from' : 'to'} selection`}
+          aria-pressed={selected}
+          onClick={(event) => { event.stopPropagation(); toggleSelected(task.id); }}
+          className="task-select-control flex h-11 w-11 shrink-0 items-center justify-center"
+        >
+          <span aria-hidden="true" className={`flex h-6 w-6 items-center justify-center rounded-full border text-[14px] font-bold ${selected ? 'border-accent bg-accent-fill text-accent-fill-contrast' : 'border-line-strong bg-surface'}`}>
+            {selected ? '✓' : ''}
+          </span>
+        </button>
+      ) : <StatusControl
         status={task.status}
         label={task.title || 'Untitled task'}
         onComplete={() => actions.setStatus(selected ? selection : [task.id], 'completed')}
         onCancel={() => actions.setStatus(selected ? selection : [task.id], 'canceled')}
         onReopen={() => actions.setStatus(selected ? selection : [task.id], 'open')}
-      />
-      {isInMyDay ? (
+      />}
+      {isInMyDay && !isPhone ? (
         <span className="mt-0.5 shrink-0 text-[var(--today)]" title="In My Day">
           <SunIcon size={16} />
         </span>
       ) : null}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className={`text-[14.5px] leading-snug ${task.status !== 'open' ? 'text-muted line-through decoration-[color-mix(in_srgb,var(--text)_35%,transparent)]' : 'text-ink'}`}>
+      <div className="task-row-content min-w-0 flex-1">
+        <div className="task-title-line flex flex-wrap items-baseline gap-x-2">
+          <span className={`task-title text-[14.5px] leading-snug ${task.status !== 'open' ? 'text-muted line-through decoration-[color-mix(in_srgb,var(--text)_35%,transparent)]' : 'text-ink'}`}>
             {task.title || <span className="text-faint">Untitled</span>}
           </span>
           {meta.repeating ? <RepeatIcon size={12} className="translate-y-[1px] text-faint" /> : null}
@@ -264,8 +281,9 @@ function TaskRow({
             </span>
           ) : null}
         </div>
-        {(task.startDate && !(myDayView && task.startDate <= today)) || task.deadline || task.priority || meta.contextLabel || meta.heldContextLabel || meta.tagIds.length > 0 || task.planning === 'someday' || (myDayView && task.eveningDate !== null && task.eveningDate === task.startDate) ? (
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+        {(isPhone && isInMyDay && !myDayView) || (task.startDate && !(myDayView && task.startDate <= today)) || task.deadline || task.priority || meta.contextLabel || meta.heldContextLabel || meta.tagIds.length > 0 || task.planning === 'someday' || (myDayView && task.eveningDate !== null && task.eveningDate === task.startDate) ? (
+          <div className="task-metadata mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {isPhone && isInMyDay && !myDayView ? <span className="inline-flex items-center gap-1 text-[var(--today)]"><SunIcon size={12} />My Day</span> : null}
             <DateChip task={task} today={today} hideStart={myDayView} />
             {task.priority ? <Pill tone={task.priority === 'urgent' ? 'danger' : task.priority === 'low' ? 'neutral' : 'warm'} icon={<FlagIcon size={11} />}>{priorities[task.priority]}</Pill> : null}
             {meta.contextLabel ? <span className="text-[12px] text-faint">{meta.contextLabel}</span> : null}
@@ -275,34 +293,12 @@ function TaskRow({
               </span>
             ) : null}
             {[...meta.tagIds].sort((a, b) => Number(b === ERRANDS_TAG_ID) - Number(a === ERRANDS_TAG_ID)).slice(0, 3).map((tagId) => (
-              <Chip key={tagId}><TagDot color={getTag(db, tagId)?.color} />{tagPath(db, tagId)}</Chip>
+              <span className="task-tag" key={tagId}><Chip><TagDot color={getTag(db, tagId)?.color} />{tagPath(db, tagId)}</Chip></span>
             ))}
           </div>
         ) : null}
       </div>
-      {canOrder && orderIds.length > 1 ? <OrderHandle id={task.id} ids={orderIds} group={sectionId} scope={scope} /> : null}
-      {isPhone ? (
-        <button
-          type="button"
-          aria-label={`${selected ? 'Remove' : 'Add'} ${task.title || 'untitled task'} ${selected ? 'from' : 'to'} selection`}
-          aria-pressed={selected}
-          onClick={(event) => {
-            event.stopPropagation();
-            toggleSelected(task.id);
-          }}
-          style={{ width: 44, minWidth: 44 }}
-          className="-my-2 -mr-2 flex h-11 shrink-0 items-center justify-center rounded-lg"
-        >
-          <span
-            aria-hidden="true"
-            className={`flex h-6 w-6 items-center justify-center rounded-full border text-[14px] font-bold ${
-              selected ? 'border-accent bg-accent-fill text-accent-fill-contrast' : 'border-line-strong bg-surface'
-            }`}
-          >
-            {selected ? '✓' : ''}
-          </span>
-        </button>
-      ) : null}
+      {canOrder && orderIds.length > 1 && (!isPhone || mobileMode === 'arrange') ? <OrderHandle id={task.id} ids={orderIds} group={sectionId} scope={scope} /> : null}
     </li>
   );
 }
@@ -334,10 +330,10 @@ function ProjectRow({
         }
       }}
       onClick={() => setView(`project:${project.id}`)}
-      className="row flex min-h-[46px] cursor-default items-center gap-3 px-3"
+      className="project-row row flex min-h-[46px] cursor-default items-center gap-3 px-3"
     >
       <ProgressRing percent={progress.percent} size={18} />
-      <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium">{project.title}</span>
+      <span className="project-title min-w-0 flex-1 truncate text-[14.5px] font-medium">{project.title}</span>
       {project.deadline ? (
         <span className={`text-[12px] ${meta.overdue ? 'text-danger' : 'text-[var(--upcoming)]'}`}>
           <FlagIcon size={12} className="mr-1 inline" />Due {formatDateLabel(project.deadline, today)}
@@ -375,7 +371,7 @@ function EventRow({ event }: { event: CalendarEvent }) {
       ? new Date(event.startInstant).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
       : '';
   return (
-    <li className="flex items-center gap-3 rounded-md px-3 py-[7px] text-muted">
+    <li className="calendar-event-row flex items-center gap-3 rounded-md px-3 py-[7px] text-muted">
       <span aria-hidden="true" className="h-4 w-[3px] shrink-0 rounded-full bg-[var(--upcoming)]" />
       <span className="min-w-0 flex-1 truncate text-[14px]">
         {event.sourceUrl ? (
@@ -431,11 +427,12 @@ function InlineComposer({ target, onDone }: { target: AddTarget; onDone: () => v
 }
 
 function TaskTagFilter({
-  view, expandPrintChecklists, onExpandPrintChecklistsChange,
+  view, expandPrintChecklists, onExpandPrintChecklistsChange, hidePrintControls = false,
 }: {
   view: 'today' | 'allTasks';
   expandPrintChecklists: boolean;
   onExpandPrintChecklistsChange: (expanded: boolean) => void;
+  hidePrintControls?: boolean;
 }) {
   const db = useApp((s) => s.db);
   const tagFilter = useApp((s) => s.tagFilter);
@@ -469,12 +466,12 @@ function TaskTagFilter({
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="task-tag-filter flex items-center gap-1">
       <Button size="sm" variant={active ? 'secondary' : 'ghost'} onClick={(event) => { setNamingView(false); setAnchor(event.currentTarget); }}>
         <TagIcon size={14} /> Tags{active ? ` (${filterCount}${tagFilter.mode === 'exclude' ? ' excluded' : ''})` : ''}
       </Button>
       {active ? <Button size="sm" variant="ghost" onClick={() => setTagFilter(emptyTagFilter())}>Clear</Button> : null}
-      {view === 'today' ? (
+      {view === 'today' && !hidePrintControls ? (
         <>
           <label className="flex min-h-9 items-center gap-1.5 px-2 text-[12.5px] text-muted">
             <input
@@ -671,7 +668,7 @@ function SectionHeader({ section, onAdd, onPrint }: { section: ListSection; onAd
   if (!section.title) return null;
   const isHeading = section.id.startsWith('heading:');
   return (
-    <div className="mt-6 mb-1.5 flex items-center gap-2 px-3 first:mt-1">
+    <div className="list-section-header mt-6 mb-1.5 flex items-center gap-2 px-3 first:mt-1">
       {isHeading ? (
         <span aria-hidden="true" className="h-[14px] w-[3px] shrink-0 rounded-full view-accent-bg opacity-80" />
       ) : null}
@@ -701,7 +698,8 @@ function SelectionBar({ ids }: { ids: string[] }) {
   const today = useApp((s) => s.today);
   const settings = useApp((s) => s.db.settings);
   const clearSelection = useApp((s) => s.clearSelection);
-  const [popover, setPopover] = useState<'when' | 'deadline' | 'move' | null>(null);
+  const isPhone = usePhone();
+  const [popover, setPopover] = useState<'when' | 'deadline' | 'move' | 'more' | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   const commonCurrentTarget = useMemo(() => {
@@ -726,16 +724,28 @@ function SelectionBar({ ids }: { ids: string[] }) {
     <div
       role="toolbar"
       aria-label={`${ids.length} selected`}
-      className="pop-in sticky bottom-[max(12px,env(safe-area-inset-bottom))] z-20 mx-auto flex w-fit max-w-full flex-wrap items-center gap-1 rounded-lg border border-line bg-surface p-1.5 shadow-[var(--shadow-pop)]"
+      className="list-selection-bar pop-in sticky bottom-[max(12px,env(safe-area-inset-bottom))] z-20 mx-auto flex w-fit max-w-full flex-wrap items-center gap-1 rounded-lg border border-line bg-surface p-1.5 shadow-[var(--shadow-pop)]"
     >
-      <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[12.5px] font-semibold tabular-nums text-accent" aria-live="polite">{ids.length} selected</span>
-      <Button size="sm" variant="ghost" onClick={open('when')}><CalendarIcon size={14} />When</Button>
+      <span className="selection-count rounded-full bg-accent-soft px-2.5 py-0.5 text-[12.5px] font-semibold tabular-nums text-accent" aria-live="polite">{ids.length} selected</span>
+      {!isPhone ? <Button size="sm" variant="ghost" onClick={open('when')}><CalendarIcon size={14} />When</Button> : null}
       <Button size="sm" variant="ghost" onClick={open('deadline')}><FlagIcon size={14} />Due</Button>
       <Button size="sm" variant="ghost" onClick={open('move')}><MoveIcon size={14} />Move</Button>
       <Button size="sm" variant="ghost" onClick={() => { actions.setStatus(ids, 'completed'); clearSelection(); }}>Complete</Button>
-      <Button size="sm" variant="ghost" onClick={() => { actions.setStatus(ids, 'canceled'); clearSelection(); }}>Cancel</Button>
-      <IconButton label="Move selection to Trash" tone="danger" onClick={() => actions.deleteTasks(ids)}><TrashIcon /></IconButton>
+      {!isPhone ? <>
+        <Button size="sm" variant="ghost" onClick={() => { actions.setStatus(ids, 'canceled'); clearSelection(); }}>Cancel</Button>
+        <IconButton label="Move selection to Trash" tone="danger" onClick={() => actions.deleteTasks(ids)}><TrashIcon /></IconButton>
+      </> : <IconButton label="More selection actions" onClick={open('more')}><MoreIcon /></IconButton>}
       <IconButton label="Clear selection" onClick={clearSelection}>×</IconButton>
+
+      {popover === 'more' ? (
+        <Popover anchor={anchor} onClose={() => setPopover(null)} label="Selection actions" width={270}>
+          <div className="mobile-list-options">
+            <button type="button" onClick={() => setPopover('when')}><CalendarIcon size={17} />Schedule selected tasks</button>
+            <button type="button" onClick={() => { actions.setStatus(ids, 'canceled'); clearSelection(); setPopover(null); }}>Cancel selected tasks</button>
+            <button type="button" className="text-danger" onClick={() => { actions.deleteTasks(ids); clearSelection(); setPopover(null); }}><TrashIcon size={17} />Move selection to Trash</button>
+          </div>
+        </Popover>
+      ) : null}
 
       {popover === 'when' ? (
         <WhenPopover
@@ -904,6 +914,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const selection = useApp((s) => s.selection);
   const openItemId = useApp((s) => s.openItemId);
   const openItem = useApp((s) => s.openItem);
+  const clearSelection = useApp((s) => s.clearSelection);
   const db = useApp((s) => s.db);
   const indexes = useIndexes();
   const tagFilter = useApp((s) => s.tagFilter);
@@ -923,12 +934,19 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const [expandPrintChecklists, setExpandPrintChecklists] = useState(false);
   const [confirmEmptyTrash, setConfirmEmptyTrash] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [mobileMode, setMobileMode] = useState<MobileListMode>('browse');
+  const [optionsAnchor, setOptionsAnchor] = useState<HTMLElement | null>(null);
   const printRef = useRef<HTMLElement | null>(null);
   const selectedPrintItems = useMemo(() => chosenPrintDate ? upcomingItemsForDate(doc, chosenPrintDate) : [], [doc, chosenPrintDate]);
   const myDaySuggestions = useMemo(
     () => doc.view === 'today' ? suggestionsForMyDay(db, indexes, { tagFilter }) : [],
     [db, doc.view, indexes, tagFilter],
   );
+
+  useEffect(() => {
+    setMobileMode('browse');
+    setOptionsAnchor(null);
+  }, [doc.view]);
 
   useEffect(() => {
     if (doc.view !== 'upcoming') return;
@@ -1007,10 +1025,50 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
     });
   }, []);
 
+  const activeMobileMode: MobileListMode = selection.length > 0 ? 'select' : mobileMode;
+  const hasTaskRows = doc.sections.some((section) => section.items.some((item) =>
+    item.kind === 'task' || (item.kind === 'project' && (item.children?.length ?? 0) > 0)));
+  const sortControl = !['logbook', 'trash'].includes(doc.view) ? (
+    <label className="list-sort-control flex items-center gap-1.5 text-[12.5px] text-muted">
+      <span className={isPhone ? '' : 'sr-only sm:not-sr-only'}>Sort</span>
+      <select aria-label="Sort items" className="h-8 max-w-[200px] rounded-md border border-line bg-surface px-2 text-[12.5px] text-ink shadow-[var(--shadow-card)]" value={sort}
+        onChange={(e) => actions.updateSettings({ listSorts: { ...db.settings.listSorts, [doc.view]: e.target.value as ListSort } })}>
+        <option value="manual">Manual order</option>
+        <option value="alphabetical">Alphabetical (A–Z)</option>
+        <option value="alphabeticalDesc">Alphabetical (Z–A)</option>
+        <option value="due">Due date (earliest first)</option>
+        <option value="dueDesc">Due date (latest first)</option>
+        <option value="created">Created date (newest first)</option>
+        <option value="createdAsc">Created date (oldest first)</option>
+        <option value="priority">Priority (highest first)</option>
+        <option value="priorityDesc">Priority (lowest first)</option>
+        <option value="tags">Tags (A–Z)</option>
+        <option value="tagsDesc">Tags (Z–A)</option>
+      </select>
+    </label>
+  ) : null;
+  const expandChecklistControl = (
+    <label className="flex min-h-9 items-center gap-1.5 px-1 text-[12.5px] text-muted">
+      <input type="checkbox" checked={expandPrintChecklists}
+        onChange={(event) => setExpandPrintChecklists(event.target.checked)} className="h-4 w-4" />
+      Expand checklists when printing
+    </label>
+  );
+  const finishMobileMode = () => {
+    clearSelection();
+    setMobileMode('browse');
+  };
+  // Grouped My Day can contain only appointments/errands/Evening. Preserve a
+  // regular-day creation target even when no ordinary project group exists yet.
+  const displaySections: ListSection[] = isPhone && doc.view === 'today' &&
+    !doc.sections.some((section) => !section.isEventSection && section.id !== 'evening' && section.addTarget)
+    ? [{ id: 'mobile-day-add', title: null, subtitle: null, date: null, items: [], addTarget: doc.addTarget }, ...doc.sections]
+    : doc.sections;
+
   return (
     <>
-      <div data-list-root className="pt-1 pb-24">
-        {doc.view === 'upcoming' ? (
+      <div data-list-root data-mobile-mode={activeMobileMode} className="task-list pt-1 pb-24">
+        {doc.view === 'upcoming' && !isPhone ? (
           <div className="mb-2 flex flex-wrap items-center justify-end gap-2 px-1 text-[12.5px] text-muted">
             <label htmlFor="upcoming-print-date">Print a day</label>
             <input
@@ -1032,7 +1090,25 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
             </Button>
           </div>
         ) : null}
-        <div className="mb-2 flex flex-wrap items-center justify-end gap-x-1 gap-y-1 px-1">
+        {isPhone ? (
+          <div className="mobile-list-toolbar">
+            {activeMobileMode !== 'browse' ? (
+              <>
+                <span className="mobile-list-mode-label">{activeMobileMode === 'select' ? 'Select tasks' : 'Arrange list'}</span>
+                <Button size="sm" variant="ghost" onClick={finishMobileMode}>Done</Button>
+              </>
+            ) : (
+              <>
+                {doc.view === 'today' || doc.view === 'allTasks' ? <TaskTagFilter
+                  view={doc.view} expandPrintChecklists={expandPrintChecklists}
+                  onExpandPrintChecklistsChange={setExpandPrintChecklists} hidePrintControls /> : null}
+                <span className="flex-1" />
+                {hasTaskRows ? <Button size="sm" variant="ghost" onClick={() => setMobileMode('select')}>Select</Button> : null}
+                <IconButton label="View options" onClick={(event) => setOptionsAnchor(event.currentTarget)}><MoreIcon size={20} /></IconButton>
+              </>
+            )}
+          </div>
+        ) : <div className="mb-2 flex flex-wrap items-center justify-end gap-x-1 gap-y-1 px-1">
           {doc.view === 'today' && myDaySuggestions.length > 0 ? (
             <Button size="sm" variant={showSuggestions ? 'secondary' : 'ghost'} onClick={() => setShowSuggestions((value) => !value)}>
               <SunIcon size={14} />Suggestions ({myDaySuggestions.length})
@@ -1050,24 +1126,36 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
               <TrashIcon size={14} />Empty Trash
             </Button>
           ) : null}
-          {!['logbook', 'trash'].includes(doc.view) ? <label className="flex items-center gap-1.5 text-[12.5px] text-muted">
-            <span className="sr-only sm:not-sr-only">Sort</span>
-            <select aria-label="Sort items" className="h-8 max-w-[200px] rounded-md border border-line bg-surface px-2 text-[12.5px] text-ink shadow-[var(--shadow-card)]" value={sort}
-              onChange={(e) => actions.updateSettings({ listSorts: { ...db.settings.listSorts, [doc.view]: e.target.value as ListSort } })}>
-              <option value="manual">Manual order</option>
-              <option value="alphabetical">Alphabetical (A–Z)</option>
-              <option value="alphabeticalDesc">Alphabetical (Z–A)</option>
-              <option value="due">Due date (earliest first)</option>
-              <option value="dueDesc">Due date (latest first)</option>
-              <option value="created">Created date (newest first)</option>
-              <option value="createdAsc">Created date (oldest first)</option>
-              <option value="priority">Priority (highest first)</option>
-              <option value="priorityDesc">Priority (lowest first)</option>
-              <option value="tags">Tags (A–Z)</option>
-              <option value="tagsDesc">Tags (Z–A)</option>
-            </select>
-          </label> : null}
-        </div>
+          {sortControl}
+        </div>}
+        {isPhone && optionsAnchor ? (
+          <Popover anchor={optionsAnchor} onClose={() => setOptionsAnchor(null)} label="View options" width={320}>
+            <div className="mobile-list-options">
+              {sortControl}
+              {hasTaskRows ? <button type="button" onClick={() => { setMobileMode('select'); setOptionsAnchor(null); }}><ChecklistIcon size={17} />Select tasks</button> : null}
+              {(canOrder || hasErrands) && !isEmpty ? <button type="button" onClick={() => { clearSelection(); setMobileMode('arrange'); setOptionsAnchor(null); }}><span aria-hidden="true">⠿</span>{canOrder ? 'Arrange list' : 'Arrange errands'}</button> : null}
+              {doc.view === 'today' && myDaySuggestions.length > 0 ? <button type="button" onClick={() => { setShowSuggestions((value) => !value); setOptionsAnchor(null); }}><SunIcon size={17} />{showSuggestions ? 'Hide' : 'Show'} suggestions ({myDaySuggestions.length})</button> : null}
+              {doc.view === 'today' || doc.view === 'upcoming' ? (
+                <div className="mobile-print-options">
+                  <h3>Print</h3>
+                  {doc.view === 'upcoming' ? <label className="mobile-print-date-label" htmlFor="upcoming-print-date">Choose a day<input
+                    id="upcoming-print-date" type="date" value={chosenPrintDate}
+                    onChange={(event) => setChosenPrintDate(event.target.value)}
+                    className="h-9 rounded-md border border-line bg-surface px-2 text-ink" />
+                  </label> : null}
+                  {expandChecklistControl}
+                  <Button size="sm" variant="secondary" full disabled={doc.view === 'upcoming' && selectedPrintItems.length === 0} onClick={() => {
+                    flushSync(() => setOptionsAnchor(null));
+                    if (doc.view === 'upcoming') printUpcomingDate(chosenPrintDate);
+                    else window.print();
+                  }}><PrintIcon size={17} />Print {doc.view === 'today' ? 'My Day' : 'selected day'}</Button>
+                </div>
+              ) : null}
+              {doc.view === 'trash' ? <button type="button" disabled={isEmpty} className="text-danger" onClick={() => { setOptionsAnchor(null); setConfirmEmptyTrash(true); }}><TrashIcon size={17} />Empty Trash</button> : null}
+            </div>
+          </Popover>
+        ) : null}
+        {isPhone && activeMobileMode !== 'browse' ? <p role="status" className="mobile-list-mode-hint">{activeMobileMode === 'select' ? 'Tap tasks to select them for a shared action.' : canOrder ? 'Drag a handle to change the order.' : 'Drag the handles to arrange your errand stops.'}</p> : null}
         {doc.view === 'today' && showSuggestions && myDaySuggestions.length > 0 ? (
           <section aria-label="My Day suggestions" className="mx-1 mb-3 rounded-xl border border-line bg-surface p-2 shadow-[var(--shadow-card)]">
             <div className="flex items-start justify-between gap-3 px-1 pb-1.5">
@@ -1098,7 +1186,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
             </ul>
           </section>
         ) : null}
-        {hasErrands ? <p className="mb-2 px-3 text-[12px] text-faint">Errands first · drag the handles to arrange your stops. Sort applies to other tasks.</p> : null}
+        {hasErrands ? <p className="list-order-hint mb-2 px-3 text-[12px] text-faint">{isPhone ? 'Errands first' : 'Errands first · drag the handles to arrange your stops. Sort applies to other tasks.'}</p> : null}
         {doc.view === 'allProjects' && allProjectIds.length > 0 ? (
           <div role="group" aria-label="Project display" className="mb-1 flex justify-end gap-1 px-1">
             <Button
@@ -1129,8 +1217,8 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
           </div>
         ) : null}
 
-        {doc.sections.map((section) => {
-          if (section.items.length === 0 && composerSection !== section.id && !section.title) return null;
+        {displaySections.map((section) => {
+          if (section.items.length === 0 && composerSection !== section.id && !section.title && !(isPhone && section.addTarget)) return null;
           const orderedIds = orderedIdsBySection.get(section.id) ?? [];
           return (
             <section key={section.id} aria-label={section.title ?? doc.title}>
@@ -1153,7 +1241,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
                       <Fragment key={item.id}>
                         <ProjectRow
                           item={item}
-                          order={canOrder ? { ids: section.items.filter((i) => i.kind === 'project').map((i) => i.project.id), group: `${section.id}:projects` } : undefined}
+                          order={canOrder && (!isPhone || activeMobileMode === 'arrange') ? { ids: section.items.filter((i) => i.kind === 'project').map((i) => i.project.id), group: `${section.id}:projects` } : undefined}
                           expandable={expandable}
                           expanded={expanded}
                           onToggle={expandable ? () => toggleProject(item.project.id) : undefined}
@@ -1169,6 +1257,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
                             orderedIds={(item.children ?? []).filter((c) => c.task.headingId === child.task.headingId).map((c) => c.task.id)}
                             scope="structural"
                             isPhone={isPhone}
+                            mobileMode={activeMobileMode}
                             nested
                             canOrder={canOrder}
                           />
@@ -1195,6 +1284,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
                       scope={errand ? 'errands' : scope}
                       myDayView={doc.view === 'today'}
                       isPhone={isPhone}
+                      mobileMode={activeMobileMode}
                       canOrder={errand || canOrder}
                     />
                   );
@@ -1203,11 +1293,11 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
                   <InlineComposer target={section.addTarget} onDone={() => setComposerSection(null)} />
                 ) : null}
               </ul>
-              {section.addTarget && section.items.length > 0 && composerSection !== section.id ? (
+              {section.addTarget && (section.items.length > 0 || (isPhone && !section.title)) && composerSection !== section.id ? (
                 <button
                   type="button"
                   onClick={() => addTo(section)}
-                  className="row mt-0.5 flex w-full items-center gap-3 px-3 py-2 text-left text-[13px] text-faint hover:text-muted"
+                  className="inline-add-task row mt-0.5 flex w-full items-center gap-3 px-3 py-2 text-left text-[13px] text-faint hover:text-muted"
                 >
                   <span aria-hidden="true" className="flex h-[22px] w-[22px] items-center justify-center rounded-[7px] border-[1.5px] border-dashed border-line-strong"><PlusIcon size={12} /></span>
                   Add a task{section.title && section.title !== 'Other tasks' ? ` to ${section.title}` : ''}

@@ -12,7 +12,7 @@ export function Toasts() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 bottom-3 z-[60] flex flex-col items-center gap-2 px-3"
+      className="toast-stack pointer-events-none fixed inset-x-0 bottom-3 z-[80] flex flex-col items-center gap-2 px-3"
     >
       {toasts.map((toast) => (
         <div

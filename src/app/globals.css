@@ -477,8 +477,10 @@
   border-radius: var(--radius-md);
   transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
-.row:hover {
-  background: color-mix(in srgb, var(--text) 4.5%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: color-mix(in srgb, var(--text) 4.5%, transparent);
+  }
 }
 .row:focus-visible {
   outline-offset: -2px;
@@ -592,7 +594,8 @@ kbd {
   @page { size: letter portrait; margin: 0.6in; }
 
   :root { color-scheme: light; }
-  body { background: #fff !important; color: #111 !important; }
+  body { background: #fff !important; color: #111 !important; overflow: visible !important; }
+  .mobile-modal-root, [role='dialog'], .mobile-popover-scrim, .toast-stack { display: none !important; }
   body:has([data-print-upcoming-day]) { width: 7.3in !important; min-width: 7.3in !important; max-width: none !important; }
   .printing-my-day { display: block !important; height: auto !important; overflow: visible !important; }
   .printing-my-day > :not(main) { display: none !important; }

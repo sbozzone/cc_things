@@ -57,7 +57,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
   };
 
   return (
-    <header className="mb-3 border-b border-line pb-3.5">
+    <header className="entity-header mb-3 border-b border-line pb-3.5">
       <div className="flex items-start gap-3">
         <span className="mt-1 flex h-7 w-7 items-center justify-center"><ProgressRing percent={progress.percent} size={24} /></span>
         <div className="min-w-0 flex-1">
@@ -65,7 +65,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
             value={project.title}
             ariaLabel="Project title"
             placeholder="Project name"
-            className="text-[24px] font-bold leading-tight tracking-[-0.02em]"
+            className="entity-title text-[24px] font-bold leading-tight tracking-[-0.02em]"
             onChange={(value) => actions.updateProject(projectId, { title: value })}
           />
           <p className="mt-1 text-[13px] text-muted">

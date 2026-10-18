@@ -6,6 +6,9 @@ import {
 import { createPortal } from 'react-dom';
 import { CloseIcon } from './icons';
 
+let modalScrollLocks = 0;
+let bodyOverflowBeforeModal = '';
+
 /** Traps focus inside an overlay and restores it on close, so keyboard flow never escapes. */
 function useFocusTrap(active: boolean, onClose: () => void) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -34,15 +37,21 @@ function useFocusTrap(active: boolean, onClose: () => void) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
+        // Commit blur-persisted fields before their editor is unmounted.
+        if (node?.contains(document.activeElement)) (document.activeElement as HTMLElement | null)?.blur();
         onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab') return;
       const items = focusable();
-      if (items.length === 0) return;
+      if (items.length === 0) {
+        event.preventDefault();
+        node?.focus();
+        return;
+      }
       const firstItem = items[0] as HTMLElement;
       const lastItem = items[items.length - 1] as HTMLElement;
-      if (event.shiftKey && document.activeElement === firstItem) {
+      if (event.shiftKey && (document.activeElement === firstItem || document.activeElement === node)) {
         event.preventDefault();
         lastItem.focus();
       } else if (!event.shiftKey && document.activeElement === lastItem) {
@@ -53,7 +62,13 @@ function useFocusTrap(active: boolean, onClose: () => void) {
     node?.addEventListener('keydown', onKeyDown);
     return () => {
       node?.removeEventListener('keydown', onKeyDown);
-      previous?.focus?.();
+      if (previous?.isConnected) {
+        // Returning from a date/tag sheet should not summon the iPhone keyboard.
+        const parentDialog = previous.closest<HTMLElement>('[role="dialog"]');
+        const restore = window.innerWidth < 620 && previous.matches('input, textarea') && parentDialog
+          ? parentDialog : previous;
+        restore.focus({ preventScroll: true });
+      }
     };
   }, [active]);
   return ref;
@@ -88,7 +103,10 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
         const viewport = window.visualViewport;
         const visibleHeight = viewport?.height ?? window.innerHeight;
         const keyboardInset = Math.max(0, window.innerHeight - visibleHeight - (viewport?.offsetTop ?? 0));
-        setSheetStyle({ bottom: keyboardInset, maxHeight: Math.max(240, visibleHeight - 12) });
+        setSheetStyle({
+          bottom: keyboardInset,
+          maxHeight: `calc(${Math.max(120, visibleHeight)}px - max(12px, env(safe-area-inset-top)))`,
+        });
         setStyle({});
         return;
       }
@@ -119,35 +137,39 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
     // A task title is commonly still focused when its action bar is tapped. Hiding the
     // keyboard lets the destination list be visible immediately; search remains optional.
     const active = document.activeElement as HTMLElement | null;
-    if (active?.matches('input, textarea')) active.blur();
-  }, [isSheet]);
+    if (active?.matches('input, textarea')) {
+      active.blur();
+      ref.current?.querySelector<HTMLButtonElement>('.mobile-sheet-done')?.focus({ preventScroll: true });
+    }
+  }, [isSheet, ref]);
 
   // The editor row animates with a transform, which otherwise becomes the containing
   // block for fixed children and pushes the picker outside the viewport on desktop.
   if (typeof document === 'undefined') return null;
   return createPortal(
     <>
-      <div className="fixed inset-0 z-60" onPointerDown={onClose} aria-hidden="true" />
+      <div className={`fixed inset-0 z-60 ${isSheet ? 'mobile-popover-scrim' : ''}`} onPointerDown={onClose} aria-hidden="true" />
       <div
         ref={ref}
         role="dialog"
+        aria-modal={isSheet ? true : undefined}
         aria-label={label}
         tabIndex={-1}
         className={
           isSheet
-            ? 'sheet-in fixed inset-x-0 z-70 overflow-y-auto rounded-t-2xl border-t border-line bg-surface px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-2 shadow-[var(--shadow-pop)] scroll-area'
+            ? 'mobile-popover sheet-in fixed inset-x-0 z-70 overflow-y-auto rounded-t-2xl border-t border-line bg-surface px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-2 shadow-[var(--shadow-pop)] scroll-area'
             : 'pop-in z-70 max-h-[70vh] overflow-y-auto rounded-lg border border-line bg-surface p-2 shadow-[var(--shadow-pop)] scroll-area'
         }
         style={isSheet ? sheetStyle : style}
       >
         {isSheet ? (
-          <>
+          <div className="mobile-popover-header">
             <span aria-hidden="true" className="mx-auto mb-2 block h-1 w-9 rounded-full bg-line-strong opacity-70" />
-            <div className="mb-2 flex items-center justify-between px-1">
-              <span className="text-[13px] font-semibold text-muted">{label}</span>
-              <IconButton label="Close" onClick={onClose}><CloseIcon /></IconButton>
+            <div className="mb-2 flex items-center justify-between gap-3 px-1">
+              <span className="text-[15px] font-semibold text-ink">{label}</span>
+              <button type="button" onClick={onClose} className="mobile-sheet-done rounded-md px-2 font-semibold text-accent">Done</button>
             </div>
-          </>
+          </div>
         ) : null}
         {children}
       </div>
@@ -157,22 +179,65 @@ export function Popover({ anchor, onClose, label, children, width = 300 }: Popov
 }
 
 export function Modal({ label, onClose, children, wide = false }: { label: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
-  const ref = useFocusTrap(true, onClose);
-  return (
-    <div className="scrim fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:p-8">
-      <div className="fixed inset-0" onPointerDown={onClose} aria-hidden="true" />
+  const close = (): void => {
+    if (ref.current?.contains(document.activeElement)) (document.activeElement as HTMLElement | null)?.blur();
+    onClose();
+  };
+  const ref = useFocusTrap(true, close);
+  const [viewportStyle, setViewportStyle] = useState<React.CSSProperties>({});
+
+  useEffect(() => {
+    if (modalScrollLocks === 0) {
+      bodyOverflowBeforeModal = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+    }
+    modalScrollLocks += 1;
+    return () => {
+      modalScrollLocks -= 1;
+      if (modalScrollLocks === 0) document.body.style.overflow = bodyOverflowBeforeModal;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const update = () => {
+      if (window.innerWidth >= 620) {
+        setViewportStyle({});
+        return;
+      }
+      const viewport = window.visualViewport;
+      setViewportStyle({
+        '--overlay-visible-height': `${viewport?.height ?? window.innerHeight}px`,
+        '--overlay-offset-top': `${viewport?.offsetTop ?? 0}px`,
+      } as React.CSSProperties);
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
+    };
+  }, []);
+
+  const content = (
+    <div className="mobile-modal-root scrim fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:p-8" style={viewportStyle}>
+      <div className="fixed inset-0" onPointerDown={close} aria-hidden="true" />
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
-        className={`pop-in relative z-10 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]`}
+        className={`mobile-modal-panel pop-in relative z-10 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]`}
       >
         {children}
       </div>
     </div>
   );
+  // Nested dialogs must not inherit a transformed editor's containing block.
+  return typeof document === 'undefined' ? content : createPortal(content, document.body);
 }
 
 export function IconButton({
@@ -406,10 +471,10 @@ export function Chip({
     danger: 'border-transparent bg-danger-soft text-danger',
   } as const;
   const content = (
-    <span className={`inline-flex h-[22px] items-center gap-1 rounded-full border px-2 text-[12px] leading-none ${tones[tone]}`}>
+    <span className={`${removable ? 'removable-chip ' : ''}inline-flex h-[22px] items-center gap-1 rounded-full border px-2 text-[12px] leading-none ${tones[tone]}`}>
       {children}
       {removable ? (
-        <button type="button" aria-label={`Remove ${label ?? 'item'}`} onClick={onRemove} className="ml-0.5 opacity-70 hover:opacity-100">
+        <button type="button" aria-label={`Remove ${label ?? 'item'}`} onClick={onRemove} className="chip-remove ml-0.5 opacity-70 hover:opacity-100">
           <CloseIcon size={11} />
         </button>
       ) : null}

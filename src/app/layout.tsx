@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import '../ui/mobile-shell.css';
+import '../ui/mobile-lists.css';
+import '../ui/mobile-overlays.css';
 
 export const metadata: Metadata = {
   title: 'ToDone',

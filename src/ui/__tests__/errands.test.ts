@@ -64,14 +64,20 @@ describe('errands screen and paper integration', () => {
     expect(expanded).toContain('✓');
   });
 
-  it('keeps route controls available under alphabetical sort on desktop and phone', () => {
+  it('keeps route ordering under alphabetical sort and defers phone handles to Arrange mode', () => {
     h.db.settings.listSorts = { allTasks: 'alphabetical' };
     for (const phone of [false, true]) {
       mocks.phone = phone;
       const markup = render('allTasks');
       expect(markup.indexOf(`data-id="${first}"`)).toBeLessThan(markup.indexOf(`data-id="${second}"`));
-      expect(markup.match(/aria-label="Drag to reorder; use up and down arrow keys to move"/g)).toHaveLength(2);
-      expect(markup).toContain('Sort applies to other tasks');
+      if (phone) {
+        expect(markup).toContain('aria-label="View options"');
+        expect(markup).not.toContain('aria-label="Drag to reorder');
+        expect(markup).toContain('data-order-group="errands:allTasks::errands"');
+      } else {
+        expect(markup.match(/aria-label="Drag to reorder; use up and down arrow keys to move"/g)).toHaveLength(2);
+        expect(markup).toContain('Sort applies to other tasks');
+      }
     }
   });
 

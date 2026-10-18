@@ -3,6 +3,8 @@ import packageJson from './package.json';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Keep framework chrome from covering the phone's bottom navigation during QA.
+  devIndicators: false,
   // Embed one timestamp for the whole build so server and client render the same value.
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,

@@ -1,0 +1,308 @@
+/* The phone list is a quiet reading surface. Editing controls appear only when
+ * requested; desktop rows and every existing ordering scope remain unchanged. */
+@media screen and (max-width: 619px) {
+  .task-list {
+    padding-top: 0;
+    padding-bottom: 28px;
+  }
+
+  .mobile-list-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 52px;
+    margin: 0 0 6px;
+    padding: 0 2px;
+  }
+
+  .mobile-list-toolbar button {
+    font-size: 14px;
+    border-radius: 12px;
+  }
+
+  .mobile-list-toolbar .task-tag-filter > button:first-child {
+    gap: 7px;
+    padding-inline: 11px;
+  }
+
+  .mobile-list-mode-label {
+    flex: 1;
+    padding-inline: 10px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .mobile-list-mode-hint,
+  .list-order-hint {
+    margin: 0 0 8px;
+    padding-inline: 12px;
+    color: var(--text-faint);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .row.task-row {
+    gap: 5px;
+    min-height: 62px;
+    padding: 9px 7px 11px 0;
+    border-radius: 12px;
+  }
+
+  .task-row::after,
+  .project-row::after {
+    position: absolute;
+    right: 8px;
+    bottom: 0;
+    left: 49px;
+    height: 1px;
+    background: color-mix(in srgb, var(--border) 65%, transparent);
+    content: '';
+    pointer-events: none;
+  }
+
+  .task-row:last-child::after,
+  .project-row:last-child::after {
+    display: none;
+  }
+
+  .task-row > [role='checkbox'],
+  .task-select-control {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    margin: -4px 0 0;
+  }
+
+  .task-row > [role='checkbox'] .check-box {
+    width: 23px;
+    height: 23px;
+    border-radius: 8px;
+  }
+
+  .task-row-content {
+    padding-top: 5px;
+    padding-bottom: 3px;
+  }
+
+  .task-title-line {
+    gap: 3px 7px;
+  }
+
+  .task-title {
+    font-size: 17px;
+    line-height: 1.32;
+    letter-spacing: -0.015em;
+    overflow-wrap: anywhere;
+  }
+
+  .task-title-line > svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .task-metadata {
+    gap: 4px 8px;
+    margin-top: 5px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .task-metadata > span,
+  .task-metadata .task-pill {
+    font-size: 13px;
+  }
+
+  .task-metadata .task-pill {
+    min-height: 21px;
+    height: auto;
+    padding: 2px 5px;
+    border-radius: 5px;
+    line-height: 1.2;
+  }
+
+  .task-tag {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .task-tag > span {
+    height: auto;
+    min-height: 21px;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    box-shadow: none;
+  }
+
+  .row.project-row {
+    position: relative;
+    gap: 10px;
+    min-height: 66px;
+    padding: 9px 9px 9px 13px;
+    flex-wrap: wrap;
+  }
+
+  .project-title {
+    font-size: 17px;
+    line-height: 1.35;
+  }
+
+  .project-row > span:not(.project-title) {
+    font-size: 12px;
+  }
+
+  .calendar-event-row {
+    min-height: 44px;
+    padding-inline: 13px;
+  }
+
+  .calendar-event-row > span:nth-child(2) {
+    font-size: 15px;
+  }
+
+  .list-section-header {
+    margin-top: 24px;
+    margin-bottom: 1px;
+    padding-inline: 12px 4px;
+    min-height: 40px;
+    gap: 8px;
+  }
+
+  .list-section-header h2 {
+    font-size: 13px;
+    line-height: 1.3;
+    letter-spacing: 0.025em;
+  }
+
+  .list-section-header > span[aria-hidden='true'].flex-1 {
+    background: transparent;
+  }
+
+  .inline-add-task {
+    min-height: 52px;
+    gap: 16px;
+    margin-top: 2px;
+    padding-inline: 11px;
+    font-size: 15px;
+    color: var(--accent);
+  }
+
+  .inline-add-task > span {
+    border: 0;
+  }
+
+  .inline-add-task > span > svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mobile-list-options {
+    padding: 4px;
+  }
+
+  .mobile-list-options > button {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 8px;
+    border-radius: 10px;
+    text-align: left;
+    font-size: 15px;
+  }
+
+  .mobile-list-options > button:active {
+    background: var(--surface-2);
+  }
+
+  .mobile-list-options button:disabled {
+    opacity: 0.45;
+  }
+
+  .mobile-list-options .list-sort-control {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+    padding: 5px 8px 13px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .mobile-list-options .list-sort-control select,
+  .mobile-print-date-label input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: 44px;
+    padding-inline: 10px;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+
+  .mobile-print-options {
+    margin-top: 7px;
+    padding: 13px 8px 5px;
+    border-top: 1px solid var(--border);
+  }
+
+  .mobile-print-options h3 {
+    margin: 0 0 6px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .mobile-print-options > label {
+    gap: 9px;
+    font-size: 14px;
+  }
+
+  .mobile-print-date-label {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mobile-print-options > button {
+    margin-top: 4px;
+  }
+
+  .list-selection-bar {
+    position: fixed;
+    right: 12px;
+    bottom: calc(var(--mobile-nav-height, 72px) + 8px);
+    left: 12px;
+    width: auto;
+    padding: 7px;
+    gap: 2px;
+    justify-content: space-between;
+    border-radius: 18px;
+  }
+
+  .list-selection-bar .selection-count {
+    width: 100%;
+    padding: 3px 8px;
+    background: transparent;
+    font-size: 12px;
+  }
+
+  .list-selection-bar > button {
+    padding-inline: 8px;
+    font-size: 13px;
+  }
+
+  .task-list[data-mobile-mode='select'] {
+    padding-bottom: 120px;
+  }
+}
