@@ -1051,7 +1051,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const areaFilterControl = supportsAreaFilter ? (
     <label className="flex min-h-11 items-center gap-2 px-2 text-sm text-muted">
       <input type="checkbox" checked={areaFilterActive} onChange={(event) => setNoArea(event.target.checked)} className="h-5 w-5" />
-      No area
+      <span>No area<span className="block text-xs text-faint">Not filed in an area or project</span></span>
     </label>
   ) : null;
   const sortControl = !['logbook', 'trash'].includes(doc.view) ? isPhone ? (
