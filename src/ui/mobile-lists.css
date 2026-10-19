@@ -207,6 +207,35 @@
     padding: 4px;
   }
 
+  .mobile-sort-choices {
+    border: 0;
+    border-block: 1px solid var(--border);
+    margin-block: 8px;
+    padding: 10px 8px;
+    min-width: 0;
+  }
+
+  .mobile-sort-choices legend {
+    padding-inline: 4px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .mobile-sort-choices label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .mobile-sort-choices input {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+  }
+
   .mobile-list-options > button {
     display: flex;
     align-items: center;

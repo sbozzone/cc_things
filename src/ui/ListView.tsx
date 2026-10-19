@@ -27,6 +27,21 @@ import { TagDot } from './TagColor';
 import { priorities, sortDocument, type ListSort } from '@/core/list-order';
 import { balancedColumnSplit, needsBalancedColumns, upcomingItemsForDate } from '@/core/upcoming-print';
 import { byRank } from '@/core/rank';
+import { withoutAreaDocument } from '@/core/area-filter';
+
+const sortChoices: { value: ListSort; label: string }[] = [
+  { value: 'manual', label: 'Manual order' },
+  { value: 'alphabetical', label: 'Alphabetical (A–Z)' },
+  { value: 'alphabeticalDesc', label: 'Alphabetical (Z–A)' },
+  { value: 'due', label: 'Due date (earliest first)' },
+  { value: 'dueDesc', label: 'Due date (latest first)' },
+  { value: 'created', label: 'Created date (newest first)' },
+  { value: 'createdAsc', label: 'Created date (oldest first)' },
+  { value: 'priority', label: 'Priority (highest first)' },
+  { value: 'priorityDesc', label: 'Priority (lowest first)' },
+  { value: 'tags', label: 'Tags (A–Z)' },
+  { value: 'tagsDesc', label: 'Tags (Z–A)' },
+];
 
 /** Row currently being dragged. Drag is an accelerator; every move has a menu equivalent (R26). */
 let dragSource: { id: string; sectionId: string } | null = null;
@@ -919,7 +934,10 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const indexes = useIndexes();
   const tagFilter = useApp((s) => s.tagFilter);
   const sort = db.settings.listSorts?.[sourceDoc.view] ?? (sourceDoc.view.startsWith('saved:') ? 'alphabetical' : 'manual');
-  const doc = useMemo(() => groupErrandsDocument(sortDocument(sourceDoc, sort, (tagId) => tagPath(db, tagId))), [sourceDoc, sort, db]);
+  const [noArea, setNoArea] = useState(false);
+  const supportsAreaFilter = sourceDoc.view === 'today' || sourceDoc.view === 'allTasks';
+  const areaFilterActive = supportsAreaFilter && noArea;
+  const doc = useMemo(() => groupErrandsDocument(sortDocument(areaFilterActive ? withoutAreaDocument(db, sourceDoc) : sourceDoc, sort, (tagId) => tagPath(db, tagId))), [sourceDoc, sort, db, areaFilterActive]);
   const canOrder = sort === 'manual' && !doc.view.startsWith('saved:') && !['upcoming', 'logbook', 'trash', 'review', 'allTasks'].includes(doc.view);
   const errandsView = isErrandsOrderingView(doc.view);
   const hasErrands = errandsView && doc.sections.some((section) => section.items.some((item) => item.kind === 'task' && isErrandTask(item.task)));
@@ -946,6 +964,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   useEffect(() => {
     setMobileMode('browse');
     setOptionsAnchor(null);
+    setNoArea(false);
   }, [doc.view]);
 
   useEffect(() => {
@@ -1028,11 +1047,27 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const activeMobileMode: MobileListMode = selection.length > 0 ? 'select' : mobileMode;
   const hasTaskRows = doc.sections.some((section) => section.items.some((item) =>
     item.kind === 'task' || (item.kind === 'project' && (item.children?.length ?? 0) > 0)));
-  const sortControl = !['logbook', 'trash'].includes(doc.view) ? (
+  const changeSort = (value: ListSort) => actions.updateSettings({ listSorts: { ...db.settings.listSorts, [doc.view]: value } });
+  const areaFilterControl = supportsAreaFilter ? (
+    <label className="flex min-h-11 items-center gap-2 px-2 text-sm text-muted">
+      <input type="checkbox" checked={areaFilterActive} onChange={(event) => setNoArea(event.target.checked)} className="h-5 w-5" />
+      No area
+    </label>
+  ) : null;
+  const sortControl = !['logbook', 'trash'].includes(doc.view) ? isPhone ? (
+    <fieldset className="mobile-sort-choices">
+      <legend>Sort</legend>
+      {sortChoices.map((choice) => <label key={choice.value}>
+        <input type="radio" name="list-sort" value={choice.value} checked={sort === choice.value}
+          onChange={() => changeSort(choice.value)} />
+        <span>{choice.label}</span>
+      </label>)}
+    </fieldset>
+  ) : (
     <label className="list-sort-control flex items-center gap-1.5 text-[12.5px] text-muted">
       <span className={isPhone ? '' : 'sr-only sm:not-sr-only'}>Sort</span>
       <select aria-label="Sort items" className="h-8 max-w-[200px] rounded-md border border-line bg-surface px-2 text-[12.5px] text-ink shadow-[var(--shadow-card)]" value={sort}
-        onChange={(e) => actions.updateSettings({ listSorts: { ...db.settings.listSorts, [doc.view]: e.target.value as ListSort } })}>
+        onChange={(e) => changeSort(e.target.value as ListSort)}>
         <option value="manual">Manual order</option>
         <option value="alphabetical">Alphabetical (A–Z)</option>
         <option value="alphabeticalDesc">Alphabetical (Z–A)</option>
@@ -1103,6 +1138,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
                   view={doc.view} expandPrintChecklists={expandPrintChecklists}
                   onExpandPrintChecklistsChange={setExpandPrintChecklists} hidePrintControls /> : null}
                 <span className="flex-1" />
+                {areaFilterActive ? <Button size="sm" variant="secondary" onClick={() => setNoArea(false)}>No area ×</Button> : null}
                 {hasTaskRows ? <Button size="sm" variant="ghost" onClick={() => setMobileMode('select')}>Select</Button> : null}
                 <IconButton label="View options" onClick={(event) => setOptionsAnchor(event.currentTarget)}><MoreIcon size={20} /></IconButton>
               </>
@@ -1127,10 +1163,12 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
             </Button>
           ) : null}
           {sortControl}
+          {areaFilterControl}
         </div>}
         {isPhone && optionsAnchor ? (
           <Popover anchor={optionsAnchor} onClose={() => setOptionsAnchor(null)} label="View options" width={320}>
             <div className="mobile-list-options">
+              {areaFilterControl}
               {sortControl}
               {hasTaskRows ? <button type="button" onClick={() => { setMobileMode('select'); setOptionsAnchor(null); }}><ChecklistIcon size={17} />Select tasks</button> : null}
               {(canOrder || hasErrands) && !isEmpty ? <button type="button" onClick={() => { clearSelection(); setMobileMode('arrange'); setOptionsAnchor(null); }}><span aria-hidden="true">⠿</span>{canOrder ? 'Arrange list' : 'Arrange errands'}</button> : null}
