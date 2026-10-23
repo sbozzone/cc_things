@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { byRank } from '@/core/rank';
+import { checklistDropTarget } from '@/core/checklist-drop';
 import { formatDateLabel } from '@/core/dates';
 import { tagPath } from '@/core/tags';
 import { getErrandsTag, isErrandTitle } from '@/core/errands';
@@ -9,7 +10,7 @@ import { describeRule } from '@/core/recurrence';
 import type { Task } from '@/core/types';
 import { useApp } from '@/state/store';
 import * as actions from '@/state/actions';
-import { AutoTextarea, Button, Chip, IconButton, StatusControl } from './primitives';
+import { AutoTextarea, Button, Chip, IconButton, Popover, StatusControl } from './primitives';
 import { Markdown } from './Markdown';
 import { DeadlinePopover } from './DatePopover';
 import { MovePicker, TagPicker } from './Pickers';
@@ -43,6 +44,8 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
   const [titleDraft, setTitleDraft] = useState(task.title);
   const titleRef = useRef<HTMLDivElement | null>(null);
   const checklistRef = useRef<HTMLUListElement | null>(null);
+  const suppressChecklistClick = useRef(false);
+  const [checklistMove, setChecklistMove] = useState<{ id: string; anchor: HTMLElement } | null>(null);
   const checklistDrag = useRef<{
     sourceId: string;
     startY: number;
@@ -105,6 +108,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
 
   const finishChecklistDrag = (cancel = false) => {
     const current = checklistDrag.current;
+    if (current?.moved) suppressChecklistClick.current = true;
     checklistDrag.current = null;
     setChecklistDrop(null);
     setChecklistDragHint('');
@@ -234,14 +238,19 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
               <button
                 type="button"
                 aria-label={`Reorder checklist row ${index + 1}: ${item.text || 'Untitled row'}. Drag or use the up and down arrow keys.`}
-                title="Drag to reorder"
+                title="Drag to reorder or tap for move options"
                 className="checklist-reorder-handle absolute -left-11 top-1/2 flex h-11 w-11 min-[620px]:-translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-lg text-[18px] leading-none text-faint hover:bg-surface-2 active:cursor-grabbing"
-                onClick={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (suppressChecklistClick.current) { suppressChecklistClick.current = false; return; }
+                  setChecklistMove({ id: item.id, anchor: event.currentTarget });
+                }}
                 onDragStart={(event) => event.preventDefault()}
                 onPointerDown={(event) => {
                   if (event.button !== 0) return;
                   event.preventDefault();
                   event.stopPropagation();
+                  suppressChecklistClick.current = false;
                   event.currentTarget.setPointerCapture(event.pointerId);
                   checklistDrag.current = {
                     sourceId: item.id,
@@ -259,28 +268,26 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
                   event.preventDefault();
 
                   const rows = Array.from(checklistRef.current?.querySelectorAll<HTMLElement>('[data-checklist-id]') ?? []);
-                  let target: HTMLElement | null = null;
-                  let nearest = Number.POSITIVE_INFINITY;
-                  for (const row of rows) {
+                  const drop = checklistDropTarget(rows.map((row) => {
                     const rect = row.getBoundingClientRect();
-                    const distance = Math.abs(event.clientY - (rect.top + rect.height / 2));
-                    if (distance < nearest) {
-                      nearest = distance;
-                      target = row;
-                    }
-                  }
-                  if (!target) return;
-                  const rect = target.getBoundingClientRect();
-                  const targetId = target.dataset.checklistId;
-                  if (!targetId) return;
-                  const side = event.clientY > rect.top + rect.height / 2 ? 'after' : 'before';
+                    return { id: row.dataset.checklistId!, top: rect.top, height: rect.height };
+                  }), current.sourceId, event.clientY);
+                  if (!drop) return;
+                  const { targetId, side } = drop;
                   current.targetId = targetId;
                   current.side = side;
                   setChecklistDrop({ targetId, side });
                   const targetItem = checklist.find((row) => row.id === targetId);
                   setChecklistDragHint(`${side === 'after' ? 'After' : 'Before'} ${targetItem?.text || 'checklist row'}`);
-                  if (event.clientY < 90 || event.clientY > window.innerHeight - 100) {
-                    target.scrollIntoView({ block: 'center', behavior: 'auto' });
+                  // Scroll the actual sheet a small amount; centering a row moves
+                  // the drop target abruptly underneath a stationary finger.
+                  const panel = checklistRef.current?.closest<HTMLElement>('.mobile-modal-panel');
+                  if (panel && panel.scrollHeight > panel.clientHeight) {
+                    const bounds = panel.getBoundingClientRect();
+                    const top = Math.max(bounds.top + 90, 90);
+                    const bottom = Math.min(bounds.bottom, window.visualViewport?.height ?? window.innerHeight) - 60;
+                    const step = event.clientY < top ? -6 : event.clientY > bottom ? 6 : 0;
+                    if (step) panel.scrollBy({ top: step, behavior: 'instant' });
                   }
                 }}
                 onPointerUp={() => finishChecklistDrag(false)}
@@ -504,6 +511,19 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
           value={task.deadline}
           onChange={(value) => actions.applyDeadline([task.id], value)}
         />
+      ) : null}
+      {checklistMove ? (
+        <Popover anchor={checklistMove.anchor} onClose={() => setChecklistMove(null)} label="Move checklist item">
+          <p className="px-2 py-1 text-sm text-muted">{checklist.find((row) => row.id === checklistMove.id)?.text}</p>
+          <div className="flex flex-col gap-1">
+            <button type="button" className="min-h-11 rounded-md px-3 text-left hover:bg-surface-2 disabled:opacity-40"
+              disabled={checklist[0]?.id === checklistMove.id}
+              onClick={() => { moveChecklistItem(checklistMove.id, -1); setChecklistMove(null); }}>Move up</button>
+            <button type="button" className="min-h-11 rounded-md px-3 text-left hover:bg-surface-2 disabled:opacity-40"
+              disabled={checklist[checklist.length - 1]?.id === checklistMove.id}
+              onClick={() => { moveChecklistItem(checklistMove.id, 1); setChecklistMove(null); }}>Move down</button>
+          </div>
+        </Popover>
       ) : null}
       {popover === 'move' ? (
         <MovePicker
