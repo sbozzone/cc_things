@@ -5,7 +5,7 @@
  * without a network. API routes are never cached — stale sync or auth responses would be
  * worse than an honest failure the app already knows how to handle.
  */
-const VERSION = 'todone-v0.8.4';
+const VERSION = 'todone-v0.8.5';
 const SHELL = `${VERSION}-shell`;
 const ASSETS = `${VERSION}-assets`;
 

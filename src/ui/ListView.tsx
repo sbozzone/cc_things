@@ -679,7 +679,7 @@ function HeadingMenu({ headingId, title }: { headingId: string; title: string })
   );
 }
 
-function SectionHeader({ section, onAdd, onPrint }: { section: ListSection; onAdd: () => void; onPrint?: () => void }) {
+function SectionHeader({ section, onAdd, onPrint, collapsed, onToggle }: { section: ListSection; onAdd: () => void; onPrint?: () => void; collapsed?: boolean; onToggle?: () => void }) {
   if (!section.title) return null;
   const isHeading = section.id.startsWith('heading:');
   return (
@@ -694,7 +694,12 @@ function SectionHeader({ section, onAdd, onPrint }: { section: ListSection; onAd
             : 'text-[11.5px] font-bold uppercase tracking-[0.1em] text-faint'
         }
       >
-        {section.title}
+        {onToggle ? <button type="button" onClick={onToggle} aria-expanded={!collapsed}
+          aria-label={`${collapsed ? 'Expand' : 'Collapse'} Errands`}
+          className="flex min-h-11 items-center gap-2 text-left">
+          <span aria-hidden="true" className={collapsed ? '' : 'rotate-90'}><ChevronIcon size={15} /></span>
+          {section.title}<span className="text-xs font-normal normal-case tracking-normal">({section.items.length})</span>
+        </button> : section.title}
       </h2>
       {section.subtitle ? <span className="text-[12px] text-faint">{section.subtitle}</span> : null}
       <span className="h-px flex-1 bg-line" aria-hidden="true" />
@@ -954,6 +959,18 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [mobileMode, setMobileMode] = useState<MobileListMode>('browse');
   const [optionsAnchor, setOptionsAnchor] = useState<HTMLElement | null>(null);
+  const [errandsCollapsed, setErrandsCollapsed] = useState(false);
+  const errandsPreferenceKey = `todone:errands-collapsed:${db.settings.ownerId}:${sourceDoc.view}`;
+  useEffect(() => {
+    try { setErrandsCollapsed(localStorage.getItem(errandsPreferenceKey) === 'true'); }
+    catch { setErrandsCollapsed(false); }
+  }, [errandsPreferenceKey]);
+  const toggleErrands = () => {
+    const next = !errandsCollapsed;
+    setErrandsCollapsed(next);
+    if (next) clearSelection();
+    try { localStorage.setItem(errandsPreferenceKey, String(next)); } catch { /* Storage may be unavailable. */ }
+  };
   const printRef = useRef<HTMLElement | null>(null);
   const selectedPrintItems = useMemo(() => chosenPrintDate ? upcomingItemsForDate(doc, chosenPrintDate) : [], [doc, chosenPrintDate]);
   const myDaySuggestions = useMemo(
@@ -1258,16 +1275,19 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
         {displaySections.map((section) => {
           if (section.items.length === 0 && composerSection !== section.id && !section.title && !(isPhone && section.addTarget)) return null;
           const orderedIds = orderedIdsBySection.get(section.id) ?? [];
+          const collapsibleErrands = section.id.startsWith('errands:');
+          const collapsed = collapsibleErrands && errandsCollapsed;
           return (
             <section key={section.id} aria-label={section.title ?? doc.title}>
               <SectionHeader section={section} onAdd={() => addTo(section)}
+                collapsed={collapsed} onToggle={collapsibleErrands ? toggleErrands : undefined}
                 onPrint={doc.view === 'upcoming' && section.id.startsWith('day:') && section.date && section.items.length > 0
                   ? () => printUpcomingDate(section.date!) : undefined} />
               <ul
                 role={section.isEventSection ? 'list' : 'listbox'}
                 aria-multiselectable={section.isEventSection ? undefined : true}
                 aria-label={section.title ?? doc.title}
-                className={section.isEventSection ? 'mb-2 border-b border-line pb-2' : ''}
+                className={`${section.isEventSection ? 'mb-2 border-b border-line pb-2' : ''} ${collapsed ? 'hidden print:block' : ''}`}
               >
                 {section.items.map((item) => {
                   if (item.kind === 'event') return <EventRow key={item.id} event={item.event} />;
