@@ -103,6 +103,17 @@ describe('phone list reading and selection modes', () => {
     expect(markup).not.toContain('aria-label="View options"');
   });
 
+  it('shows handles for ordinary tasks as well as errands in manual Upcoming and All Tasks', () => {
+    mocks.phone = false;
+    h.run(createTask(h.db, h.ctx(), { title: 'Second ordinary task', target: {
+      parentType: 'inbox', parentId: null, headingId: null, myDay: true,
+    } }));
+    for (const view of ['upcoming', 'allTasks'] as const) {
+      const markup = render(view);
+      expect(markup.match(/aria-label="Drag to reorder; use up and down arrow keys to move"/g)).toHaveLength(4);
+    }
+  });
+
   it('reveals only errand handles in Arrange mode under automatic sorting', () => {
     mocks.mode = 'arrange';
     h.db.settings.listSorts = { allTasks: 'alphabetical' };

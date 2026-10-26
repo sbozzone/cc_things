@@ -943,7 +943,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const supportsAreaFilter = sourceDoc.view === 'today' || sourceDoc.view === 'allTasks';
   const areaFilterActive = supportsAreaFilter && noArea;
   const doc = useMemo(() => groupErrandsDocument(sortDocument(areaFilterActive ? withoutAreaDocument(db, sourceDoc) : sourceDoc, sort, (tagId) => tagPath(db, tagId))), [sourceDoc, sort, db, areaFilterActive]);
-  const canOrder = sort === 'manual' && !doc.view.startsWith('saved:') && !['upcoming', 'logbook', 'trash', 'review', 'allTasks'].includes(doc.view);
+  const canOrder = sort === 'manual' && !doc.view.startsWith('saved:') && !['logbook', 'trash', 'review'].includes(doc.view);
   const errandsView = isErrandsOrderingView(doc.view);
   const hasErrands = errandsView && doc.sections.some((section) => section.items.some((item) => item.kind === 'task' && isErrandTask(item.task)));
   const isPhone = usePhone();
