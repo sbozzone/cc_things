@@ -15,6 +15,6 @@ export function withoutAreaDocument(db: Database, doc: ListDocument): ListDocume
     }),
   }));
   const openCount = sections.reduce((count, section) => count + section.items.reduce((n, item) =>
-    n + (item.kind === 'task' ? 1 : item.kind === 'project' ? item.children?.length ?? 0 : 0), 0), 0);
+    n + (item.kind === 'task' ? Number(item.task.status === 'open') : item.kind === 'project' ? item.children?.filter((child) => child.task.status === 'open').length ?? 0 : 0), 0), 0);
   return { ...doc, sections, openCount, filtered: true, emptyMessage: 'No unfiled tasks match this list.' };
 }

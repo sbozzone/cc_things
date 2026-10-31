@@ -7,7 +7,7 @@ import { emptyTagFilter, getSelectableTags, getTag, tagFilterActive, tagPath } f
 import { ERRANDS_TAG_ID, isErrandTask } from '@/core/errands';
 import { groupErrandsDocument, isErrandsOrderingView } from '@/core/errand-order';
 import { inToday } from '@/core/membership';
-import { contextLabelFor, suggestionsForMyDay, type AddTarget, type ListDocument, type ListItem, type ListSection } from '@/core/selectors';
+import { contextLabelFor, suggestionsForMyDay, supportsCompletedTasks, withCompletedTasks, type AddTarget, type ListDocument, type ListItem, type ListSection } from '@/core/selectors';
 import type { CalendarEvent, ItemOrderScope, Project, Task } from '@/core/types';
 import { useApp, useIndexes } from '@/state/store';
 import * as actions from '@/state/actions';
@@ -940,9 +940,19 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const tagFilter = useApp((s) => s.tagFilter);
   const sort = db.settings.listSorts?.[sourceDoc.view] ?? (sourceDoc.view.startsWith('saved:') ? 'alphabetical' : 'manual');
   const [noArea, setNoArea] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const completedPreferenceKey = `todone:show-completed:${db.settings.ownerId}:${sourceDoc.view}`;
+  useEffect(() => {
+    try { setShowCompleted(localStorage.getItem(completedPreferenceKey) === 'true'); }
+    catch { setShowCompleted(false); }
+  }, [completedPreferenceKey]);
   const supportsAreaFilter = sourceDoc.view === 'today' || sourceDoc.view === 'allTasks';
   const areaFilterActive = supportsAreaFilter && noArea;
-  const doc = useMemo(() => groupErrandsDocument(sortDocument(areaFilterActive ? withoutAreaDocument(db, sourceDoc) : sourceDoc, sort, (tagId) => tagPath(db, tagId))), [sourceDoc, sort, db, areaFilterActive]);
+  const doc = useMemo(() => {
+    let result = groupErrandsDocument(sortDocument(sourceDoc, sort, (tagId) => tagPath(db, tagId)));
+    if (showCompleted) result = withCompletedTasks(db, indexes, result, { tagFilter });
+    return areaFilterActive ? withoutAreaDocument(db, result) : result;
+  }, [sourceDoc, sort, db, areaFilterActive, showCompleted, indexes, tagFilter]);
   const canOrder = sort === 'manual' && !doc.view.startsWith('saved:') && !['logbook', 'trash', 'review'].includes(doc.view);
   const errandsView = isErrandsOrderingView(doc.view);
   const hasErrands = errandsView && doc.sections.some((section) => section.items.some((item) => item.kind === 'task' && isErrandTask(item.task)));
@@ -1065,6 +1075,18 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
   const hasTaskRows = doc.sections.some((section) => section.items.some((item) =>
     item.kind === 'task' || (item.kind === 'project' && (item.children?.length ?? 0) > 0)));
   const changeSort = (value: ListSort) => actions.updateSettings({ listSorts: { ...db.settings.listSorts, [doc.view]: value } });
+  const completedControl = supportsCompletedTasks(doc.view) ? (
+    <label className="flex min-h-11 items-center gap-2 px-2 text-sm text-muted">
+      <input type="checkbox" checked={showCompleted} className="h-5 w-5"
+        onChange={(event) => {
+          const next = event.target.checked;
+          setShowCompleted(next);
+          clearSelection();
+          try { localStorage.setItem(completedPreferenceKey, String(next)); } catch { /* Optional device preference. */ }
+        }} />
+      Show completed tasks
+    </label>
+  ) : null;
   const areaFilterControl = supportsAreaFilter ? (
     <label className="flex min-h-11 items-center gap-2 px-2 text-sm text-muted">
       <input type="checkbox" checked={areaFilterActive} onChange={(event) => setNoArea(event.target.checked)} className="h-5 w-5" />
@@ -1181,10 +1203,12 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
           ) : null}
           {sortControl}
           {areaFilterControl}
+          {completedControl}
         </div>}
         {isPhone && optionsAnchor ? (
           <Popover anchor={optionsAnchor} onClose={() => setOptionsAnchor(null)} label="View options" width={320}>
             <div className="mobile-list-options">
+              {completedControl}
               {areaFilterControl}
               {sortControl}
               {hasTaskRows ? <button type="button" onClick={() => { setMobileMode('select'); setOptionsAnchor(null); }}><ChecklistIcon size={17} />Select tasks</button> : null}
@@ -1343,7 +1367,7 @@ export function ListView({ doc: sourceDoc }: { doc: ListDocument }) {
                       myDayView={doc.view === 'today'}
                       isPhone={isPhone}
                       mobileMode={activeMobileMode}
-                      canOrder={errand || canOrder}
+                      canOrder={item.task.status === 'open' && (errand || canOrder)}
                     />
                   );
                 })}

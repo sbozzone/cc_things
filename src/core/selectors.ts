@@ -6,7 +6,7 @@ import {
 } from './membership';
 import { buildTagIndex, effectiveProjectTags, effectiveTaskTags, emptyTagFilter, getTag, matchesTagFilter, tagFilterActive, type TagFilter, type TagIndex } from './tags';
 import { ERRANDS_TAG_ID } from './errands';
-import { addDays, formatDateLabel, monthName, weekdayName } from './dates';
+import { addDays, formatDateLabel, monthName, weekdayName, todayIn } from './dates';
 import { resolveSectionDate } from './quick-add';
 import { evaluateSmartList, SMART_LISTS } from './smart-lists';
 import type {
@@ -1099,6 +1099,38 @@ export function runView(db: Database, ix: Indexes, view: ViewKey, opts: QueryOpt
     case 'smart:priority': return smartListView(db, ix, 'priority', opts);
     default: return inboxView(db, ix, opts);
   }
+}
+
+export function supportsCompletedTasks(view: ViewKey): boolean {
+  return ['inbox', 'today', 'upcoming', 'allTasks'].includes(view) ||
+    view.startsWith('project:') || view.startsWith('area:') || view.startsWith('tag:') || view.startsWith('saved:');
+}
+
+/** Include history without changing normal membership, ranks, or open-task counts. */
+export function withCompletedTasks(db: Database, ix: Indexes, document: ListDocument, opts: QueryOptions = {}): ListDocument {
+  const view = document.view;
+  if (!supportsCompletedTasks(view)) return document;
+  const visible = new Set(document.sections.flatMap((section) => section.items.flatMap((item) =>
+    item.kind === 'task' ? [item.task.id] : item.kind === 'project' ? item.children?.map((child) => child.task.id) ?? [] : [])));
+  const tasks = liveTasks(db).filter((task) => {
+    if (task.status !== 'completed' || visible.has(task.id) || !passesFilter(db, ix, opts, task)) return false;
+    if (view === 'allTasks') return true;
+    if (view === 'inbox') return task.parentType === 'inbox' && !task.processed;
+    if (view === 'today') return Boolean(task.completedAt &&
+      todayIn(db.settings.planningTimeZone, Date.parse(task.completedAt)) === ix.today &&
+      inToday({ ...task, status: 'open' }, projectOf(db, task), ix.today));
+    if (view === 'upcoming') return Boolean((task.deadline && task.deadline >= ix.today) || (task.startDate && task.startDate > ix.today));
+    if (view.startsWith('project:')) return task.parentType === 'project' && task.parentId === view.slice(8);
+    if (view.startsWith('area:')) return task.parentType === 'area' ? task.parentId === view.slice(5) : projectOf(db, task)?.areaId === view.slice(5);
+    if (view.startsWith('tag:')) return passesFilter(db, ix, { tagFilter: { mode: 'include', tagIds: [view.slice(4)], untagged: false } }, task);
+    const saved = db.settings.savedViews?.find((item) => item.id === view.slice(6));
+    return Boolean(saved && passesFilter(db, ix, { tagFilter: saved.tagFilter }, task) && matchesSavedSearch(task, ix, saved));
+  }).sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? '') || byRank(a, b));
+  if (!tasks.length) return document;
+  return { ...document, sections: [...document.sections, {
+    id: 'completed-tasks', title: `Completed (${tasks.length})`, subtitle: null, date: null, addTarget: null,
+    items: tasks.map((task) => ({ kind: 'task' as const, id: task.id, task, meta: taskMeta(db, ix, task) })),
+  }] };
 }
 
 /**
