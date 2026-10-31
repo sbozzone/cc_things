@@ -238,7 +238,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
               <button
                 type="button"
                 aria-label={`Reorder checklist row ${index + 1}: ${item.text || 'Untitled row'}. Drag or use the up and down arrow keys.`}
-                title="Drag to reorder or tap for move options"
+                title="Drag to reorder or tap for item actions"
                 className="checklist-reorder-handle absolute -left-11 top-1/2 flex h-11 w-11 min-[620px]:-translate-y-1/2 touch-none cursor-grab items-center justify-center rounded-lg text-[18px] leading-none text-faint hover:bg-surface-2 active:cursor-grabbing"
                 onClick={(event) => {
                   event.stopPropagation();
@@ -513,7 +513,7 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
         />
       ) : null}
       {checklistMove ? (
-        <Popover anchor={checklistMove.anchor} onClose={() => setChecklistMove(null)} label="Move checklist item">
+        <Popover anchor={checklistMove.anchor} onClose={() => setChecklistMove(null)} label="Checklist item">
           <p className="px-2 py-1 text-sm text-muted">{checklist.find((row) => row.id === checklistMove.id)?.text}</p>
           <div className="flex flex-col gap-1">
             <button type="button" className="min-h-11 rounded-md px-3 text-left hover:bg-surface-2 disabled:opacity-40"
@@ -522,6 +522,10 @@ export function TaskEditor({ task, onClose, embedded = false }: { task: Task; on
             <button type="button" className="min-h-11 rounded-md px-3 text-left hover:bg-surface-2 disabled:opacity-40"
               disabled={checklist[checklist.length - 1]?.id === checklistMove.id}
               onClick={() => { moveChecklistItem(checklistMove.id, 1); setChecklistMove(null); }}>Move down</button>
+            <button type="button" className="flex min-h-11 items-center gap-2 rounded-md border-t border-line px-3 text-left hover:bg-surface-2"
+              onClick={() => { actions.promoteChecklistItem(checklistMove.id); setChecklistMove(null); }}>
+              <PromoteIcon size={16} />Promote to task
+            </button>
           </div>
         </Popover>
       ) : null}

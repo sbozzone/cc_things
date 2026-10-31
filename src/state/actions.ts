@@ -192,6 +192,17 @@ export function reorderChecklistItem(id: string, beforeId: string | null, afterI
   state.dispatch(commands.reorderChecklistItem(state.db, state.ctx(), id, { beforeId, afterId }), { undoLabel: 'checklist' });
 }
 
+export function promoteChecklistItem(id: string): string | null {
+  const state = app();
+  const result = commands.checklistItemToTask(state.db, state.ctx(), id);
+  if (!result.id) return null;
+  state.dispatch(result.patches, {
+    undoLabel: 'promote checklist item',
+    toast: { message: 'Checklist item promoted to a task', tone: 'info', actionLabel: 'Undo', action: () => app().undo() },
+  });
+  return result.id;
+}
+
 /* ------------------------------------------------------------------ tags */
 
 export function toggleTag(targetType: 'task' | 'project' | 'area', targetId: string, tagId: string, next: boolean): void {

@@ -388,6 +388,32 @@ export function deleteChecklistItem(db: Database, ctx: WriteContext, id: string)
   return [update('checklistItems', id, { deletedAt: ctx.now }, ctx)];
 }
 
+/** Convert rather than copy: one undoable transaction creates the task and removes the row. */
+export function checklistItemToTask(db: Database, ctx: WriteContext, id: string): { patches: EntityPatch[]; id: string | null } {
+  const row = db.checklistItems[id];
+  const parent = row ? db.tasks[row.taskId] : null;
+  if (!row || row.deletedAt !== null || !row.text.trim() || !parent || parent.deletedAt !== null || parent.ownerId !== ctx.ownerId) {
+    return { patches: [], id: null };
+  }
+  const tagIds = Object.values(db.tagAssignments)
+    .filter((tag) => tag.deletedAt === null && tag.targetType === 'task' && tag.targetId === parent.id)
+    .map((tag) => tag.tagId);
+  const result = createTask(db, ctx, {
+    title: row.text, tagIds,
+    target: { parentType: parent.parentType, parentId: parent.parentId, headingId: parent.headingId,
+      planning: parent.planning, startDate: parent.startDate, myDay: parent.isInToday },
+  });
+  return { id: result.id, patches: [
+    ...result.patches,
+    update('tasks', result.id, {
+      title: row.text.trim(), deadline: parent.deadline, priority: parent.priority ?? null,
+      eveningDate: parent.eveningDate, processed: parent.processed,
+      status: row.checked ? 'completed' : 'open', completedAt: row.checked ? ctx.now : null,
+    }, ctx),
+    ...deleteChecklistItem(db, ctx, id),
+  ] };
+}
+
 export function reorderChecklistItem(
   db: Database, ctx: WriteContext, id: string,
   neighbours: { beforeId: string | null; afterId: string | null },
