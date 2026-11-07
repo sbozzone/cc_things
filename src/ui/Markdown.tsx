@@ -52,6 +52,22 @@ function renderBlock(block: Block, index: number): ReactNode {
     }
     case 'paragraph':
       return <p key={key} className="whitespace-pre-wrap">{renderInline(block.children, `${key}.`)}</p>;
+    case 'table':
+      return <div key={key} className="max-w-full overflow-x-auto rounded-md border border-line scroll-area">
+        <table className="w-full border-collapse text-[14px]">
+          <thead className="bg-surface-2">
+            <tr>{block.header.map((cell, column) => <th key={column} scope="col"
+              style={{ textAlign: block.align[column] }} className="whitespace-nowrap border-b border-line px-3 py-2 font-semibold">
+              {renderInline(cell, `${key}.h${column}.`)}
+            </th>)}</tr>
+          </thead>
+          <tbody>{block.rows.map((row, r) => <tr key={r} className="border-b border-line last:border-b-0">
+            {row.map((cell, column) => <td key={column} style={{ textAlign: block.align[column] }} className="px-3 py-2 align-top">
+              {renderInline(cell, `${key}.${r}.${column}.`)}
+            </td>)}
+          </tr>)}</tbody>
+        </table>
+      </div>;
     case 'quote':
       return (
         <blockquote key={key} className="border-l-2 border-line-strong pl-3 text-muted">

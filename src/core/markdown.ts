@@ -21,6 +21,7 @@ export type Block =
   | { type: 'quote'; children: Inline[] }
   | { type: 'codeBlock'; value: string }
   | { type: 'list'; ordered: boolean; items: Inline[][] }
+  | { type: 'table'; header: Inline[][]; align: ('left' | 'center' | 'right')[]; rows: Inline[][][] }
   /** Markdown task-list text renders as text; it never becomes a checklist record. */
   | { type: 'taskList'; items: { checked: boolean; children: Inline[] }[] };
 
@@ -115,6 +116,21 @@ export function parseInline(text: string): Inline[] {
   return out;
 }
 
+function tableCells(line: string): string[] {
+  const cells: string[] = [];
+  let cell = '';
+  const text = line.trim();
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '\\' && text[i + 1] === '|') { cell += '|'; i++; }
+    else if (text[i] === '|') { cells.push(cell.trim()); cell = ''; }
+    else cell += text[i];
+  }
+  cells.push(cell.trim());
+  if (text.startsWith('|')) cells.shift();
+  if (text.endsWith('|') && cells[cells.length - 1] === '') cells.pop();
+  return cells;
+}
+
 export function parseMarkdown(source: string): Block[] {
   const lines = source.replace(/\r\n?/g, '\n').split('\n');
   const blocks: Block[] = [];
@@ -139,6 +155,21 @@ export function parseMarkdown(source: string): Block[] {
         i += 1;
       }
       blocks.push({ type: 'codeBlock', value: body.join('\n') });
+      continue;
+    }
+
+    const header = tableCells(line);
+    const divider = i + 1 < lines.length ? tableCells(lines[i + 1]!) : [];
+    if (line.includes('|') && header.length > 0 && divider.length === header.length && divider.every((cell) => /^:?-{3,}:?$/.test(cell))) {
+      flushParagraph();
+      const align = divider.map((cell): 'left' | 'center' | 'right' => cell.endsWith(':') ? cell.startsWith(':') ? 'center' : 'right' : 'left');
+      const rows: Inline[][][] = [];
+      i++;
+      while (i + 1 < lines.length && lines[i + 1]!.trim() && lines[i + 1]!.includes('|')) {
+        const cells = tableCells(lines[++i]!);
+        rows.push(header.map((_, column) => parseInline(cells[column] ?? '')));
+      }
+      blocks.push({ type: 'table', header: header.map(parseInline), align, rows });
       continue;
     }
 
